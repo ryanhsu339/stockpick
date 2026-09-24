@@ -20,6 +20,7 @@ from __future__ import annotations
 import concurrent.futures
 import io
 import json
+import os
 import re
 import sqlite3
 import zipfile
@@ -669,11 +670,19 @@ _activity_summary_cache = None
 # just a cache (a full rebuild, not an incremental update), so
 # ACTIVITY_CACHE_TTL_HOURS controls how long a restart can reuse a
 # previous build before treating it as stale and rebuilding anyway.
-_CACHE_DB_PATH = Path(__file__).with_name("congress_cache.db")
+# Defaults to living next to this file for local dev. In production, set
+# CACHE_DIR to a mounted persistent-disk path (e.g. Render's "Disk" add-on)
+# -- a disk mount replaces whatever was already at that path in the
+# container image, so pointing this at the same directory as the deployed
+# source code would hide the code itself, not just add the cache file to
+# it. A separate directory, mounted only for this, avoids that entirely.
+_CACHE_DIR = Path(os.environ.get("CACHE_DIR", Path(__file__).parent))
+_CACHE_DB_PATH = _CACHE_DIR / "congress_cache.db"
 ACTIVITY_CACHE_TTL_HOURS = 24
 
 
 def _cache_db():
+    _CACHE_DIR.mkdir(parents=True, exist_ok=True)
     conn = sqlite3.connect(_CACHE_DB_PATH)
     conn.execute(
         "CREATE TABLE IF NOT EXISTS activity_summary ("
