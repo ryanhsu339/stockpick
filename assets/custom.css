@@ -1,0 +1,42 @@
+/* App theme: black page, light default text so unstyled elements
+   (labels, etc.) stay readable — section headers and body copy override
+   this per-element from Python where they need a specific color. */
+html, body {
+    background-color: #000000;
+    color: #e0e0e0;
+    margin: 0;
+}
+
+/* Ticker search typeahead: show the suggestions dropdown only while focus
+   is somewhere inside its wrapper (the input itself, or a suggestion
+   button mid-click) — hides on click-away, reappears on refocus, with no
+   JS needed. */
+.ticker-search-wrap #company-suggestions {
+    display: none;
+}
+.ticker-search-wrap:focus-within #company-suggestions {
+    display: block;
+}
+
+.manager-search-wrap #manager-suggestions {
+    display: none;
+}
+.manager-search-wrap:focus-within #manager-suggestions {
+    display: block;
+}
+
+/* Politician Tracker's two cross-chamber summary tables: the Member
+   column is click-to-select (see select_member_from_summary in
+   dash_app.py), which clears its own active-cell state right after
+   handling the click rather than leaving dash_table's default highlight
+   box in place -- this is the only visual affordance for "this is
+   clickable", so it needs to read as inviting on its own. */
+#recent-trades-table .dash-cell.column-0:hover,
+#congress-leaderboard-table .dash-cell.column-0:hover {
+    font-weight: bold;
+    cursor: pointer;
+    /* !important: Dash sets the member column's blue via an inline style
+       (style_cell_conditional), which otherwise beats any class-based
+       hover rule on specificity alone. */
+    color: #ffffff !important;
+}

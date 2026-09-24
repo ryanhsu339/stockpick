@@ -1,0 +1,15 @@
+# Python
+__pycache__/
+*.pyc
+
+# Runtime caches (rebuilt automatically; see congress_trades.py/company_growth_calc.py)
+congress_cache.db
+*.db
+
+# Downloaded CSVs from manual CLI runs of company_growth_calc.py
+*_growth_rates.csv
+
+# Local scratch / non-project files
+Semiconductor Notes.docx
+~$*
+*.tmp
