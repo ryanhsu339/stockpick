@@ -677,17 +677,17 @@ def build_dcf_banner(ticker, title, fair_value, current_price, growth_rate, disc
     )
 
 
-# Overall page theme: dark-grey-accented section headers, live light/dark
-# switching via the CSS variables in assets/custom.css -- these reference
-# them by name rather than a literal hex so every element styled through
-# them (nearly everything below) follows the current theme automatically,
-# with no Python-side re-render needed. See the two clientside callbacks
-# right after app.layout.
+# Overall page theme: dark-slate-blue-accented section headers, live
+# light/dark switching via the CSS variables in assets/custom.css --
+# these reference them by name rather than a literal hex so every
+# element styled through them (nearly everything below) follows the
+# current theme automatically, with no Python-side re-render needed.
+# See the two clientside callbacks right after app.layout.
 _HEADER_COLOR = "var(--header)"
 # Section-heading TEXT (H3s, "DCF Assumptions"/"Filters" labels, ...) --
 # deliberately NOT _HEADER_COLOR: that's a background (nav pills) that
-# stays the same dark grey in both themes, and grey text at that value
-# is illegible against a near-black dark-mode page. See --header-text
+# stays the same value in both themes, and that value as text is
+# illegible against a near-black dark-mode page. See --header-text
 # in assets/custom.css.
 _HEADER_TEXT_COLOR = "var(--header-text)"
 # The original theme-blue accent for the security/issuer identifier
@@ -712,8 +712,8 @@ _TABLE_HEADER_STYLE = {"fontWeight": "bold", "backgroundColor": "var(--table-hea
 
 # Compact pill-style nav bar (fits its content instead of stretching full
 # width) shared by the range picker and the statement-view tabs. Track is
-# the same dark grey as the section headers; the selected tab gets a
-# translucent white overlay rather than swapping to a different text
+# the same dark slate blue as the section headers; the selected tab gets
+# a translucent white overlay rather than swapping to a different text
 # color, so both selected and unselected labels stay white.
 _NAV_CONTAINER_STYLE = {
     "display": "inline-flex",
@@ -749,8 +749,14 @@ _NAV_TAB_HIDDEN_STYLE = {"display": "none"}
 
 # Top-level app nav (Public Company Tracker vs Investment Manager Tracker):
 # same pill treatment, just a little larger since it's the primary nav.
-_APP_TAB_STYLE = {**_NAV_TAB_STYLE, "padding": "10px 20px", "fontSize": "14px"}
-_APP_TAB_SELECTED_STYLE = {**_NAV_TAB_SELECTED_STYLE, "padding": "10px 20px", "fontSize": "14px"}
+# lineHeight pinned to a concrete px value (not left to each element's
+# own default "normal") so the theme-toggle button -- a real <button>,
+# with its own browser-default line-height/baseline metrics that don't
+# necessarily match a div-based tab pill even at identical padding and
+# font-size -- can match it exactly instead of sitting a few px off.
+_APP_TAB_STYLE = {**_NAV_TAB_STYLE, "padding": "6px 18px", "fontSize": "14px", "lineHeight": "20px"}
+_APP_TAB_SELECTED_STYLE = {**_NAV_TAB_SELECTED_STYLE, "padding": "6px 18px", "fontSize": "14px",
+                            "lineHeight": "20px"}
 
 # Live typeahead dropdown, connected visually to the search box it overlays.
 # Positioning lives on the always-present outer container (shown/hidden via
@@ -1820,64 +1826,96 @@ def _politician_tracker_children():
     ]
 
 
-app = Dash(__name__)
-app.title = "Public Company Tracker"
+# update_title=None: Dash's default swaps the tab title to "Updating..."
+# while any callback is in flight, then back -- with callbacks firing as
+# often as they do here (15s price refresh, scroll-driven pagination,
+# ...) that made the tab flicker between two titles constantly. Static
+# for now, per the user's request.
+app = Dash(__name__, update_title=None)
+app.title = "Stockpick"
 # gunicorn's entry point in production is "dash_app:server" -- it imports
 # this module and serves this Flask app directly, never calling app.run()
 # below, so debug mode (and the dev-tools UI it enables) only ever exist
 # for local `python dash_app.py` runs, not the hosted deployment.
 server = app.server
 
+# The top nav bar's own width (and its color) is deliberately edge-to-edge
+# -- everything else on the page stays readable at a constrained width, so
+# each tab's own content wrapper below carries its own maxWidth/centering
+# instead of one wrapper around the whole page doing it (see
+# _APP_CONTENT_STYLE and its three usages just below).
+_APP_CONTENT_STYLE = {"maxWidth": "1400px", "margin": "24px auto 0", "padding": "0 16px"}
+
 app.layout = html.Div(
-    style={"maxWidth": "1400px", "margin": "40px auto", "fontFamily": "sans-serif",
-           "padding": "0 16px"},
     children=[
         # storage_type="local" persists the choice in the browser's own
         # localStorage and re-hydrates it before any Python callback
         # runs -- see the two clientside callbacks right after this
         # layout for how a click updates it and how it's applied.
         dcc.Store(id="theme-store", storage_type="local", data="dark"),
+        # position:relative here, not on dcc.Tabs itself, just to give the
+        # toggle button (position:absolute below) something to anchor to
+        # -- dcc.Tabs only accepts dcc.Tab children, so the button can't be
+        # a direct child of it and instead overlays on top, independent of
+        # however Tabs structures its own tab-list/content DOM internally.
         html.Div(
-            style={"display": "flex", "justifyContent": "flex-end", "marginBottom": "8px"},
+            style={"position": "relative"},
             children=[
+                dcc.Tabs(
+                    id="app-tabs",
+                    value="company",
+                    style={
+                        **_NAV_CONTAINER_STYLE,
+                        "width": "100%", "boxSizing": "border-box",
+                        "borderRadius": "0", "marginTop": "0",
+                        "padding": "4px 110px 4px 24px",
+                    },
+                    children=[
+                        dcc.Tab(
+                            label="Public Company Tracker",
+                            value="company",
+                            style=_APP_TAB_STYLE,
+                            selected_style=_APP_TAB_SELECTED_STYLE,
+                            children=html.Div(style=_APP_CONTENT_STYLE, children=_company_tracker_children()),
+                        ),
+                        dcc.Tab(
+                            label="Investment Manager Tracker",
+                            value="manager",
+                            style=_APP_TAB_STYLE,
+                            selected_style=_APP_TAB_SELECTED_STYLE,
+                            children=html.Div(style=_APP_CONTENT_STYLE, children=_manager_tracker_children()),
+                        ),
+                        dcc.Tab(
+                            label="Politician Tracker",
+                            value="politician",
+                            style=_APP_TAB_STYLE,
+                            selected_style=_APP_TAB_SELECTED_STYLE,
+                            children=html.Div(style=_APP_CONTENT_STYLE, children=_politician_tracker_children()),
+                        ),
+                    ],
+                ),
                 html.Button(
                     "🌙 Dark",
                     id="theme-toggle-btn",
                     n_clicks=0,
                     style={
+                        # A fixed pixel offset, not top:"50%" -- this
+                        # button's containing block is the div wrapping
+                        # the *entire* dcc.Tabs (bar + whichever tab's
+                        # full content, both bundled into one Tabs
+                        # component), which is as tall as the whole page,
+                        # not just the bar. "50%" centered it there
+                        # instead of in the ~40px bar at the top. "4px"
+                        # matches app-tabs' own top padding below, and the
+                        # padding/fontSize here match _APP_TAB_STYLE's
+                        # pills exactly so the two actually sit at the
+                        # same height instead of just visually close.
+                        "position": "absolute", "top": "4px", "right": "24px",
                         "backgroundColor": "var(--card-bg)", "color": "var(--text)",
                         "border": "1px solid var(--border)", "borderRadius": "8px",
-                        "padding": "6px 14px", "fontSize": "13px", "fontWeight": "600",
-                        "cursor": "pointer",
+                        "padding": "6px 18px", "fontSize": "14px", "fontWeight": "600",
+                        "lineHeight": "20px", "cursor": "pointer",
                     },
-                ),
-            ],
-        ),
-        dcc.Tabs(
-            id="app-tabs",
-            value="company",
-            style=_NAV_CONTAINER_STYLE,
-            children=[
-                dcc.Tab(
-                    label="Public Company Tracker",
-                    value="company",
-                    style=_APP_TAB_STYLE,
-                    selected_style=_APP_TAB_SELECTED_STYLE,
-                    children=html.Div(style={"marginTop": "8px"}, children=_company_tracker_children()),
-                ),
-                dcc.Tab(
-                    label="Investment Manager Tracker",
-                    value="manager",
-                    style=_APP_TAB_STYLE,
-                    selected_style=_APP_TAB_SELECTED_STYLE,
-                    children=html.Div(style={"marginTop": "8px"}, children=_manager_tracker_children()),
-                ),
-                dcc.Tab(
-                    label="Politician Tracker",
-                    value="politician",
-                    style=_APP_TAB_STYLE,
-                    selected_style=_APP_TAB_SELECTED_STYLE,
-                    children=html.Div(style={"marginTop": "8px"}, children=_politician_tracker_children()),
                 ),
             ],
         ),

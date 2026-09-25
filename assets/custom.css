@@ -12,14 +12,14 @@
 :root {
     --bg: #000000;
     --text: #e0e0e0;
-    --header: #3a3a3a;
+    --header: #2F3D4C;
     /* Section-heading TEXT (e.g. "DCF Assumptions", "Filters") -- kept
        separate from --header, which is a BACKGROUND (nav pills, the
        "Filters" label's own container isn't one of these) and stays the
-       same dark grey in both themes; grey text at that same value is
+       same dark slate blue in both themes; that color as text is
        illegible against a near-black page, so this is white here and
-       --header's grey again in light mode, where it already reads fine
-       on white. */
+       --header's own value again in light mode, where it already reads
+       fine on white. */
     --header-text: #ffffff;
     --body-text: #cfcfcf;
     /* The original theme-blue accent, kept here even after the rest of
@@ -34,8 +34,8 @@
 :root[data-theme="light"] {
     --bg: #ffffff;
     --text: #1a1a1a;
-    --header: #3a3a3a;
-    --header-text: #3a3a3a;
+    --header: #2F3D4C;
+    --header-text: #2F3D4C;
     --body-text: #44464a;
     /* Same original theme-blue accent as dark mode, but the deeper
        original header shade -- the brighter dark-mode tint is too pale
@@ -53,10 +53,14 @@
 
 /* App theme: page background/default text so unstyled elements (labels,
    etc.) stay readable — section headers and body copy override this
-   per-element from Python where they need a specific color. */
+   per-element from Python where they need a specific color. font-family
+   lives here (not a Python style dict) so it reaches the full-width nav
+   bar too -- that sits outside the per-tab content wrapper that used to
+   carry it (see _APP_CONTENT_STYLE in dash_app.py). */
 html, body {
     background-color: var(--bg);
     color: var(--text);
+    font-family: sans-serif;
     margin: 0;
 }
 
