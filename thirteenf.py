@@ -31,7 +31,7 @@ import os
 import re
 import sqlite3
 import xml.etree.ElementTree as ET
-from datetime import datetime, timedelta, timezone
+from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 from urllib.parse import quote
 
@@ -41,6 +41,7 @@ USER_AGENT = "ryan.hsu1993@gmail.com"  # <-- put your real contact here (SEC fai
 
 BROWSE_URL = "https://www.sec.gov/cgi-bin/browse-edgar"
 ARCHIVES_URL = "https://www.sec.gov/Archives/edgar/data"
+FULL_INDEX_URL = "https://www.sec.gov/Archives/edgar/full-index/{year}/QTR{quarter}/form.idx"
 
 _ATOM_NS = {"a": "http://www.w3.org/2005/Atom"}
 _INFOTABLE_NS = {"n": "http://www.sec.gov/edgar/document/thirteenf/informationtable"}
@@ -177,6 +178,105 @@ _TABLE_ROW_RE = re.compile(
 FULLTEXT_SEARCH_URL = "https://efts.sec.gov/LATEST/search-index"
 _DISPLAY_NAME_CIK_SUFFIX_RE = re.compile(r"\s*\(CIK\s+\d+\)\s*$", re.IGNORECASE)
 
+# ---------------------------------------------------------------------------
+# Local manager directory: search_managers below hits SEC's live endpoint
+# per query, so even with disk caching (see module notes further down),
+# every new keystroke in the typeahead box is a fresh live round-trip --
+# caching only helps when the exact same string was searched before.
+# build_manager_directory scans SEC's quarterly master index (a much
+# heavier, CI-only batch job -- see build_manager_directory.py) into a
+# repo-committed {cik, name} list for every 13F-HR filer, and
+# search_managers searches that locally first so the common case (an
+# already-known manager) needs no network call at all.
+# ---------------------------------------------------------------------------
+
+# A long company name pushes form.idx's later columns right of their
+# "usual" position -- this isn't a strictly fixed-width format despite
+# appearances -- so this matches from the right (CIK/date/filename are
+# all unambiguous fixed-format tokens) instead of slicing fixed offsets.
+# Anchoring on "13F-HR" immediately followed by whitespace (not "/A")
+# excludes 13F-HR/A amendments and 13F-NT the same way list_13f_filings
+# does elsewhere in this file.
+_FORM_IDX_13F_HR_RE = re.compile(
+    r"^13F-HR\s+(?P<name>.+?)\s+(?P<cik>\d+)\s+(?P<date>\d{4}-\d{2}-\d{2})\s+(?P<file>\S+)\s*$"
+)
+
+
+def _recent_quarters(count=8):
+    today = date.today()
+    year, quarter = today.year, (today.month - 1) // 3 + 1
+    quarters = []
+    for _ in range(count):
+        quarters.append((year, quarter))
+        quarter -= 1
+        if quarter == 0:
+            quarter, year = 4, year - 1
+    return quarters
+
+
+def _parse_form_idx_13f_filers(text):
+    for line in text.splitlines():
+        m = _FORM_IDX_13F_HR_RE.match(line.rstrip())
+        if m:
+            yield {"cik": int(m.group("cik")), "name": m.group("name").strip()}
+
+
+def build_manager_directory(session=None, quarters_back=8):
+    """Scan SEC's quarterly master index for every 13F-HR filer's CIK and
+    (most recent) name, oldest quarter first so a filer who renamed ends
+    up with its latest name. CI-only batch job (see
+    build_manager_directory.py) -- never run from the live app. Returns a
+    fresh list for just the scanned window; the script merges that into
+    the existing committed directory rather than this function doing it,
+    since a daily refresh only needs to rescan the current quarter."""
+    session = session or requests.Session()
+    directory = {}
+    for year, quarter in reversed(_recent_quarters(quarters_back)):
+        url = FULL_INDEX_URL.format(year=year, quarter=quarter)
+        try:
+            resp = _get(session, url)
+        except requests.RequestException:
+            continue
+        for filer in _parse_form_idx_13f_filers(resp.text):
+            directory[filer["cik"]] = filer["name"]
+    return [{"cik": cik, "name": name} for cik, name in directory.items()]
+
+
+_MANAGER_DIRECTORY_PATH = Path(__file__).parent / "data" / "thirteenf_manager_directory.json"
+_manager_directory_cache = None
+
+
+def _load_manager_directory():
+    """In-process cache of the repo-committed manager directory -- read
+    once per worker process, not once per keystroke."""
+    global _manager_directory_cache
+    if _manager_directory_cache is not None:
+        return _manager_directory_cache
+    try:
+        with open(_MANAGER_DIRECTORY_PATH, encoding="utf-8") as f:
+            _manager_directory_cache = json.load(f)
+    except (OSError, json.JSONDecodeError):
+        _manager_directory_cache = []
+    return _manager_directory_cache
+
+
+def _search_manager_directory(query, limit):
+    q = query.strip().lower()
+    if not q:
+        return []
+    matches = [m for m in _load_manager_directory() if q in m["name"].lower()]
+
+    def rank(m):
+        name = m["name"].lower()
+        if name == q:
+            return (0, name)
+        if name.startswith(q):
+            return (1, name)
+        return (2, name)
+
+    matches.sort(key=rank)
+    return matches[:limit]
+
 
 def _fulltext_search_managers(query, session, limit):
     """Fallback for when the registered-name search above finds nothing --
@@ -214,10 +314,18 @@ def search_managers(query, session, limit=100):
     """Search SEC's 13F-HR filer directory for `query` (a manager name).
     Returns up to `limit` {"cik", "name"} dicts — 0, 1, or many; unlike
     resolve_manager this never raises for an ambiguous or empty result, so
-    it's also used for the live-typeahead search box. Results are cached
-    on disk per normalized query (see module notes above), so repeat
-    searches for the same name -- including across different visitors --
-    skip SEC's live endpoint entirely."""
+    it's also used for the live-typeahead search box.
+
+    Checks the local manager directory first (see module notes above) --
+    the common case, an already-known manager, needs no network call at
+    all. A miss there (a brand-new filer the directory hasn't picked up
+    yet) falls back to SEC's live endpoint, disk-cached per normalized
+    query (see module notes further below) so repeat searches -- including
+    across different visitors -- still skip the live round-trip."""
+    local_matches = _search_manager_directory(query, limit)
+    if local_matches:
+        return local_matches
+
     normalized = query.strip().lower()
     cached = _load_manager_search_from_disk(normalized)
     if cached is not None:

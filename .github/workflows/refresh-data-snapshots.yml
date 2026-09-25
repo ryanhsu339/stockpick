@@ -1,4 +1,4 @@
-name: Refresh congress data snapshots
+name: Refresh data snapshots
 
 on:
   schedule:
@@ -21,10 +21,16 @@ jobs:
 
       - run: python build_congress_snapshot.py
 
+      # Default --quarters-back 1: a filer only needs to show up in one
+      # recent quarter's index to stay listed, so the daily run only
+      # needs the current quarter, not a full rescan (see
+      # build_manager_directory.py for the one-time backfill).
+      - run: python build_manager_directory.py
+
       - name: Commit and push if changed
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add data/congress_activity_summary.json data/congress_member_positions.json
-          git diff --cached --quiet || git commit -m "Refresh congress data snapshots"
+          git add data/congress_activity_summary.json data/congress_member_positions.json data/thirteenf_manager_directory.json
+          git diff --cached --quiet || git commit -m "Refresh data snapshots"
           git push
