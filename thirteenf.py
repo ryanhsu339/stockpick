@@ -174,6 +174,41 @@ _TABLE_ROW_RE = re.compile(
     re.IGNORECASE,
 )
 
+FULLTEXT_SEARCH_URL = "https://efts.sec.gov/LATEST/search-index"
+_DISPLAY_NAME_CIK_SUFFIX_RE = re.compile(r"\s*\(CIK\s+\d+\)\s*$", re.IGNORECASE)
+
+
+def _fulltext_search_managers(query, session, limit):
+    """Fallback for when the registered-name search above finds nothing --
+    a filer's registered EDGAR company name can differ from the name
+    it's publicly known by (e.g. Balyasny Asset Management's 13F-HR
+    filings are under "Longaeva Partners L.P."). SEC's full-text search
+    indexes actual filing content rather than just the registered name,
+    so it still finds these. Returns the same {"cik", "name"} shape as
+    search_managers, deduped by CIK (one filer can have many hits)."""
+    url = f"{FULLTEXT_SEARCH_URL}?q={quote(query)}&forms=13F-HR"
+    try:
+        data = _get(session, url).json()
+    except (requests.RequestException, ValueError):
+        return []
+    matches = {}
+    for hit in data.get("hits", {}).get("hits", []):
+        source = hit.get("_source", {})
+        ciks = source.get("ciks") or []
+        names = source.get("display_names") or []
+        if not ciks or not names:
+            continue
+        try:
+            cik = int(ciks[0])
+        except ValueError:
+            continue
+        if cik in matches:
+            continue
+        matches[cik] = {"cik": cik, "name": _DISPLAY_NAME_CIK_SUFFIX_RE.sub("", names[0]).strip()}
+        if len(matches) >= limit:
+            break
+    return list(matches.values())
+
 
 def search_managers(query, session, limit=100):
     """Search SEC's 13F-HR filer directory for `query` (a manager name).
@@ -198,6 +233,9 @@ def search_managers(query, session, limit=100):
     else:
         rows = _TABLE_ROW_RE.findall(html_text)
         matches = [{"cik": int(cik), "name": html.unescape(name).strip()} for cik, name in rows]
+
+    if not matches:
+        matches = _fulltext_search_managers(query, session, limit)
 
     _save_manager_search_to_disk(normalized, matches)
     return matches[:limit]
