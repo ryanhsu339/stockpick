@@ -800,11 +800,17 @@ def _parse_one_filing(row, session):
 
 
 def build_activity_summary(session=None, window_days=RECENT_ACTIVITY_WINDOW_DAYS,
-                            max_workers=15, force_refresh=False):
+                            max_workers=5, force_refresh=False):
     """Cross-chamber leaderboard data, built once and cached (this is
     expensive -- see the module notes above). Returns
     {'recent_trades': [...], 'leaderboard': [...]}, both flat lists of
     dicts, each tagged with 'member', 'chamber'.
+
+    max_workers trades build time for peak memory: with hundreds of PTR
+    PDFs/pages in flight across the 180-day window, a higher value got the
+    production instance OOM-killed even with only one build running at a
+    time (see _activity_summary_lock above) -- 5 keeps concurrent
+    downloads/parses small enough to fit the 512MB instance.
     """
     global _activity_summary_cache
     if _activity_summary_cache is not None and not force_refresh:
