@@ -687,6 +687,24 @@ _CACHE_DIR = Path(os.environ.get("CACHE_DIR", Path(__file__).parent))
 _CACHE_DB_PATH = _CACHE_DIR / "congress_cache.db"
 ACTIVITY_CACHE_TTL_HOURS = 24
 
+# The live web app never runs build_activity_summary itself -- even
+# serialized to one build at a time (see _activity_summary_lock), the
+# scrape/parse below was enough to OOM-kill the production instance. It
+# reads this repo-committed snapshot instead, regenerated on a schedule by
+# build_congress_snapshot.py (see that script and
+# .github/workflows/refresh-congress-snapshot.yml) on a runner with far
+# more memory headroom than production has.
+_SNAPSHOT_PATH = Path(__file__).parent / "data" / "congress_activity_summary.json"
+
+
+def load_activity_summary_snapshot():
+    """Load the precomputed cross-chamber activity summary (see module
+    notes above). Raises OSError/json.JSONDecodeError if the snapshot is
+    missing or unreadable -- callers should treat that as "no data yet"
+    rather than falling back to a live rebuild."""
+    with open(_SNAPSHOT_PATH, encoding="utf-8") as f:
+        return json.load(f)
+
 
 def _cache_db():
     _CACHE_DIR.mkdir(parents=True, exist_ok=True)

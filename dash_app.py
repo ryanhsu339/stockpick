@@ -58,10 +58,10 @@ from thirteenf import (
 )
 from congress_trades import (
     PoliticianDataError,
-    build_activity_summary,
     fetch_politician_comparison_by_candidate,
     list_all_house_members,
     list_all_senators,
+    load_activity_summary_snapshot,
 )
 
 # One shared session across requests/users so the ticker-map cache in
@@ -3178,12 +3178,14 @@ def _leaderboard_row_to_record(e):
     prevent_initial_call=True,
 )
 def load_activity_summary(_n_intervals):
-    # build_activity_summary caches its result in-process, so this is a
-    # one-time ~1-2 minute cost the first time any user opens this tab in
-    # this server's lifetime, and instant on every load after that.
+    # Reads the repo-committed snapshot rather than scraping/parsing PTR
+    # filings live -- that live build was OOM-killing the production
+    # instance even serialized to one at a time. See
+    # congress_trades.load_activity_summary_snapshot and
+    # build_congress_snapshot.py for how the snapshot gets refreshed.
     try:
-        summary = build_activity_summary(session=_session)
-    except (requests.RequestException, PoliticianDataError):
+        summary = load_activity_summary_snapshot()
+    except (OSError, json.JSONDecodeError):
         return [], []
     recent = [_recent_trade_row_to_record(t) for t in summary["recent_trades"][:150]]
     leaderboard = [_leaderboard_row_to_record(e) for e in summary["leaderboard"][:100]]
