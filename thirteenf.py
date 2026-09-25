@@ -25,11 +25,13 @@ KNOWN LIMITATIONS
       file predates the switch.
 """
 
+import concurrent.futures
 import html
 import json
 import os
 import re
 import sqlite3
+import time
 import xml.etree.ElementTree as ET
 from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
@@ -482,7 +484,7 @@ def _pct_change(cur, prev):
     return (cur - prev) / abs(prev) * 100
 
 
-def build_holdings_comparison(session, cik, top_n=10):
+def build_holdings_comparison(session, cik, top_n=10, skip_snapshot=False):
     """Compare the two most recent 13F-HR quarters for `cik`. Returns a
     dict: {"latest_period", "previous_period", "manager_name",
     "top_increases", "top_decreases", "all_positions"}.
@@ -515,9 +517,23 @@ def build_holdings_comparison(session, cik, top_n=10):
 
     All percents are already-multiplied numbers, e.g. 1.57 for 1.57%;
     shares/value (including delta_shares_m/delta_shares_value_m) are in
-    millions. Cached on disk per CIK (see module notes above) -- a repeat
-    lookup of the same manager, by anyone, skips the several live SEC
-    round-trips and the XML parsing entirely."""
+    millions. Checks the repo-committed top-300-by-AUM snapshot first
+    (see build_top_managers) -- those need no live SEC round-trip at
+    all -- then the disk cache (see module notes above), so a repeat
+    lookup of any other manager, by anyone, still skips the several live
+    SEC round-trips and the XML parsing.
+
+    A snapshot entry's all_positions is capped at _MAX_SNAPSHOT_POSITIONS
+    (result["positions_truncated"] says whether this manager hit that
+    cap) so the precomputed file stays a sane size -- pass
+    skip_snapshot=True to bypass it and fetch the real, complete list
+    live instead (see dash_app.py's download_positions, which needs the
+    full list rather than the snapshot's capped one)."""
+    if not skip_snapshot:
+        snapshot_hit = _load_top_managers_snapshot().get(str(cik))
+        if snapshot_hit is not None:
+            return snapshot_hit
+
     cached = _load_holdings_comparison_from_disk(cik)
     if cached is not None:
         return cached
@@ -614,6 +630,152 @@ def build_holdings_comparison(session, cik, top_n=10):
     return result
 
 
+# ---------------------------------------------------------------------------
+# Top managers by AUM: fully precomputing build_holdings_comparison for
+# every manager in the directory (thousands of them) would mean fetching
+# and parsing every one's full information table, which for a large fund
+# is itself a large XML document -- far too heavy to do for managers
+# almost nobody looks up. Ranking every filer ourselves from SEC data
+# (even just a lightweight per-filer fetch) is still a fetch per filer in
+# the whole directory just to throw away all but the top few hundred, so
+# this instead reuses aum13f.com's own AUM ranking -- it already tracks
+# this across EDGAR/IAPD/CAFR sources -- and only touches SEC for the
+# comparisons of the firms that ranking says actually matter. See
+# build_top_managers.py.
+# ---------------------------------------------------------------------------
+
+AUM13F_BASE_URL = "https://aum13f.com"
+_AUM13F_PAGE_SIZE = 30
+_MAX_SNAPSHOT_POSITIONS = 500
+_AUM13F_ROW_RE = re.compile(
+    r'<a href="/firm/([^"]+)">([^<]+)</a>.*?align="right">.*?([\d,]+\.\d+)\s*B</td>',
+    re.S,
+)
+# aum13f.com's firm page lists every EDGAR form type it's found for that
+# firm (13F-HR, 13F-NT, Form 3, ...), each with its own CIK -- a firm can
+# have more than one CIK across form types (e.g. an insider-ownership
+# filing under a related entity), so this matches specifically the
+# 13F-HR row rather than the first CIK mentioned anywhere on the page.
+_AUM13F_CIK_ROW_RE = re.compile(
+    r'<td style="text-align:center;">13F-HR</td>\s*'
+    r'<td style="text-align:center;"><a href="https://www\.sec\.gov/cgi-bin/browse-edgar\?CIK=(\d+)'
+)
+
+
+def _retry(fn, *args, attempts=3, backoff=1.5, **kwargs):
+    """Runs fn(*args, **kwargs), retrying on a transient network error --
+    both SEC and aum13f.com occasionally 503 a concurrent batch fetch,
+    which a lone retry clears right up. Used only by the batch jobs
+    below; the live app's single on-demand fetches don't need this, a
+    real failure there should surface immediately."""
+    last_exc = None
+    for attempt in range(attempts):
+        try:
+            return fn(*args, **kwargs)
+        except requests.RequestException as e:
+            last_exc = e
+            if attempt < attempts - 1:
+                time.sleep(backoff * (attempt + 1))
+    raise last_exc
+
+
+def fetch_aum13f_ranking(session=None, pages=10):
+    """Scrape aum13f.com's AUM-ranked firm listing, 30 firms/page.
+    Returns [{"slug", "name", "aum_b"}] in aum13f.com's own descending-
+    AUM order."""
+    session = session or requests.Session()
+    ranking = []
+    for page in range(1, pages + 1):
+        html_text = _get(session, f"{AUM13F_BASE_URL}/?page={page}").text
+        for slug, name, aum in _AUM13F_ROW_RE.findall(html_text):
+            ranking.append({"slug": slug, "name": html.unescape(name), "aum_b": float(aum.replace(",", ""))})
+    return ranking
+
+
+def _aum13f_cik_for_firm(session, slug):
+    """The CIK aum13f.com's own firm page lists for a 13F-HR filing
+    history specifically -- None if this firm doesn't file 13F-HR under
+    its own name (aum13f.com's AUM ranking includes advisers ranked by
+    broader regulatory AUM, not just 13F filers, so this is common)."""
+    html_text = _get(session, f"{AUM13F_BASE_URL}/firm/{slug}").text
+    m = _AUM13F_CIK_ROW_RE.search(html_text)
+    return int(m.group(1)) if m else None
+
+
+def build_top_managers(session=None, top_n_managers=300, comparison_top_n=10, max_workers=15):
+    """Fully precompute build_holdings_comparison for the top
+    `top_n_managers` by AUM, ranked via aum13f.com rather than computing
+    that ranking from SEC data ourselves (see module notes above).
+    CI-only batch job (see build_top_managers.py) -- never run from the
+    live app. Returns a dict keyed by str(cik) -- JSON object keys must
+    be strings -- to that manager's build_holdings_comparison result. A
+    firm aum13f.com doesn't list a 13F-HR CIK for, or whose comparison
+    fetch fails outright, is simply omitted."""
+    session = session or requests.Session()
+    pages = -(-top_n_managers // _AUM13F_PAGE_SIZE)  # ceiling division
+    ranking = fetch_aum13f_ranking(session=session, pages=pages)[:top_n_managers]
+
+    ciks = []
+    with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as pool:
+        future_to_firm = {
+            pool.submit(_retry, _aum13f_cik_for_firm, session, firm["slug"]): firm for firm in ranking
+        }
+        for future in concurrent.futures.as_completed(future_to_firm):
+            try:
+                cik = future.result()
+            except requests.RequestException:
+                continue
+            if cik is not None:
+                ciks.append(cik)
+
+    results = {}
+    with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as pool:
+        future_to_cik = {
+            pool.submit(_retry, build_holdings_comparison, session, cik, comparison_top_n): cik
+            for cik in ciks
+        }
+        for future in concurrent.futures.as_completed(future_to_cik):
+            cik = future_to_cik[future]
+            try:
+                comparison = future.result()
+            except (FilingDataError, requests.RequestException):
+                continue
+            # A handful of mega-managers (Morgan Stanley, Citadel, ...)
+            # have thousands of positions -- uncapped, this snapshot
+            # would run to 100+MB and re-bloat git on every refresh.
+            # all_positions is already sorted by portfolio_pct
+            # descending, so the cap keeps the positions that actually
+            # matter; positions_truncated tells the live app to fetch
+            # the real, complete list instead (skip_snapshot=True) for
+            # the rare case that needs it, e.g. a full CSV export.
+            all_positions = comparison["all_positions"]
+            truncated = len(all_positions) > _MAX_SNAPSHOT_POSITIONS
+            if truncated:
+                comparison = {**comparison, "all_positions": all_positions[:_MAX_SNAPSHOT_POSITIONS]}
+            comparison["positions_truncated"] = truncated
+            results[str(cik)] = comparison
+    return results
+
+
+_TOP_MANAGERS_SNAPSHOT_PATH = Path(__file__).parent / "data" / "thirteenf_top_managers.json"
+_top_managers_cache = None
+
+
+def _load_top_managers_snapshot():
+    """In-process cache of the repo-committed top-N-by-AUM holdings
+    comparisons (see build_top_managers) -- read once per worker
+    process, not once per lookup."""
+    global _top_managers_cache
+    if _top_managers_cache is not None:
+        return _top_managers_cache
+    try:
+        with open(_TOP_MANAGERS_SNAPSHOT_PATH, encoding="utf-8") as f:
+            _top_managers_cache = json.load(f)
+    except (OSError, json.JSONDecodeError):
+        _top_managers_cache = {}
+    return _top_managers_cache
+
+
 def fetch_manager_comparison(query, session=None, user_agent=None, top_n=10):
     """Resolve `query` to an SEC 13F filer and return
     build_holdings_comparison(...)'s dict plus "cik" and "resolved_name".
@@ -630,18 +792,21 @@ def fetch_manager_comparison(query, session=None, user_agent=None, top_n=10):
     return result
 
 
-def fetch_manager_comparison_by_cik(cik, session=None, user_agent=None, top_n=10):
+def fetch_manager_comparison_by_cik(cik, session=None, user_agent=None, top_n=10, skip_snapshot=False):
     """Same as fetch_manager_comparison, but for a CIK that's already
     known — used when the caller lets the user pick one candidate out of
     an ambiguous name search rather than re-resolving by name. Raises
     FilingDataError (not ManagerLookupError, since there's no name lookup
-    to be ambiguous about)."""
+    to be ambiguous about). skip_snapshot=True forces a real, complete
+    live fetch even for a manager the precomputed snapshot has a
+    (possibly position-capped) entry for -- see
+    build_holdings_comparison and dash_app.py's download_positions."""
     global USER_AGENT
     if user_agent:
         USER_AGENT = user_agent
     session = session or requests.Session()
 
-    result = build_holdings_comparison(session, cik, top_n=top_n)
+    result = build_holdings_comparison(session, cik, top_n=top_n, skip_snapshot=skip_snapshot)
     result["cik"] = cik
     result["resolved_name"] = result["manager_name"]
     return result

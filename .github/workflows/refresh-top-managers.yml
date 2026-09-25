@@ -1,0 +1,31 @@
+name: Refresh top managers by AUM
+
+on:
+  schedule:
+    - cron: "0 10 * * 0"  # weekly, Sunday 10:00 UTC
+  workflow_dispatch: {}
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    timeout-minutes: 180
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - run: pip install -r requirements.txt
+
+      - run: python build_top_managers.py
+
+      - name: Commit and push if changed
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add data/thirteenf_top_managers.json
+          git diff --cached --quiet || git commit -m "Refresh top managers by AUM snapshot"
+          git push

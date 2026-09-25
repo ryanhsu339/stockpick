@@ -1570,6 +1570,11 @@ def _manager_tracker_children():
         # scroll-poll-interval below) and grows the visible slice.
         dcc.Store(id="all-positions-full", data=[]),
         dcc.Store(id="all-positions-visible-count", data=_POSITIONS_PAGE_SIZE),
+        # Set alongside all-positions-full so download_positions knows
+        # whether that list is the real, complete one or the precomputed
+        # snapshot's position-capped version (see
+        # thirteenf.build_top_managers) -- {"cik": int, "truncated": bool}.
+        dcc.Store(id="manager-positions-meta", data=None),
         # Every tick — even a no-op one — makes Dash briefly touch the
         # app's root DOM for its loading-state bookkeeping, which at 400ms
         # was fast enough to read as a visible flicker across the whole
@@ -2725,6 +2730,7 @@ def _render_candidates(candidates, query):
     Output("all-positions-full", "data"),
     Output("all-positions-visible-count", "data"),
     Output("download-positions-btn", "disabled"),
+    Output("manager-positions-meta", "data"),
     Input("manager-input", "n_submit"),
     State("manager-input", "value"),
     # This callback's own "manager-suggestions" output is itself declared
@@ -2738,28 +2744,29 @@ def _render_candidates(candidates, query):
 def generate_manager(_n_submit, query):
     if not query or not query.strip():
         return ("Enter an investment manager name.", [], [], [], None, None, [],
-                _POSITIONS_PAGE_SIZE, True)
+                _POSITIONS_PAGE_SIZE, True, None)
 
     try:
         result = fetch_manager_comparison(query, session=_session)
     except ManagerLookupError as e:
         if e.candidates:
             return (str(e), [], [], [], _render_candidates(e.candidates, query), None,
-                    [], _POSITIONS_PAGE_SIZE, True)
-        return str(e), [], [], [], None, None, [], _POSITIONS_PAGE_SIZE, True
+                    [], _POSITIONS_PAGE_SIZE, True, None)
+        return str(e), [], [], [], None, None, [], _POSITIONS_PAGE_SIZE, True, None
     except FilingDataError as e:
-        return f"{query}: {e}", [], [], [], None, None, [], _POSITIONS_PAGE_SIZE, True
+        return f"{query}: {e}", [], [], [], None, None, [], _POSITIONS_PAGE_SIZE, True, None
     except requests.RequestException as e:
         return (f"Network error talking to SEC EDGAR: {e}", [], [], [], None, None,
-                [], _POSITIONS_PAGE_SIZE, True)
+                [], _POSITIONS_PAGE_SIZE, True, None)
 
     status = (f"Found: {result['resolved_name']} (CIK {result['cik']}) — "
               f"{result['latest_period']} vs {result['previous_period']}")
     increases = [_manager_row_to_record(r) for r in result["top_increases"]]
     decreases = [_manager_row_to_record(r) for r in result["top_decreases"]]
     all_positions = [_all_positions_row_to_record(r) for r in result["all_positions"]]
+    meta = {"cik": result["cik"], "truncated": result.get("positions_truncated", False)}
     return (status, increases, decreases, all_positions[:_POSITIONS_PAGE_SIZE], None, None,
-            all_positions, min(_POSITIONS_PAGE_SIZE, len(all_positions)), not all_positions)
+            all_positions, min(_POSITIONS_PAGE_SIZE, len(all_positions)), not all_positions, meta)
 
 
 @app.callback(
@@ -2774,6 +2781,7 @@ def generate_manager(_n_submit, query):
     Output("all-positions-full", "data", allow_duplicate=True),
     Output("all-positions-visible-count", "data", allow_duplicate=True),
     Output("download-positions-btn", "disabled", allow_duplicate=True),
+    Output("manager-positions-meta", "data", allow_duplicate=True),
     Input({"type": "manager-candidate", "cik": ALL}, "n_clicks"),
     Input({"type": "manager-suggestion", "cik": ALL}, "n_clicks"),
     prevent_initial_call=True,
@@ -2787,22 +2795,23 @@ def select_manager_candidate(candidate_clicks, suggestion_clicks):
         result = fetch_manager_comparison_by_cik(cik, session=_session)
     except FilingDataError as e:
         return (f"CIK {cik}: {e}", [], [], [], None, None, no_update, no_update,
-                [], _POSITIONS_PAGE_SIZE, True)
+                [], _POSITIONS_PAGE_SIZE, True, None)
     except requests.RequestException as e:
         return (f"Network error talking to SEC EDGAR: {e}", [], [], [], None, None, no_update, no_update,
-                [], _POSITIONS_PAGE_SIZE, True)
+                [], _POSITIONS_PAGE_SIZE, True, None)
 
     status = (f"Found: {result['resolved_name']} (CIK {result['cik']}) — "
               f"{result['latest_period']} vs {result['previous_period']}")
     increases = [_manager_row_to_record(r) for r in result["top_increases"]]
     decreases = [_manager_row_to_record(r) for r in result["top_decreases"]]
     all_positions = [_all_positions_row_to_record(r) for r in result["all_positions"]]
+    meta = {"cik": result["cik"], "truncated": result.get("positions_truncated", False)}
     # Setting manager-input's value below re-triggers update_manager_suggestions
     # (it watches that same value) — this flag tells that callback to skip
     # showing a dropdown for this one programmatic change, not real typing.
     return (status, increases, decreases, all_positions[:_POSITIONS_PAGE_SIZE], None, None,
             result["resolved_name"], True,
-            all_positions, min(_POSITIONS_PAGE_SIZE, len(all_positions)), not all_positions)
+            all_positions, min(_POSITIONS_PAGE_SIZE, len(all_positions)), not all_positions, meta)
 
 
 @app.callback(
@@ -2810,13 +2819,29 @@ def select_manager_candidate(candidate_clicks, suggestion_clicks):
     Input("download-positions-btn", "n_clicks"),
     State("all-positions-full", "data"),
     State("manager-input", "value"),
+    State("manager-positions-meta", "data"),
     prevent_initial_call=True,
 )
-def download_positions(_n_clicks, all_positions, manager_name):
+def download_positions(_n_clicks, all_positions, manager_name, positions_meta):
     # Always the complete unfiltered position list (all-positions-full),
     # not whatever's currently scrolled into the table or narrowed by the
     # Filters panel -- a predictable "export everything" rather than
     # needing to reconcile against filter/scroll state.
+    #
+    # For a mega-manager the precomputed snapshot only kept the top
+    # _MAX_SNAPSHOT_POSITIONS positions (see thirteenf.build_top_managers)
+    # -- all_positions here would silently be an incomplete export, so a
+    # truncated manager gets one real live fetch for the actual complete
+    # list instead. Every other manager still exports the already-loaded
+    # data with no extra fetch.
+    if positions_meta and positions_meta.get("truncated"):
+        try:
+            result = fetch_manager_comparison_by_cik(
+                positions_meta["cik"], session=_session, skip_snapshot=True)
+        except (FilingDataError, requests.RequestException):
+            pass  # fall back to the capped list below rather than failing the download
+        else:
+            all_positions = [_all_positions_row_to_record(r) for r in result["all_positions"]]
     if not all_positions:
         return None
     csv_bytes = _table_dataframe(ALL_POSITIONS_COLUMNS, all_positions).to_csv(index=False).encode("utf-8")
