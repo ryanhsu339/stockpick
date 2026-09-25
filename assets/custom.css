@@ -22,7 +22,10 @@
        on white. */
     --header-text: #ffffff;
     --body-text: #cfcfcf;
-    --security-text: #b5b5b5;
+    /* The original theme-blue accent, kept here even after the rest of
+       the theme moved to grey -- a brighter tint tuned to read on the
+       dark card background each table's first column sits on. */
+    --security-text: #5DADE2;
     --card-bg: #1c1c1c;
     --card-bg-2: #161616;
     --border: #333333;
@@ -34,7 +37,10 @@
     --header: #3a3a3a;
     --header-text: #3a3a3a;
     --body-text: #44464a;
-    --security-text: #1f2a36;
+    /* Same original theme-blue accent as dark mode, but the deeper
+       original header shade -- the brighter dark-mode tint is too pale
+       to read against a white card. */
+    --security-text: #2874a6;
     --card-bg: #f0f0f0;
     --card-bg-2: #e8e8e8;
     --border: #d6d6d6;

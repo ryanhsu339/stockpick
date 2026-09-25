@@ -690,10 +690,11 @@ _HEADER_COLOR = "var(--header)"
 # is illegible against a near-black dark-mode page. See --header-text
 # in assets/custom.css.
 _HEADER_TEXT_COLOR = "var(--header-text)"
-# A brighter tint of _HEADER_TEXT_COLOR for the security/issuer identifier
+# The original theme-blue accent for the security/issuer identifier
 # column every table highlights in its first column (ticker, issuer,
-# member, line item...) -- at _HEADER_TEXT_COLOR's dark grey (light mode)
-# that text read as low-contrast against the dark card background.
+# member, line item...) -- kept blue on purpose even after the rest of
+# the theme moved to grey, for a deliberate pop of color. See
+# --security-text in assets/custom.css.
 _SECURITY_TEXT_COLOR = "var(--security-text)"
 _BODY_TEXT_COLOR = "var(--body-text)"
 _HEADER_STYLE = {"color": _HEADER_TEXT_COLOR}
@@ -873,7 +874,7 @@ def _financials_valuation_block(suffix, mirror=False):
                                 style_cell=_TABLE_CELL_STYLE,
                                 style_cell_conditional=[
                                     {"if": {"column_id": "line"}, "textAlign": "left",
-                                     "fontWeight": "600"},
+                                     "fontWeight": "600", "color": _SECURITY_TEXT_COLOR},
                                 ],
                                 style_header=_TABLE_HEADER_STYLE,
                             ),
@@ -891,7 +892,7 @@ def _financials_valuation_block(suffix, mirror=False):
                                     style_cell=_TABLE_CELL_STYLE,
                                     style_cell_conditional=[
                                         {"if": {"column_id": "metric"}, "textAlign": "left",
-                                         "fontWeight": "600"},
+                                         "fontWeight": "600", "color": _SECURITY_TEXT_COLOR},
                                     ],
                                     style_header=_TABLE_HEADER_STYLE,
                                 ),
