@@ -58,10 +58,10 @@ from thirteenf import (
 )
 from congress_trades import (
     PoliticianDataError,
-    fetch_politician_comparison_by_candidate,
     list_all_house_members,
     list_all_senators,
     load_activity_summary_snapshot,
+    load_member_positions_snapshot,
 )
 
 # One shared session across requests/users so the ticker-map cache in
@@ -3090,23 +3090,21 @@ def generate_politician(dropdown_value):
     if not dropdown_value:
         return "Select a member of Congress.", [], [], [], []
 
-    chamber, last, first = dropdown_value.split("|", 2)
-    candidate = {
-        "chamber": chamber,
-        "last": last,
-        "first": first,
-        "prefix": "",
-        "state_dst": "",
-        "display": f"{first} {last}".strip(),
-    }
-    source = "the Senate eFD system" if chamber == "senate" else "the House Clerk"
-
+    # dropdown_value is already "chamber|last|first" -- the same key
+    # load_member_positions_snapshot's dict uses (see
+    # congress_trades._member_positions_key) -- so no live fetch is
+    # needed to look this member up.
+    _, last, first = dropdown_value.split("|", 2)
+    display = f"{first} {last}".strip()
     try:
-        result = fetch_politician_comparison_by_candidate(candidate, session=_session)
-    except PoliticianDataError as e:
-        return f"{candidate['display']}: {e}", [], [], [], []
-    except requests.RequestException as e:
-        return f"Network error talking to {source}: {e}", [], [], [], []
+        snapshot = load_member_positions_snapshot()
+    except (OSError, json.JSONDecodeError):
+        return f"{display}: no data available right now.", [], [], [], []
+
+    result = snapshot.get(dropdown_value)
+    if result is None:
+        return (f"{display}: no parseable stock transactions found in the latest snapshot.",
+                [], [], [], [])
 
     resolved = result["candidate"]
     chamber_label = "Senator" if resolved["chamber"] == "senate" else "Representative"

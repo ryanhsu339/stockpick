@@ -1,4 +1,4 @@
-name: Refresh congress activity snapshot
+name: Refresh congress data snapshots
 
 on:
   schedule:
@@ -25,6 +25,6 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add data/congress_activity_summary.json
-          git diff --cached --quiet || git commit -m "Refresh congress activity snapshot"
+          git add data/congress_activity_summary.json data/congress_member_positions.json
+          git diff --cached --quiet || git commit -m "Refresh congress data snapshots"
           git push

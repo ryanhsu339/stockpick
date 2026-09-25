@@ -644,6 +644,56 @@ def fetch_politician_comparison_by_candidate(candidate, session=None, top_n=10):
     return comparison
 
 
+def _member_positions_key(candidate):
+    """Matches dash_app.py's _politician_dropdown_key -- the "Look Up a
+    Member" dropdown's value is already this same "chamber|last|first"
+    string, so the live app can look a member up in the snapshot below
+    with zero translation."""
+    return f"{candidate['chamber']}|{candidate['last']}|{candidate['first']}"
+
+
+_MEMBER_POSITIONS_SNAPSHOT_PATH = Path(__file__).parent / "data" / "congress_member_positions.json"
+
+
+def build_all_member_positions(session=None, max_workers=10, top_n=10):
+    """Precompute fetch_politician_comparison_by_candidate for every current
+    House member and senator (see build_congress_snapshot.py -- this is a
+    CI-only batch job, never run from the live app; a single member's
+    years_back=4 fetch is cheap, but ~500 of them sequentially is not).
+    Returns a dict keyed by _member_positions_key to that member's
+    {"top_increases", "top_decreases", "all_positions", "candidate"}. A
+    member with no parseable transactions, or whose fetch fails outright,
+    is simply omitted -- load_member_positions_snapshot's caller treats a
+    missing key as "no data for this member" rather than an error.
+    """
+    session = _session_with_ua(session)
+    candidates = list_all_house_members(session=session) + list_all_senators(session=session)
+
+    results = {}
+    with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as pool:
+        future_to_candidate = {
+            pool.submit(fetch_politician_comparison_by_candidate, c, session=session, top_n=top_n): c
+            for c in candidates
+        }
+        for future in concurrent.futures.as_completed(future_to_candidate):
+            candidate = future_to_candidate[future]
+            try:
+                comparison = future.result()
+            except (PoliticianDataError, requests.RequestException):
+                continue
+            results[_member_positions_key(candidate)] = comparison
+    return results
+
+
+def load_member_positions_snapshot():
+    """Load the precomputed per-member positions snapshot (see
+    build_all_member_positions). Raises OSError/json.JSONDecodeError if
+    it's missing or unreadable -- callers should treat that as "no data
+    yet" rather than falling back to a live fetch."""
+    with open(_MEMBER_POSITIONS_SNAPSHOT_PATH, encoding="utf-8") as f:
+        return json.load(f)
+
+
 # ---------------------------------------------------------------------------
 # Cross-chamber activity summary: "most recent trades" and "largest
 # estimated portfolio" across every House member and senator at once.
