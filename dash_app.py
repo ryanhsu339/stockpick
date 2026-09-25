@@ -1374,10 +1374,11 @@ _POLITICIAN_TABLE_STYLE = dict(
     style_header=_MANAGER_TABLE_HEADER_STYLE,
     style_data={"backgroundColor": _MANAGER_TABLE_BG},
 )
-_POLITICIAN_NOTE = ("Amounts are disclosed dollar RANGES (STOCK Act filings don't require exact "
-                     "figures), and there's no total-portfolio value on file, so position sizes "
-                     "below are estimates built from the midpoint of each disclosed transaction, "
-                     "not a real holdings snapshot.")
+_POLITICIAN_NOTE = ("Every ticker with disclosed activity, ranked by estimated net position, built "
+                     "by accumulating the midpoint of each disclosed buy (+) and sell (-) over all "
+                     "available filing history. Amounts are disclosed dollar RANGES (STOCK Act "
+                     "filings don't require exact figures), so position sizes below are estimates "
+                     "built from the midpoint of each disclosed transaction and are approximations.")
 _POLITICIAN_POSITION_FILTERS = [
     ("net_estimated_value", "Est. Net Value ($)"),
     ("total_bought", "Total Bought ($)"),
@@ -1430,9 +1431,8 @@ _ACTIVITY_TABLE_STYLE = dict(
 )
 _ACTIVITY_WINDOW_NOTE = (
     "Covers filings from roughly the last 6 months across every current House member and "
-    "senator — parsing every member's full multi-year history on every load isn't practical, "
-    "so this is 'most active/largest recently' rather than all-time. Takes a minute or two to "
-    "build the first time; instant after that."
+    "senator. Does not include activity before elected to office therefore portfolio values "
+    "may be negative."
 )
 
 
@@ -1688,14 +1688,14 @@ def _politician_tracker_children():
             type="default",
             children=html.Div(id="politician-status-msg", style={"marginTop": "16px", "whiteSpace": "pre-wrap"}),
         ),
+        html.P(_POLITICIAN_NOTE, style={**_PARA_STYLE, "fontSize": "13px", "marginTop": "24px"}),
         html.Div(
-            style={"display": "flex", "gap": "24px", "flexWrap": "wrap", "marginTop": "24px"},
+            style={"display": "flex", "gap": "24px", "flexWrap": "wrap", "marginTop": "8px"},
             children=[
                 html.Div(
                     style={"flex": "1 1 420px", "minWidth": "0"},
                     children=[
                         html.H3("Top Increases (Last 12 Months)", style=_HEADER_STYLE),
-                        html.P(_POLITICIAN_NOTE, style={**_PARA_STYLE, "fontSize": "13px"}),
                         dash_table.DataTable(id="politician-increases-table", columns=POLITICIAN_MOVE_COLUMNS,
                                               data=[], cell_selectable=False, **_POLITICIAN_TABLE_STYLE),
                     ],
@@ -1704,7 +1704,6 @@ def _politician_tracker_children():
                     style={"flex": "1 1 420px", "minWidth": "0"},
                     children=[
                         html.H3("Top Decreases (Last 12 Months)", style=_HEADER_STYLE),
-                        html.P(_POLITICIAN_NOTE, style={**_PARA_STYLE, "fontSize": "13px"}),
                         dash_table.DataTable(id="politician-decreases-table", columns=POLITICIAN_MOVE_COLUMNS,
                                               data=[], cell_selectable=False, **_POLITICIAN_TABLE_STYLE),
                     ],
@@ -1712,10 +1711,6 @@ def _politician_tracker_children():
             ],
         ),
         html.H3("All Equity Positions (Estimated)", style={**_HEADER_STYLE, "marginTop": "40px"}),
-        html.P("Every ticker with disclosed activity, ranked by estimated net position, built by "
-               "accumulating the midpoint of each disclosed buy (+) and sell (-) over all available "
-               "filing history. " + _POLITICIAN_NOTE,
-               style={**_PARA_STYLE, "fontSize": "13px"}),
         html.Div(
             style={"display": "flex", "gap": "16px", "alignItems": "flex-start", "marginTop": "8px"},
             children=[
