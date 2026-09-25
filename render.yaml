@@ -2,9 +2,9 @@ services:
   - type: web
     name: stockpick
     runtime: python
-    plan: free
+    plan: starter
     buildCommand: pip install -r requirements.txt
-    startCommand: gunicorn dash_app:server --bind 0.0.0.0:$PORT
+    startCommand: gunicorn dash_app:server --bind 0.0.0.0:$PORT --worker-class gthread --workers 1 --threads 4
     envVars:
       - key: PYTHON_VERSION
         value: 3.12.10
