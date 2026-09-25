@@ -259,6 +259,7 @@ def build_price_figure(df, ticker, range_key, theme="dark"):
     # "highlighted" rather than washing out to the background color.
     fill_color = "rgba(34,197,94,0.18)" if up else "rgba(239,68,68,0.18)"
     sign = "+" if change >= 0 else ""
+    arrow = "▲" if up else "▼"
 
     # Zoom the price axis to the period's actual range (with a little
     # headroom) instead of anchoring at zero, so price movement is legible.
@@ -340,7 +341,7 @@ def build_price_figure(df, ticker, range_key, theme="dark"):
     title_text = (
         f"<b>{ticker}  ${last:,.2f}</b><br>"
         f"<span style='font-size:14px'>"
-        f"<span style='color:{color}'>{sign}{change:,.2f} ({sign}{pct:.2f}%)</span>"
+        f"<span style='color:{color}'>{arrow} {sign}{change:,.2f} ({sign}{pct:.2f}%)</span>"
         f" · {range_key}"
         f"</span>"
     )
@@ -350,7 +351,7 @@ def build_price_figure(df, ticker, range_key, theme="dark"):
             font=dict(size=24, color=colors["primary_text"]),
             x=0, xanchor="left",
         ),
-        margin=dict(l=10, r=10, t=75, b=30),
+        margin=dict(l=24, r=10, t=75, b=30),
         height=_CHART_HEIGHT,
         paper_bgcolor=colors["surface"],
         plot_bgcolor=colors["surface"],
@@ -417,13 +418,14 @@ def build_compare_price_figure(df1, ticker1, df2, ticker2, range_key, theme="dar
         pct_series = (closes / base - 1) * 100 if base else closes * 0
         last_pct = float(pct_series.iloc[-1])
         sign = "+" if last_pct >= 0 else ""
+        arrow = "▲" if last_pct >= 0 else "▼"
         # The running %-change lives in the legend label itself (Plotly
         # colors each entry to match its trace automatically) rather than
         # a separate title -- a title positioned in the same top margin as
         # a top-anchored legend fights it for space and the two overlap.
         fig.add_trace(go.Scatter(
             x=closes.index, y=pct_series.values,
-            name=f"{ticker}  {sign}{last_pct:.2f}%",
+            name=f"{ticker}  {arrow} {sign}{last_pct:.2f}%",
             mode="lines",
             line=dict(width=2, color=color, shape="linear"),
             hovertemplate="%{y:+.2f}%<extra>" + ticker + "</extra>",
@@ -441,7 +443,7 @@ def build_compare_price_figure(df1, ticker1, df2, ticker2, range_key, theme="dar
     fig.add_hline(y=0, line=dict(color=colors["muted_text"], dash="dot", width=1))
 
     fig.update_layout(
-        margin=dict(l=10, r=10, t=50, b=30),
+        margin=dict(l=24, r=10, t=50, b=30),
         height=_CHART_HEIGHT,
         paper_bgcolor=colors["surface"],
         plot_bgcolor=colors["surface"],
