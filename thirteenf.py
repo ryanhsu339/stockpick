@@ -635,35 +635,39 @@ def build_holdings_comparison(session, cik, top_n=10, skip_snapshot=False):
 # every manager in the directory (thousands of them) would mean fetching
 # and parsing every one's full information table, which for a large fund
 # is itself a large XML document -- far too heavy to do for managers
-# almost nobody looks up. Instead this ranks every manager in the local
-# directory (see build_manager_directory -- the same one search_managers
-# itself searches, so every result here is guaranteed to already be
-# searchable) using only each manager's latest primary_doc.xml (a
-# lightweight summary, not the holdings table -- see
-# get_latest_total_value), and fully precomputes only the top N, the
-# ones a real visitor is actually likely to search for.
-#
-# An earlier version of this ranked via a third-party AUM site instead,
-# to skip the ~9,900 lightweight SEC fetches below -- but that site
-# ranks broader regulatory AUM, not specifically 13F-HR filer identity,
-# so most of its top firms turned out to be registered under a
-# different name than the one they're publicly known by (exactly the
-# Balyasny/Longaeva situation resolve_manager's full-text fallback
-# handles -- see module notes further up) and only ~46% of its top 300
-# resolved to an actual, searchable 13F-HR CIK at all. Ranking our own
-# already-13F-HR-confirmed directory instead guarantees every result is
-# both real and searchable. See build_top_managers.py.
+# almost nobody looks up. Ranking every filer ourselves from SEC data
+# (even just a lightweight per-filer fetch) is still a fetch per filer in
+# the whole directory just to throw away all but the top few hundred, so
+# this instead reuses aum13f.com's own AUM ranking -- it already tracks
+# this across EDGAR/IAPD/CAFR sources -- and only touches SEC for the
+# comparisons of the firms that ranking says actually matter. See
+# build_top_managers.py.
 # ---------------------------------------------------------------------------
 
+AUM13F_BASE_URL = "https://aum13f.com"
+_AUM13F_PAGE_SIZE = 30
 _MAX_SNAPSHOT_POSITIONS = 500
+_AUM13F_ROW_RE = re.compile(
+    r'<a href="/firm/([^"]+)">([^<]+)</a>.*?align="right">.*?([\d,]+\.\d+)\s*B</td>',
+    re.S,
+)
+# aum13f.com's firm page lists every EDGAR form type it's found for that
+# firm (13F-HR, 13F-NT, Form 3, ...), each with its own CIK -- a firm can
+# have more than one CIK across form types (e.g. an insider-ownership
+# filing under a related entity), so this matches specifically the
+# 13F-HR row rather than the first CIK mentioned anywhere on the page.
+_AUM13F_CIK_ROW_RE = re.compile(
+    r'<td style="text-align:center;">13F-HR</td>\s*'
+    r'<td style="text-align:center;"><a href="https://www\.sec\.gov/cgi-bin/browse-edgar\?CIK=(\d+)'
+)
 
 
 def _retry(fn, *args, attempts=3, backoff=1.5, **kwargs):
     """Runs fn(*args, **kwargs), retrying on a transient network error --
-    SEC's fair-access rate limit means concurrent batch fetches
-    occasionally get a 503 that a lone retry clears right up. Used only
-    by the batch jobs below; the live app's single on-demand fetches
-    don't need this, a real failure there should surface immediately."""
+    both SEC and aum13f.com occasionally 503 a concurrent batch fetch,
+    which a lone retry clears right up. Used only by the batch jobs
+    below; the live app's single on-demand fetches don't need this, a
+    real failure there should surface immediately."""
     last_exc = None
     for attempt in range(attempts):
         try:
@@ -675,81 +679,60 @@ def _retry(fn, *args, attempts=3, backoff=1.5, **kwargs):
     raise last_exc
 
 
-def get_latest_total_value(session, cik):
-    """A manager's most recent 13F-HR reported total portfolio value,
-    without fetching the (often much larger) information table -- used
-    only to rank managers by AUM below. Returns (period_iso, value_usd).
-    Raises FilingDataError if this CIK has no 13F-HR filings on record."""
-    filings = list_13f_filings(session, cik, count=1)
-    if not filings:
-        raise FilingDataError(f"No 13F-HR filings found for CIK {cik}.")
-    accession_nodash = filings[0]["accession"].replace("-", "")
-    base = f"{ARCHIVES_URL}/{cik}/{accession_nodash}"
-    primary = ET.fromstring(_get(session, f"{base}/primary_doc.xml").content)
-    ns = {"e": "http://www.sec.gov/edgar/thirteenffiler"}
-    period_raw = primary.findtext(".//e:periodOfReport", namespaces=ns)
-    period_iso = None
-    if period_raw:
-        try:
-            period_iso = datetime.strptime(period_raw.strip(), "%m-%d-%Y").date().isoformat()
-        except ValueError:
-            period_iso = period_raw.strip()
-    value_el = primary.find(".//e:summaryPage/e:tableValueTotal", namespaces=ns)
-    value = float(value_el.text) if value_el is not None and value_el.text else 0.0
-    # Same thousands-vs-whole-dollars switch as get_filing_holdings.
-    value_usd = value * 1000 if period_iso and period_iso < "2023-01-01" else value
-    return period_iso, value_usd
-
-
-def build_top_managers(directory=None, session=None, top_n_managers=300, comparison_top_n=10, max_workers=10):
-    """Rank every manager in `directory` (defaults to the local manager
-    directory search_managers itself searches -- see
-    build_manager_directory and module notes above) by latest reported
-    AUM, then fully precompute build_holdings_comparison for the top
-    `top_n_managers`. CI-only batch job (see build_top_managers.py) --
-    never run from the live app. Returns a dict keyed by str(cik) --
-    JSON object keys must be strings -- to that manager's
-    build_holdings_comparison result. A manager whose ranking or
-    comparison fetch fails outright is simply omitted.
-
-    max_workers trades speed for staying under SEC's rate limit: ranking
-    the ~10,000-manager directory at higher concurrency got Akamai (SEC's
-    edge/CDN) to start returning 429s to every request, not just the
-    concurrent ones -- once that starts, retries don't help until
-    whatever cooldown window it enforces passes. 10 is conservative on
-    purpose; this runs on its own schedule (see
-    .github/workflows/refresh-top-managers.yml) with hours of headroom,
-    so finishing slower but reliably beats finishing fast and empty."""
+def fetch_aum13f_ranking(session=None, pages=10):
+    """Scrape aum13f.com's AUM-ranked firm listing, 30 firms/page.
+    Returns [{"slug", "name", "aum_b"}] in aum13f.com's own descending-
+    AUM order."""
     session = session or requests.Session()
-    if directory is None:
-        directory = _load_manager_directory()
+    ranking = []
+    for page in range(1, pages + 1):
+        html_text = _get(session, f"{AUM13F_BASE_URL}/?page={page}").text
+        for slug, name, aum in _AUM13F_ROW_RE.findall(html_text):
+            ranking.append({"slug": slug, "name": html.unescape(name), "aum_b": float(aum.replace(",", ""))})
+    return ranking
 
-    ranked = []
+
+def _aum13f_cik_for_firm(session, slug):
+    """The CIK aum13f.com's own firm page lists for a 13F-HR filing
+    history specifically -- None if this firm doesn't file 13F-HR under
+    its own name (aum13f.com's AUM ranking includes advisers ranked by
+    broader regulatory AUM, not just 13F filers, so this is common)."""
+    html_text = _get(session, f"{AUM13F_BASE_URL}/firm/{slug}").text
+    m = _AUM13F_CIK_ROW_RE.search(html_text)
+    return int(m.group(1)) if m else None
+
+
+def build_top_managers(session=None, top_n_managers=300, comparison_top_n=10, max_workers=15):
+    """Fully precompute build_holdings_comparison for the top
+    `top_n_managers` by AUM, ranked via aum13f.com rather than computing
+    that ranking from SEC data ourselves (see module notes above).
+    CI-only batch job (see build_top_managers.py) -- never run from the
+    live app. Returns a dict keyed by str(cik) -- JSON object keys must
+    be strings -- to that manager's build_holdings_comparison result. A
+    firm aum13f.com doesn't list a 13F-HR CIK for, or whose comparison
+    fetch fails outright, is simply omitted."""
+    session = session or requests.Session()
+    pages = -(-top_n_managers // _AUM13F_PAGE_SIZE)  # ceiling division
+    ranking = fetch_aum13f_ranking(session=session, pages=pages)[:top_n_managers]
+
+    ciks = []
     with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as pool:
-        future_to_manager = {
-            pool.submit(_retry, get_latest_total_value, session, m["cik"]): m for m in directory
+        future_to_firm = {
+            pool.submit(_retry, _aum13f_cik_for_firm, session, firm["slug"]): firm for firm in ranking
         }
-        for future in concurrent.futures.as_completed(future_to_manager):
-            manager = future_to_manager[future]
+        for future in concurrent.futures.as_completed(future_to_firm):
             try:
-                _period, value = future.result()
-            except (FilingDataError, requests.RequestException):
+                cik = future.result()
+            except requests.RequestException:
                 continue
-            ranked.append((value, manager["cik"]))
-
-    ranked.sort(key=lambda pair: pair[0], reverse=True)
-    top_ciks = [cik for _value, cik in ranked[:top_n_managers]]
+            if cik is not None:
+                ciks.append(cik)
 
     results = {}
     with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as pool:
         future_to_cik = {
-            # skip_snapshot=True: this IS the job that (re)builds that
-            # snapshot -- without it, refreshing an already-snapshotted
-            # manager would just read back last week's (possibly already
-            # position-capped) entry instead of fetching fresh.
-            pool.submit(_retry, build_holdings_comparison, session, cik, comparison_top_n,
-                        skip_snapshot=True): cik
-            for cik in top_ciks
+            pool.submit(_retry, build_holdings_comparison, session, cik, comparison_top_n): cik
+            for cik in ciks
         }
         for future in concurrent.futures.as_completed(future_to_cik):
             cik = future_to_cik[future]
