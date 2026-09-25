@@ -349,7 +349,12 @@ def build_price_figure(df, ticker, range_key, theme="dark"):
         title=dict(
             text=title_text,
             font=dict(size=24, color=colors["primary_text"]),
-            x=0, xanchor="left",
+            # Plotly's title.xref defaults to "container" -- x=0 sits at
+            # the literal left edge of the whole image, ignoring margin.l
+            # entirely, which is why increasing that margin alone didn't
+            # move the title. "paper" ties x to the margin-inset plot
+            # area instead, so it actually respects margin.l below.
+            xref="paper", x=0, xanchor="left",
         ),
         margin=dict(l=24, r=10, t=75, b=30),
         height=_CHART_HEIGHT,
@@ -448,7 +453,7 @@ def build_compare_price_figure(df1, ticker1, df2, ticker2, range_key, theme="dar
         paper_bgcolor=colors["surface"],
         plot_bgcolor=colors["surface"],
         showlegend=True,
-        legend=dict(orientation="h", x=0, y=1.12, font=dict(color=colors["primary_text"], size=14)),
+        legend=dict(orientation="h", xref="paper", x=0, y=1.12, font=dict(color=colors["primary_text"], size=14)),
         hovermode="x unified",
         uirevision=f"{ticker1}-{ticker2}-{range_key}",
         hoverlabel=dict(bgcolor=colors["hover_bg"], bordercolor=colors["axis_line"],
