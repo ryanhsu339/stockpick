@@ -23,6 +23,7 @@ import json
 import os
 import re
 import sqlite3
+import threading
 import zipfile
 from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
@@ -662,6 +663,12 @@ def fetch_politician_comparison_by_candidate(candidate, session=None, top_n=10):
 # ---------------------------------------------------------------------------
 RECENT_ACTIVITY_WINDOW_DAYS = 180
 _activity_summary_cache = None
+# Guards the build below so concurrent requests (production runs multiple
+# gunicorn threads) share one in-flight build instead of each spinning up
+# its own ThreadPoolExecutor(max_workers=15) downloading/parsing PDFs --
+# several of those running at once is what was blowing past the server's
+# memory limit and getting the whole process OOM-killed mid-build.
+_activity_summary_lock = threading.Lock()
 
 # The in-memory cache above only survives this one process's lifetime, so a
 # server restart (a routine dev-loop occurrence, not just a rare event)
@@ -807,57 +814,71 @@ def build_activity_summary(session=None, window_days=RECENT_ACTIVITY_WINDOW_DAYS
         if disk_cached is not None:
             _activity_summary_cache = disk_cached
             return _activity_summary_cache
-    session = _session_with_ua(session)
-    cutoff = date.today() - timedelta(days=window_days)
-    filing_rows = _house_filing_rows_since(cutoff, session) + _senate_filing_rows_since(cutoff, session)
 
-    all_transactions = []
-    with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as pool:
-        future_to_row = {pool.submit(_parse_one_filing, row, session): row for row in filing_rows}
-        for future in concurrent.futures.as_completed(future_to_row):
-            row = future_to_row[future]
+    with _activity_summary_lock:
+        # Another thread may have finished the build (or populated the disk
+        # cache) while this one was waiting for the lock -- re-check so a
+        # caller that just waited reuses that result instead of running a
+        # second concurrent build.
+        if _activity_summary_cache is not None and not force_refresh:
+            return _activity_summary_cache
+        if not force_refresh:
+            disk_cached = _load_activity_summary_from_disk()
+            if disk_cached is not None:
+                _activity_summary_cache = disk_cached
+                return _activity_summary_cache
+
+        session = _session_with_ua(session)
+        cutoff = date.today() - timedelta(days=window_days)
+        filing_rows = _house_filing_rows_since(cutoff, session) + _senate_filing_rows_since(cutoff, session)
+
+        all_transactions = []
+        with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as pool:
+            future_to_row = {pool.submit(_parse_one_filing, row, session): row for row in filing_rows}
+            for future in concurrent.futures.as_completed(future_to_row):
+                row = future_to_row[future]
+                try:
+                    txns = future.result()
+                except Exception:
+                    continue
+                member = f"{row['first']} {row['last']}".strip()
+                for txn in txns:
+                    txn = dict(txn)
+                    txn["member"] = member
+                    txn["chamber"] = row["chamber"]
+                    txn["first"] = row["first"]
+                    txn["last"] = row["last"]
+                    txn["member_key"] = (row["chamber"], row["last"].lower(), row["first"].lower())
+                    all_transactions.append(txn)
+
+        def parse_date(s):
             try:
-                txns = future.result()
+                return datetime.strptime(s, "%m/%d/%Y").date()
             except Exception:
-                continue
-            member = f"{row['first']} {row['last']}".strip()
-            for txn in txns:
-                txn = dict(txn)
-                txn["member"] = member
-                txn["chamber"] = row["chamber"]
-                txn["first"] = row["first"]
-                txn["last"] = row["last"]
-                txn["member_key"] = (row["chamber"], row["last"].lower(), row["first"].lower())
-                all_transactions.append(txn)
+                return None
 
-    def parse_date(s):
-        try:
-            return datetime.strptime(s, "%m/%d/%Y").date()
-        except Exception:
-            return None
+        dated = [(t, parse_date(t["transaction_date"])) for t in all_transactions]
+        dated.sort(key=lambda pair: pair[1] or date.min, reverse=True)
+        recent_trades = [t for t, _ in dated]
 
-    dated = [(t, parse_date(t["transaction_date"])) for t in all_transactions]
-    dated.sort(key=lambda pair: pair[1] or date.min, reverse=True)
-    recent_trades = [t for t, _ in dated]
+        by_member = {}
+        for t in all_transactions:
+            entry = by_member.setdefault(t["member_key"], {
+                "member": t["member"],
+                "chamber": t["chamber"],
+                "first": t["first"],
+                "last": t["last"],
+                "net_estimated_value": 0.0,
+                "transaction_count": 0,
+            })
+            if t["transaction_type"] == "Purchase":
+                entry["net_estimated_value"] += t["amount_mid"]
+            elif t["transaction_type"].startswith("Sale"):
+                entry["net_estimated_value"] -= t["amount_mid"]
+            entry["transaction_count"] += 1
 
-    by_member = {}
-    for t in all_transactions:
-        entry = by_member.setdefault(t["member_key"], {
-            "member": t["member"],
-            "chamber": t["chamber"],
-            "first": t["first"],
-            "last": t["last"],
-            "net_estimated_value": 0.0,
-            "transaction_count": 0,
-        })
-        if t["transaction_type"] == "Purchase":
-            entry["net_estimated_value"] += t["amount_mid"]
-        elif t["transaction_type"].startswith("Sale"):
-            entry["net_estimated_value"] -= t["amount_mid"]
-        entry["transaction_count"] += 1
+        leaderboard = sorted(by_member.values(), key=lambda e: -e["net_estimated_value"])
 
-    leaderboard = sorted(by_member.values(), key=lambda e: -e["net_estimated_value"])
-
-    _activity_summary_cache = {"recent_trades": recent_trades, "leaderboard": leaderboard}
-    _save_activity_summary_to_disk(_activity_summary_cache)
-    return _activity_summary_cache
+        _activity_summary_cache = {"recent_trades": recent_trades, "leaderboard": leaderboard}
+        _save_activity_summary_to_disk(_activity_summary_cache)
+        return _activity_summary_cache
