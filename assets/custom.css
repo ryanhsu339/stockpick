@@ -1,9 +1,56 @@
-/* App theme: black page, light default text so unstyled elements
-   (labels, etc.) stay readable — section headers and body copy override
-   this per-element from Python where they need a specific color. */
+/* Theme variables: dark is the default (no data-theme attribute set);
+   [data-theme="light"] overrides. A clientside callback in dash_app.py
+   (right after app.layout) sets that attribute on <html> from the
+   persisted theme-store value. Python-side style dicts reference these
+   by name (e.g. "var(--header)") instead of literal hex so the whole
+   page -- backgrounds, headers, nav pills, table card backgrounds --
+   switches live with no page reload. Plotly chart colors can't follow a
+   CSS variable at render time, so those are handled separately:
+   build_price_figure/build_compare_price_figure/build_dcf_chart take an
+   explicit theme=("dark"|"light") argument and pick their own palette
+   (see _CHART_THEMES/_chart_colors in dash_app.py). */
+:root {
+    --bg: #000000;
+    --text: #e0e0e0;
+    --header: #3a3a3a;
+    /* Section-heading TEXT (e.g. "DCF Assumptions", "Filters") -- kept
+       separate from --header, which is a BACKGROUND (nav pills, the
+       "Filters" label's own container isn't one of these) and stays the
+       same dark grey in both themes; grey text at that same value is
+       illegible against a near-black page, so this is white here and
+       --header's grey again in light mode, where it already reads fine
+       on white. */
+    --header-text: #ffffff;
+    --body-text: #cfcfcf;
+    --security-text: #b5b5b5;
+    --card-bg: #1c1c1c;
+    --card-bg-2: #161616;
+    --border: #333333;
+    --table-header-bg: #f4f4f4;
+}
+:root[data-theme="light"] {
+    --bg: #ffffff;
+    --text: #1a1a1a;
+    --header: #3a3a3a;
+    --header-text: #3a3a3a;
+    --body-text: #44464a;
+    --security-text: #1f2a36;
+    --card-bg: #f0f0f0;
+    --card-bg-2: #e8e8e8;
+    --border: #d6d6d6;
+    /* Darker than --card-bg so a table's header row still stands out
+       against both its own white cell background and the now-light
+       page -- --table-header-bg's dark-mode value already contrasts
+       fine against a black page without needing to change. */
+    --table-header-bg: #d0d0d0;
+}
+
+/* App theme: page background/default text so unstyled elements (labels,
+   etc.) stay readable — section headers and body copy override this
+   per-element from Python where they need a specific color. */
 html, body {
-    background-color: #000000;
-    color: #e0e0e0;
+    background-color: var(--bg);
+    color: var(--text);
     margin: 0;
 }
 

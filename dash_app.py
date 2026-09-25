@@ -187,13 +187,40 @@ def financial_table_records(periods, line_items):
 # vivid green/red for the up/down price line and fill -- muted status
 # colors that read fine on a light card (the old _CHART_SURFACE) wash out
 # against dark, so these are brighter than a typical "delta" palette.
+# These stay the same in both page themes (vivid enough to read on either);
+# everything else about a chart's own colors doesn't -- Plotly renders to
+# SVG/canvas rather than the DOM, so it can't follow a CSS variable the way
+# the rest of the page does, and needs the current theme's actual color
+# picked in Python instead. See _CHART_THEMES/_chart_colors and
+# toggle_theme's Input into every figure-producing callback.
 _PRICE_UP_COLOR = "#22c55e"
 _PRICE_DOWN_COLOR = "#ef4444"
-_CHART_SURFACE = "#1c1c1c"
-_CHART_GRIDLINE = "#333333"
-_CHART_AXIS_LINE = "#444444"
-_CHART_MUTED_TEXT = "#9a9a9a"
-_CHART_PRIMARY_TEXT = "#ffffff"
+_CHART_THEMES = {
+    "dark": {
+        "surface": "#1c1c1c",
+        "gridline": "#333333",
+        "axis_line": "#444444",
+        "muted_text": "#9a9a9a",
+        "primary_text": "#ffffff",
+        "hover_bg": "#2a2a2a",
+        "halo": "rgba(255,255,255,0.35)",
+        "forecast_shade": "rgba(255,255,255,0.05)",
+    },
+    "light": {
+        "surface": "#f0f0f0",
+        "gridline": "#d6d6d6",
+        "axis_line": "#999999",
+        "muted_text": "#666666",
+        "primary_text": "#1a1a1a",
+        "hover_bg": "#ffffff",
+        "halo": "rgba(0,0,0,0.25)",
+        "forecast_shade": "rgba(0,0,0,0.05)",
+    },
+}
+
+
+def _chart_colors(theme):
+    return _CHART_THEMES.get(theme, _CHART_THEMES["dark"])
 
 
 _CHART_HEIGHT = 420
@@ -202,22 +229,24 @@ _VOLUME_COLOR = "rgba(137,135,129,0.45)"  # muted ink, translucent — a neutral
                                            # with the price line's up/down color
 
 
-def empty_price_figure(message="Enter a ticker and click Generate to load a chart."):
+def empty_price_figure(message="Enter a ticker and click Generate to load a chart.", theme="dark"):
+    colors = _chart_colors(theme)
     fig = go.Figure()
     fig.update_layout(
         height=_CHART_HEIGHT,
-        paper_bgcolor=_CHART_SURFACE,
-        plot_bgcolor=_CHART_SURFACE,
+        paper_bgcolor=colors["surface"],
+        plot_bgcolor=colors["surface"],
         margin=dict(l=20, r=20, t=20, b=20),
         xaxis=dict(visible=False),
         yaxis=dict(visible=False),
         annotations=[dict(text=message, showarrow=False,
-                           font=dict(color=_CHART_MUTED_TEXT, size=14))],
+                           font=dict(color=colors["muted_text"], size=14))],
     )
     return fig
 
 
-def build_price_figure(df, ticker, range_key):
+def build_price_figure(df, ticker, range_key, theme="dark"):
+    colors = _chart_colors(theme)
     closes = df["Close"]
     volume = df["Volume"]
     first, last = float(closes.iloc[0]), float(closes.iloc[-1])
@@ -262,6 +291,7 @@ def build_price_figure(df, ticker, range_key):
             legendrank=2,
             hovertemplate="Vol %{y:,.0f}<extra></extra>",
         ))
+
     fig.add_trace(go.Scatter(
         x=closes.index, y=closes.values,
         name="Price",
@@ -282,7 +312,7 @@ def build_price_figure(df, ticker, range_key):
         x=[last_x], y=[last],
         mode="markers",
         name="_pulse_halo",
-        marker=dict(size=14, color="rgba(255,255,255,0.35)"),
+        marker=dict(size=14, color=colors["halo"]),
         hoverinfo="skip",
         showlegend=False,
     ))
@@ -290,7 +320,7 @@ def build_price_figure(df, ticker, range_key):
         x=[last_x], y=[last],
         mode="markers",
         name="_pulse_dot",
-        marker=dict(size=8, color="#ffffff", line=dict(width=1.5, color=color)),
+        marker=dict(size=8, color=colors["primary_text"], line=dict(width=1.5, color=color)),
         hoverinfo="skip",
         showlegend=False,
     ))
@@ -317,13 +347,13 @@ def build_price_figure(df, ticker, range_key):
     fig.update_layout(
         title=dict(
             text=title_text,
-            font=dict(size=24, color=_CHART_PRIMARY_TEXT),
+            font=dict(size=24, color=colors["primary_text"]),
             x=0, xanchor="left",
         ),
         margin=dict(l=10, r=10, t=75, b=30),
         height=_CHART_HEIGHT,
-        paper_bgcolor=_CHART_SURFACE,
-        plot_bgcolor=_CHART_SURFACE,
+        paper_bgcolor=colors["surface"],
+        plot_bgcolor=colors["surface"],
         showlegend=False,
         hovermode="x unified",
         # Without uirevision, Dash's Plotly.react treats every 15s refresh
@@ -333,20 +363,20 @@ def build_price_figure(df, ticker, range_key):
         uirevision=f"{ticker}-{range_key}",
         # Plotly's hover box defaults to a light background with dark
         # text -- fine on the old light card, unreadable-low-contrast on
-        # this dark one, so it needs its own explicit dark/white styling.
-        hoverlabel=dict(bgcolor="#2a2a2a", bordercolor=_CHART_AXIS_LINE,
-                         font=dict(color="#ffffff", size=12)),
+        # this dark one, so it needs its own explicit theme-matched styling.
+        hoverlabel=dict(bgcolor=colors["hover_bg"], bordercolor=colors["axis_line"],
+                         font=dict(color=colors["primary_text"], size=12)),
         bargap=0.2,
         xaxis=dict(
-            showgrid=False, showline=True, linecolor=_CHART_AXIS_LINE,
-            tickfont=dict(color=_CHART_MUTED_TEXT, size=11),
+            showgrid=False, showline=True, linecolor=colors["axis_line"],
+            tickfont=dict(color=colors["muted_text"], size=11),
             showspikes=True, spikemode="across", spikesnap="cursor",
-            spikedash="dot", spikethickness=1, spikecolor=_CHART_MUTED_TEXT,
+            spikedash="dot", spikethickness=1, spikecolor=colors["muted_text"],
             rangebreaks=rangebreaks,
         ),
         yaxis=dict(
-            showgrid=True, gridcolor=_CHART_GRIDLINE, zeroline=False,
-            tickfont=dict(color=_CHART_MUTED_TEXT, size=11),
+            showgrid=True, gridcolor=colors["gridline"], zeroline=False,
+            tickfont=dict(color=colors["muted_text"], size=11),
             tickprefix="$", side="right", range=y_range, autorange=False,
         ),
         yaxis2=dict(
@@ -366,7 +396,7 @@ _COMPARE_COLOR_1 = "#4A90D9"
 _COMPARE_COLOR_2 = "#F2A93B"
 
 
-def build_compare_price_figure(df1, ticker1, df2, ticker2, range_key):
+def build_compare_price_figure(df1, ticker1, df2, ticker2, range_key, theme="dark"):
     """Overlay both tickers' price as cumulative % change from the first
     point in range, rather than raw price -- the two are almost never
     anywhere near the same price level, so plotting raw $ would just show
@@ -374,6 +404,7 @@ def build_compare_price_figure(df1, ticker1, df2, ticker2, range_key):
     comparable growth trend. No volume bars (would be visually messy
     overlaid for two tickers, and the point of this view is the trend, not
     the volume)."""
+    colors = _chart_colors(theme)
     fig = go.Figure()
 
     rangebreaks = [dict(bounds=["sat", "mon"])]
@@ -402,34 +433,34 @@ def build_compare_price_figure(df1, ticker1, df2, ticker2, range_key):
             x=[last_x], y=[last_pct],
             mode="markers",
             name=f"_pulse_dot_{ticker}",
-            marker=dict(size=8, color=color, line=dict(width=1.5, color="#ffffff")),
+            marker=dict(size=8, color=color, line=dict(width=1.5, color=colors["primary_text"])),
             hoverinfo="skip",
             showlegend=False,
         ))
 
-    fig.add_hline(y=0, line=dict(color=_CHART_MUTED_TEXT, dash="dot", width=1))
+    fig.add_hline(y=0, line=dict(color=colors["muted_text"], dash="dot", width=1))
 
     fig.update_layout(
         margin=dict(l=10, r=10, t=50, b=30),
         height=_CHART_HEIGHT,
-        paper_bgcolor=_CHART_SURFACE,
-        plot_bgcolor=_CHART_SURFACE,
+        paper_bgcolor=colors["surface"],
+        plot_bgcolor=colors["surface"],
         showlegend=True,
-        legend=dict(orientation="h", x=0, y=1.12, font=dict(color=_CHART_PRIMARY_TEXT, size=14)),
+        legend=dict(orientation="h", x=0, y=1.12, font=dict(color=colors["primary_text"], size=14)),
         hovermode="x unified",
         uirevision=f"{ticker1}-{ticker2}-{range_key}",
-        hoverlabel=dict(bgcolor="#2a2a2a", bordercolor=_CHART_AXIS_LINE,
-                         font=dict(color="#ffffff", size=12)),
+        hoverlabel=dict(bgcolor=colors["hover_bg"], bordercolor=colors["axis_line"],
+                         font=dict(color=colors["primary_text"], size=12)),
         xaxis=dict(
-            showgrid=False, showline=True, linecolor=_CHART_AXIS_LINE,
-            tickfont=dict(color=_CHART_MUTED_TEXT, size=11),
+            showgrid=False, showline=True, linecolor=colors["axis_line"],
+            tickfont=dict(color=colors["muted_text"], size=11),
             showspikes=True, spikemode="across", spikesnap="cursor",
-            spikedash="dot", spikethickness=1, spikecolor=_CHART_MUTED_TEXT,
+            spikedash="dot", spikethickness=1, spikecolor=colors["muted_text"],
             rangebreaks=rangebreaks,
         ),
         yaxis=dict(
-            showgrid=True, gridcolor=_CHART_GRIDLINE, zeroline=False,
-            tickfont=dict(color=_CHART_MUTED_TEXT, size=11),
+            showgrid=True, gridcolor=colors["gridline"], zeroline=False,
+            tickfont=dict(color=colors["muted_text"], size=11),
             ticksuffix="%", side="right",
         ),
     )
@@ -440,7 +471,7 @@ _DCF_REVENUE_BAR_COLOR = "#7a7f87"  # neutral grey -- Revenue, historical + fore
 _DCF_FCF_BAR_COLOR = "#2874a6"      # theme blue -- FCF, historical + forecast
 
 
-def build_dcf_chart(historical, base_revenue, base_fcf, growth_rate, years):
+def build_dcf_chart(historical, base_revenue, base_fcf, growth_rate, years, theme="dark"):
     """Grouped Revenue/FCF bars: actuals from `historical` (see
     _dcf_defaults) followed by a projection grown at `growth_rate` for
     `years` years from base_revenue/base_fcf, with the forecast region
@@ -449,6 +480,7 @@ def build_dcf_chart(historical, base_revenue, base_fcf, growth_rate, years):
     is identical to this chart's FCF bars; the Revenue bars are for
     context only and don't otherwise feed the valuation math).
     """
+    colors = _chart_colors(theme)
     years = int(years) if years else 5
     g = (growth_rate or 0) / 100.0
 
@@ -498,26 +530,26 @@ def build_dcf_chart(historical, base_revenue, base_fcf, growth_rate, years):
         shapes.append(dict(
             type="rect", xref="x", yref="paper",
             x0=split, x1=end, y0=0, y1=1,
-            fillcolor="rgba(255,255,255,0.05)", line_width=0, layer="below",
+            fillcolor=colors["forecast_shade"], line_width=0, layer="below",
         ))
         annotations.append(dict(
             x=(split + end) / 2, y=1.04, yref="paper", xref="x",
             text="FORECAST", showarrow=False,
-            font=dict(color=_CHART_MUTED_TEXT, size=10),
+            font=dict(color=colors["muted_text"], size=10),
         ))
 
     fig.update_layout(
         barmode="group",
         height=_CHART_HEIGHT,
-        paper_bgcolor=_CHART_SURFACE, plot_bgcolor=_CHART_SURFACE,
+        paper_bgcolor=colors["surface"], plot_bgcolor=colors["surface"],
         margin=dict(l=10, r=10, t=40, b=30),
-        legend=dict(orientation="h", y=1.1, x=0, font=dict(color=_CHART_MUTED_TEXT, size=11)),
-        hoverlabel=dict(bgcolor="#2a2a2a", bordercolor=_CHART_AXIS_LINE,
-                         font=dict(color="#ffffff", size=12)),
-        xaxis=dict(showgrid=False, showline=True, linecolor=_CHART_AXIS_LINE,
-                   tickfont=dict(color=_CHART_MUTED_TEXT, size=11)),
-        yaxis=dict(showgrid=True, gridcolor=_CHART_GRIDLINE, zeroline=False,
-                   tickfont=dict(color=_CHART_MUTED_TEXT, size=11),
+        legend=dict(orientation="h", y=1.1, x=0, font=dict(color=colors["muted_text"], size=11)),
+        hoverlabel=dict(bgcolor=colors["hover_bg"], bordercolor=colors["axis_line"],
+                         font=dict(color=colors["primary_text"], size=12)),
+        xaxis=dict(showgrid=False, showline=True, linecolor=colors["axis_line"],
+                   tickfont=dict(color=colors["muted_text"], size=11)),
+        yaxis=dict(showgrid=True, gridcolor=colors["gridline"], zeroline=False,
+                   tickfont=dict(color=colors["muted_text"], size=11),
                    tickprefix="$", ticksuffix="B"),
         shapes=shapes,
         annotations=annotations,
@@ -617,12 +649,12 @@ def build_dcf_banner(ticker, title, fair_value, current_price, growth_rate, disc
     )
 
     card = html.Div(
-        style={"minWidth": "300px", "maxWidth": "320px", "backgroundColor": "#161616",
+        style={"minWidth": "300px", "maxWidth": "320px", "backgroundColor": "var(--card-bg-2)",
                "borderRadius": "10px", "padding": "16px", "flex": "0 0 auto"},
         children=[
-            html.Div(f"{ticker} DCF Value", style={"color": "#ffffff", "fontWeight": "700", "fontSize": "14px"}),
-            html.Div("Base Case", style={"color": _CHART_MUTED_TEXT, "fontSize": "12px", "marginBottom": "8px"}),
-            html.Div(f"${fair_value:,.2f}", style={"color": _HEADER_COLOR, "fontWeight": "800",
+            html.Div(f"{ticker} DCF Value", style={"color": "var(--text)", "fontWeight": "700", "fontSize": "14px"}),
+            html.Div("Base Case", style={"color": _BODY_TEXT_COLOR, "fontSize": "12px", "marginBottom": "8px"}),
+            html.Div(f"${fair_value:,.2f}", style={"color": _HEADER_TEXT_COLOR, "fontWeight": "800",
                                                      "fontSize": "32px", "marginBottom": "16px"}),
             dcf_row,
             price_row,
@@ -638,29 +670,43 @@ def build_dcf_banner(ticker, title, fair_value, current_price, growth_rate, disc
     )
 
 
-# Overall page theme: dark grey background, accent-colored section headers.
-_PAGE_BG = "#000000"
-_HEADER_COLOR = "#2874a6"
-# A brighter tint of _HEADER_COLOR for the security/issuer identifier column
-# every table highlights in its first column (ticker, issuer, member, line
-# item...) -- at _HEADER_COLOR's darker blue that text read as low-contrast
-# against the dark card background.
-_SECURITY_TEXT_COLOR = "#5DADE2"
-_BODY_TEXT_COLOR = "#cfcfcf"
-_HEADER_STYLE = {"color": _HEADER_COLOR}
+# Overall page theme: dark-grey-accented section headers, live light/dark
+# switching via the CSS variables in assets/custom.css -- these reference
+# them by name rather than a literal hex so every element styled through
+# them (nearly everything below) follows the current theme automatically,
+# with no Python-side re-render needed. See the two clientside callbacks
+# right after app.layout.
+_HEADER_COLOR = "var(--header)"
+# Section-heading TEXT (H3s, "DCF Assumptions"/"Filters" labels, ...) --
+# deliberately NOT _HEADER_COLOR: that's a background (nav pills) that
+# stays the same dark grey in both themes, and grey text at that value
+# is illegible against a near-black dark-mode page. See --header-text
+# in assets/custom.css.
+_HEADER_TEXT_COLOR = "var(--header-text)"
+# A brighter tint of _HEADER_TEXT_COLOR for the security/issuer identifier
+# column every table highlights in its first column (ticker, issuer,
+# member, line item...) -- at _HEADER_TEXT_COLOR's dark grey (light mode)
+# that text read as low-contrast against the dark card background.
+_SECURITY_TEXT_COLOR = "var(--security-text)"
+_BODY_TEXT_COLOR = "var(--body-text)"
+_HEADER_STYLE = {"color": _HEADER_TEXT_COLOR}
 _PARA_STYLE = {"color": _BODY_TEXT_COLOR}
 # DataTables keep their own light "card" background regardless of the dark
 # page behind them, so their cell text needs an explicit dark color rather
 # than inheriting the page's light default (which would wash out unreadable
 # on the table's white cells).
 _TABLE_CELL_STYLE = {"padding": "6px 10px", "fontSize": "14px", "textAlign": "right", "color": "#0b0b0b"}
-_TABLE_HEADER_STYLE = {"fontWeight": "bold", "backgroundColor": "#f4f4f4", "color": "#0b0b0b"}
+# var(--table-header-bg): a near-white header row barely stood out from
+# the table's white cells even in dark mode, and stood out even less
+# once light mode made the page around the table light too -- darker in
+# light mode specifically for that contrast (see assets/custom.css).
+_TABLE_HEADER_STYLE = {"fontWeight": "bold", "backgroundColor": "var(--table-header-bg)", "color": "#0b0b0b"}
 
 # Compact pill-style nav bar (fits its content instead of stretching full
 # width) shared by the range picker and the statement-view tabs. Track is
-# the same blue as the section headers; the selected tab gets a translucent
-# white overlay rather than swapping to a different text color, so both
-# selected and unselected labels stay white.
+# the same dark grey as the section headers; the selected tab gets a
+# translucent white overlay rather than swapping to a different text
+# color, so both selected and unselected labels stay white.
 _NAV_CONTAINER_STYLE = {
     "display": "inline-flex",
     "gap": "4px",
@@ -692,10 +738,6 @@ _NAV_TAB_SELECTED_STYLE = {
 # ETFs/funds (no 10-K data); Top Holdings only applies to funds. The
 # Financials view-tabs callback toggles between these two per search.
 _NAV_TAB_HIDDEN_STYLE = {"display": "none"}
-# Dark-grey variant of the pill container -- used for the Single
-# Stock/Compare toggle, which sits next to the page's own blue accent
-# header and would otherwise blend into every other blue pill on the page.
-_NAV_CONTAINER_STYLE_GREY = {**_NAV_CONTAINER_STYLE, "backgroundColor": "#3a3a3a"}
 
 # Top-level app nav (Public Company Tracker vs Investment Manager Tracker):
 # same pill treatment, just a little larger since it's the primary nav.
@@ -751,7 +793,7 @@ def _financials_valuation_block(suffix, mirror=False):
     dcf_assumptions_panel = html.Div(
         style=_FILTER_PANEL_STYLE,
         children=[
-            html.Div("DCF Assumptions", style={"color": _HEADER_COLOR, "fontWeight": "700",
+            html.Div("DCF Assumptions", style={"color": _HEADER_TEXT_COLOR, "fontWeight": "700",
                                                  "marginBottom": "10px"}),
             *[
                 html.Div(
@@ -765,7 +807,7 @@ def _financials_valuation_block(suffix, mirror=False):
                 )
                 for field, label in _DCF_INPUT_FIELDS[:3]
             ],
-            html.Div("Model Settings", style={"color": _HEADER_COLOR, "fontWeight": "700",
+            html.Div("Model Settings", style={"color": _HEADER_TEXT_COLOR, "fontWeight": "700",
                                                 "marginTop": "14px", "marginBottom": "10px",
                                                 "borderTop": "1px solid #333333", "paddingTop": "12px"}),
             *[
@@ -780,7 +822,7 @@ def _financials_valuation_block(suffix, mirror=False):
                 )
                 for field, label in _DCF_INPUT_FIELDS[3:5]
             ],
-            html.Div("Market Data", style={"color": _HEADER_COLOR, "fontWeight": "700",
+            html.Div("Market Data", style={"color": _HEADER_TEXT_COLOR, "fontWeight": "700",
                                              "marginTop": "14px", "marginBottom": "10px",
                                              "borderTop": "1px solid #333333", "paddingTop": "12px"}),
             *[
@@ -810,7 +852,7 @@ def _financials_valuation_block(suffix, mirror=False):
             html.Details(
                 style={"marginTop": "20px"},
                 children=[
-                    html.Summary("View Calculation", style={"color": _HEADER_COLOR, "cursor": "pointer",
+                    html.Summary("View Calculation", style={"color": _HEADER_TEXT_COLOR, "cursor": "pointer",
                                                               "fontSize": "13px", "fontWeight": "600"}),
                     html.Div(
                         style={"marginTop": "12px"},
@@ -1060,7 +1102,7 @@ def _company_tracker_children():
                 dcc.Tabs(
                     id="compare-mode-tabs",
                     value="single",
-                    style=_NAV_CONTAINER_STYLE_GREY,
+                    style=_NAV_CONTAINER_STYLE,
                     children=[
                         dcc.Tab(label="Single Stock", value="single", style=_NAV_TAB_STYLE,
                                 selected_style=_NAV_TAB_SELECTED_STYLE),
@@ -1182,7 +1224,7 @@ _POSITION_FILTERS = [
 ]
 _FILTER_PANEL_STYLE = {
     "minWidth": "180px", "maxWidth": "180px",
-    "backgroundColor": "#1a1a1a", "borderRadius": "8px",
+    "backgroundColor": "var(--card-bg)", "borderRadius": "8px",
     "padding": "12px", "flex": "0 0 auto",
 }
 _FILTER_INPUT_STYLE = {"width": "100%", "fontSize": "12px", "color": "#0b0b0b", "boxSizing": "border-box"}
@@ -1244,20 +1286,20 @@ ALL_POSITIONS_COLUMNS = [
 # from the light-card Public Company Tracker tables above): dark grey
 # background, white text for numeric columns, theme blue for the Security
 # column.
-_MANAGER_TABLE_BG = "#1c1c1c"
+_MANAGER_TABLE_BG = "var(--card-bg)"
 _MANAGER_TABLE_CELL_STYLE = {
     **_TABLE_CELL_STYLE,
     "backgroundColor": _MANAGER_TABLE_BG,
-    "color": "#ffffff",
+    "color": "var(--text)",
     "border": "none",
-    "borderBottom": "1px solid #333333",
+    "borderBottom": "1px solid var(--border)",
 }
 _MANAGER_TABLE_HEADER_STYLE = {
     "backgroundColor": _MANAGER_TABLE_BG,
-    "color": "#ffffff",
+    "color": "var(--text)",
     "fontWeight": "bold",
     "border": "none",
-    "borderBottom": "1px solid #444444",
+    "borderBottom": "1px solid var(--border)",
     # Column names like "Prev Portfolio %" don't fit the numeric columns'
     # natural width — wrap onto a second line instead of truncating.
     "whiteSpace": "normal",
@@ -1506,7 +1548,7 @@ def _manager_tracker_children():
                 html.Div(
                     style=_FILTER_PANEL_STYLE,
                     children=[
-                        html.Div("Filters", style={"color": _HEADER_COLOR, "fontWeight": "700",
+                        html.Div("Filters", style={"color": _HEADER_TEXT_COLOR, "fontWeight": "700",
                                                      "marginBottom": "10px"}),
                         *[
                             html.Div(
@@ -1717,7 +1759,7 @@ def _politician_tracker_children():
                 html.Div(
                     style=_FILTER_PANEL_STYLE,
                     children=[
-                        html.Div("Filters", style={"color": _HEADER_COLOR, "fontWeight": "700",
+                        html.Div("Filters", style={"color": _HEADER_TEXT_COLOR, "fontWeight": "700",
                                                      "marginBottom": "10px"}),
                         *[
                             html.Div(
@@ -1782,6 +1824,27 @@ app.layout = html.Div(
     style={"maxWidth": "1400px", "margin": "40px auto", "fontFamily": "sans-serif",
            "padding": "0 16px"},
     children=[
+        # storage_type="local" persists the choice in the browser's own
+        # localStorage and re-hydrates it before any Python callback
+        # runs -- see the two clientside callbacks right after this
+        # layout for how a click updates it and how it's applied.
+        dcc.Store(id="theme-store", storage_type="local", data="dark"),
+        html.Div(
+            style={"display": "flex", "justifyContent": "flex-end", "marginBottom": "8px"},
+            children=[
+                html.Button(
+                    "🌙 Dark",
+                    id="theme-toggle-btn",
+                    n_clicks=0,
+                    style={
+                        "backgroundColor": "var(--card-bg)", "color": "var(--text)",
+                        "border": "1px solid var(--border)", "borderRadius": "8px",
+                        "padding": "6px 14px", "fontSize": "13px", "fontWeight": "600",
+                        "cursor": "pointer",
+                    },
+                ),
+            ],
+        ),
         dcc.Tabs(
             id="app-tabs",
             value="company",
@@ -1811,6 +1874,42 @@ app.layout = html.Div(
             ],
         ),
     ],
+)
+
+# Flips theme-store's persisted value on a click. Guarded on n_clicks so
+# the initial call Dash fires for every clientside callback on page load
+# doesn't itself toggle away from whatever was just read out of
+# localStorage before the visitor has clicked anything.
+app.clientside_callback(
+    """
+    function(n_clicks, current) {
+        if (!n_clicks) {
+            return window.dash_clientside.no_update;
+        }
+        return current === "light" ? "dark" : "light";
+    }
+    """,
+    Output("theme-store", "data"),
+    Input("theme-toggle-btn", "n_clicks"),
+    State("theme-store", "data"),
+)
+
+# Applies theme-store's value -- data-theme on <html>, which every
+# var(--...)-based Python style in this file follows live via the CSS
+# variables in assets/custom.css -- and updates the toggle's own label.
+# Fires on theme-store itself rather than the button, so a persisted
+# "light" choice from a previous visit takes effect on page load too,
+# not just after a click.
+app.clientside_callback(
+    """
+    function(theme) {
+        var t = theme || "dark";
+        document.documentElement.setAttribute("data-theme", t);
+        return t === "light" ? "☀️ Light" : "🌙 Dark";
+    }
+    """,
+    Output("theme-toggle-btn", "children"),
+    Input("theme-store", "data"),
 )
 
 
@@ -2304,10 +2403,11 @@ def update_company_suggestions_2(query, suppress):
     Input("compare-mode", "data"),
     Input("range-tabs", "value"),
     Input("price-chart-refresh", "n_intervals"),
+    Input("theme-store", "data"),
 )
-def update_price_chart(store, store2, is_compare, range_key, _n_intervals):
+def update_price_chart(store, store2, is_compare, range_key, _n_intervals, theme):
     if not store:
-        return empty_price_figure()
+        return empty_price_figure(theme=theme)
     ticker = store["ticker"]
 
     if is_compare and store2:
@@ -2316,18 +2416,18 @@ def update_price_chart(store, store2, is_compare, range_key, _n_intervals):
             df1 = fetch_price_history(ticker, range_key)
             df2 = fetch_price_history(ticker2, range_key)
         except PriceDataError as e:
-            return empty_price_figure(str(e))
+            return empty_price_figure(str(e), theme=theme)
         except Exception as e:
-            return empty_price_figure(f"Price data unavailable: {e}")
-        return build_compare_price_figure(df1, ticker, df2, ticker2, range_key)
+            return empty_price_figure(f"Price data unavailable: {e}", theme=theme)
+        return build_compare_price_figure(df1, ticker, df2, ticker2, range_key, theme=theme)
 
     try:
         df = fetch_price_history(ticker, range_key)
     except PriceDataError as e:
-        return empty_price_figure(str(e))
+        return empty_price_figure(str(e), theme=theme)
     except Exception as e:
-        return empty_price_figure(f"Price data unavailable: {e}")
-    return build_price_figure(df, ticker, range_key)
+        return empty_price_figure(f"Price data unavailable: {e}", theme=theme)
+    return build_price_figure(df, ticker, range_key, theme=theme)
 
 
 # Pulses the live-price dot's halo (see build_price_figure) by directly
@@ -2535,10 +2635,11 @@ _DCF_FIELD_NAMES = [field for field, _label in _DCF_INPUT_FIELDS]
     Input("dcf-defaults-store", "data"),
     Input("calculate-dcf-btn", "n_clicks"),
     Input("dcf-price-refresh", "n_intervals"),
+    Input("theme-store", "data"),
     [State(f"dcf-{field}", "value") for field in _DCF_FIELD_NAMES],
     prevent_initial_call=True,
 )
-def update_dcf(defaults, _n_clicks, _n_intervals, *current_values):
+def update_dcf(defaults, _n_clicks, _n_intervals, theme, *current_values):
     if ctx.triggered_id == "dcf-defaults-store":
         if not defaults:
             raise PreventUpdate
@@ -2583,6 +2684,7 @@ def update_dcf(defaults, _n_clicks, _n_intervals, *current_values):
     chart = build_dcf_chart(
         defaults.get("historical") or [], defaults.get("base_revenue"),
         field_values["base_fcf"], field_values["growth_rate"], field_values["years"],
+        theme=theme,
     )
 
     return (*input_outputs, data, columns, summary, banner, chart)
@@ -2595,10 +2697,11 @@ def update_dcf(defaults, _n_clicks, _n_intervals, *current_values):
     Input("dcf-defaults-store-2", "data"),
     Input("calculate-dcf-btn-2", "n_clicks"),
     Input("dcf-price-refresh-2", "n_intervals"),
+    Input("theme-store", "data"),
     [State(f"dcf-{field}-2", "value") for field in _DCF_FIELD_NAMES],
     prevent_initial_call=True,
 )
-def update_dcf_2(defaults, _n_clicks, _n_intervals, *current_values):
+def update_dcf_2(defaults, _n_clicks, _n_intervals, theme, *current_values):
     if ctx.triggered_id == "dcf-defaults-store-2":
         if not defaults:
             raise PreventUpdate
@@ -2639,6 +2742,7 @@ def update_dcf_2(defaults, _n_clicks, _n_intervals, *current_values):
     chart = build_dcf_chart(
         defaults.get("historical") or [], defaults.get("base_revenue"),
         field_values["base_fcf"], field_values["growth_rate"], field_values["years"],
+        theme=theme,
     )
 
     return (*input_outputs, data, columns, summary, banner, chart)
