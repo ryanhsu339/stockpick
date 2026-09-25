@@ -26,9 +26,13 @@ KNOWN LIMITATIONS
 """
 
 import html
+import json
+import os
 import re
+import sqlite3
 import xml.etree.ElementTree as ET
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
+from pathlib import Path
 from urllib.parse import quote
 
 import requests
@@ -40,6 +44,97 @@ ARCHIVES_URL = "https://www.sec.gov/Archives/edgar/data"
 
 _ATOM_NS = {"a": "http://www.w3.org/2005/Atom"}
 _INFOTABLE_NS = {"n": "http://www.sec.gov/edgar/document/thirteenf/informationtable"}
+
+# Both manager-name search and per-CIK holdings comparisons hit SEC's live
+# endpoints with no caching of their own, so every keystroke and every
+# manager selection re-pays that latency even for a manager someone already
+# looked up seconds ago. This mirrors congress_trades.py's disk cache: a
+# manager's filer-directory listing and its quarter-over-quarter holdings
+# both change at most quarterly, so a same-day cache hit is always safe.
+_CACHE_DIR = Path(os.environ.get("CACHE_DIR", Path(__file__).parent))
+_CACHE_DB_PATH = _CACHE_DIR / "thirteenf_cache.db"
+SEARCH_CACHE_TTL_HOURS = 24
+HOLDINGS_CACHE_TTL_HOURS = 24
+
+
+def _cache_db():
+    _CACHE_DIR.mkdir(parents=True, exist_ok=True)
+    conn = sqlite3.connect(_CACHE_DB_PATH)
+    conn.execute(
+        "CREATE TABLE IF NOT EXISTS manager_search ("
+        "query TEXT PRIMARY KEY, data TEXT NOT NULL, built_at TEXT NOT NULL)"
+    )
+    conn.execute(
+        "CREATE TABLE IF NOT EXISTS holdings_comparison ("
+        "cik INTEGER PRIMARY KEY, data TEXT NOT NULL, built_at TEXT NOT NULL)"
+    )
+    return conn
+
+
+def _cache_fresh_data(row, max_age_hours):
+    if not row:
+        return None
+    data_json, built_at_str = row
+    try:
+        built_at = datetime.fromisoformat(built_at_str)
+        # A naive timestamp can't be compared against an aware "now" --
+        # treat it as unreadable/stale rather than crashing.
+        if built_at.tzinfo is None:
+            return None
+        if datetime.now(timezone.utc) - built_at > timedelta(hours=max_age_hours):
+            return None
+    except ValueError:
+        return None
+    try:
+        return json.loads(data_json)
+    except (TypeError, ValueError):
+        return None
+
+
+def _load_manager_search_from_disk(query, max_age_hours=SEARCH_CACHE_TTL_HOURS):
+    try:
+        with _cache_db() as conn:
+            row = conn.execute(
+                "SELECT data, built_at FROM manager_search WHERE query = ?", (query,)
+            ).fetchone()
+    except sqlite3.Error:
+        return None
+    return _cache_fresh_data(row, max_age_hours)
+
+
+def _save_manager_search_to_disk(query, matches):
+    try:
+        with _cache_db() as conn:
+            conn.execute(
+                "INSERT INTO manager_search (query, data, built_at) VALUES (?, ?, ?) "
+                "ON CONFLICT(query) DO UPDATE SET data = excluded.data, built_at = excluded.built_at",
+                (query, json.dumps(matches), datetime.now(timezone.utc).isoformat()),
+            )
+    except sqlite3.Error:
+        pass  # best-effort -- an unwritable cache file shouldn't break the search box
+
+
+def _load_holdings_comparison_from_disk(cik, max_age_hours=HOLDINGS_CACHE_TTL_HOURS):
+    try:
+        with _cache_db() as conn:
+            row = conn.execute(
+                "SELECT data, built_at FROM holdings_comparison WHERE cik = ?", (cik,)
+            ).fetchone()
+    except sqlite3.Error:
+        return None
+    return _cache_fresh_data(row, max_age_hours)
+
+
+def _save_holdings_comparison_to_disk(cik, comparison):
+    try:
+        with _cache_db() as conn:
+            conn.execute(
+                "INSERT INTO holdings_comparison (cik, data, built_at) VALUES (?, ?, ?) "
+                "ON CONFLICT(cik) DO UPDATE SET data = excluded.data, built_at = excluded.built_at",
+                (cik, json.dumps(comparison), datetime.now(timezone.utc).isoformat()),
+            )
+    except sqlite3.Error:
+        pass  # best-effort -- an unwritable cache file shouldn't break the page
 
 
 class ManagerLookupError(Exception):
@@ -84,17 +179,28 @@ def search_managers(query, session, limit=100):
     """Search SEC's 13F-HR filer directory for `query` (a manager name).
     Returns up to `limit` {"cik", "name"} dicts — 0, 1, or many; unlike
     resolve_manager this never raises for an ambiguous or empty result, so
-    it's also used for the live-typeahead search box."""
+    it's also used for the live-typeahead search box. Results are cached
+    on disk per normalized query (see module notes above), so repeat
+    searches for the same name -- including across different visitors --
+    skip SEC's live endpoint entirely."""
+    normalized = query.strip().lower()
+    cached = _load_manager_search_from_disk(normalized)
+    if cached is not None:
+        return cached[:limit]
+
     url = (f"{BROWSE_URL}?action=getcompany&company={quote(query)}"
            "&type=13F-HR&dateb=&owner=include&count=100")
     html_text = _get(session, url).text
 
     single = _SINGLE_MATCH_RE.search(html_text)
     if single:
-        return [{"cik": int(single.group(2)), "name": html.unescape(single.group(1)).strip()}]
+        matches = [{"cik": int(single.group(2)), "name": html.unescape(single.group(1)).strip()}]
+    else:
+        rows = _TABLE_ROW_RE.findall(html_text)
+        matches = [{"cik": int(cik), "name": html.unescape(name).strip()} for cik, name in rows]
 
-    rows = _TABLE_ROW_RE.findall(html_text)
-    return [{"cik": int(cik), "name": html.unescape(name).strip()} for cik, name in rows[:limit]]
+    _save_manager_search_to_disk(normalized, matches)
+    return matches[:limit]
 
 
 def resolve_manager(query, session):
@@ -263,7 +369,13 @@ def build_holdings_comparison(session, cik, top_n=10):
 
     All percents are already-multiplied numbers, e.g. 1.57 for 1.57%;
     shares/value (including delta_shares_m/delta_shares_value_m) are in
-    millions."""
+    millions. Cached on disk per CIK (see module notes above) -- a repeat
+    lookup of the same manager, by anyone, skips the several live SEC
+    round-trips and the XML parsing entirely."""
+    cached = _load_holdings_comparison_from_disk(cik)
+    if cached is not None:
+        return cached
+
     filings = list_13f_filings(session, cik, count=40)
     if len(filings) < 2:
         raise FilingDataError("Fewer than two quarterly 13F-HR filings found for this manager.")
@@ -344,7 +456,7 @@ def build_holdings_comparison(session, cik, top_n=10):
     )[:top_n]
     all_positions.sort(key=lambda r: r["portfolio_pct"], reverse=True)
 
-    return {
+    result = {
         "manager_name": manager_name,
         "latest_period": latest_period,
         "previous_period": previous_period,
@@ -352,6 +464,8 @@ def build_holdings_comparison(session, cik, top_n=10):
         "top_decreases": top_decreases,
         "all_positions": all_positions,
     }
+    _save_holdings_comparison_to_disk(cik, result)
+    return result
 
 
 def fetch_manager_comparison(query, session=None, user_agent=None, top_n=10):
