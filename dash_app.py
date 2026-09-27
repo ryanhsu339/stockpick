@@ -786,6 +786,13 @@ _NAV_CONTAINER_STYLE = {
     "borderRadius": "9px",
     "marginTop": "16px",
     "border": "1px solid var(--border)",
+    # Harmless on desktop (nothing ever overflows there), but on a narrow
+    # mobile screen a pill row with several tabs (see range-tabs' 9) can
+    # still be wider than the viewport even with mobile_breakpoint=0
+    # keeping it horizontal -- this lets it scroll sideways instead of
+    # forcing every pill to shrink illegibly or overflowing the page.
+    "maxWidth": "100%",
+    "overflowX": "auto",
 }
 _NAV_TAB_STYLE = {
     "padding": "8px 16px",
@@ -902,7 +909,13 @@ def _financials_valuation_block(suffix, mirror=False):
         ],
     )
     dcf_chart_column = html.Div(
-        style={"flex": "1", "minWidth": "0"},
+        # minWidth 280px, not 0: a bare flex:1 + minWidth:0 lets the
+        # browser satisfy the row by shrinking this down to near-nothing
+        # instead of ever wrapping it below the (fixed-width) assumptions
+        # panel -- on a narrow mobile screen that squeezed the chart into
+        # an illegible sliver rather than the flexWrap on the parent row
+        # (see _financials_valuation_block's caller) actually kicking in.
+        style={"flex": "1", "minWidth": "280px"},
         children=[
             dcc.Graph(
                 id=f"dcf-chart{suffix}",
@@ -973,6 +986,11 @@ def _financials_valuation_block(suffix, mirror=False):
         dcc.Tabs(
             id=f"view-tabs{suffix}",
             value="growth",
+            # 0: never auto-collapse into Dash's own vertical/dropdown
+            # mobile layout -- these pill navs have their own theming and
+            # (via the shared #range-tabs mobile CSS rule / flexWrap) their
+            # own wrapping behavior on narrow screens instead.
+            mobile_breakpoint=0,
             style=_NAV_CONTAINER_STYLE,
             children=[
                 dcc.Tab(
@@ -1150,7 +1168,8 @@ def _financials_valuation_block(suffix, mirror=False):
                            "padding": "20px", "marginTop": "8px"},
                 ),
                 html.Div(
-                    style={"display": "flex", "gap": "16px", "alignItems": "flex-start", "marginTop": "16px"},
+                    style={"display": "flex", "flexWrap": "wrap", "gap": "16px", "alignItems": "flex-start",
+                           "marginTop": "16px"},
                     children=dcf_row_children,
                 ),
                 dcc.Store(id=f"dcf-defaults-store{suffix}", data=None),
@@ -1201,6 +1220,7 @@ def _company_tracker_children():
                         dcc.Tabs(
                             id="compare-mode-tabs",
                             value="single",
+                            mobile_breakpoint=0,
                             style={**_NAV_CONTAINER_STYLE, "marginTop": "0"},
                             children=[
                                 dcc.Tab(label="Single Stock", value="single", style=_NAV_TAB_STYLE,
@@ -1289,6 +1309,7 @@ def _company_tracker_children():
                         dcc.Tabs(
                             id="range-tabs",
                             value="6M",
+                            mobile_breakpoint=0,
                             style={**_NAV_CONTAINER_STYLE, "marginTop": "0"},
                             children=[dcc.Tab(label=k, value=k, style=_NAV_TAB_STYLE,
                                                selected_style=_NAV_TAB_SELECTED_STYLE)
@@ -1325,7 +1346,8 @@ def _company_tracker_children():
                         "gap": "10px", "marginTop": "20px"}),
         html.Div(
             id="financials-columns",
-            style={"display": "flex", "gap": "32px", "alignItems": "flex-start", "marginTop": "24px"},
+            style={"display": "flex", "flexWrap": "wrap", "gap": "32px", "alignItems": "flex-start",
+                   "marginTop": "24px"},
             children=[
                 html.Div(style={"flex": "1", "minWidth": "0"},
                          children=_financials_valuation_block("", mirror=False)),
@@ -1945,6 +1967,7 @@ def _politician_tracker_children():
         dcc.Tabs(
             id="politician-chamber-tabs",
             value="house",
+            mobile_breakpoint=0,
             style=_NAV_CONTAINER_STYLE,
             children=[
                 dcc.Tab(label="House of Representatives", value="house",
@@ -2078,18 +2101,6 @@ server = app.server
 # doesn't constrain it.
 _APP_CONTENT_STYLE = {"maxWidth": "1400px", "margin": "24px auto 60px", "padding": "0 16px"}
 
-_SIDEBAR_STYLE = {
-    "borderRight": "1px solid var(--border)",
-    "padding": "20px 14px",
-    "display": "flex",
-    "flexDirection": "column",
-    "gap": "24px",
-    "position": "sticky",
-    "top": "0",
-    "height": "100vh",
-    "boxSizing": "border-box",
-    "backgroundColor": "var(--bg)",
-}
 _SIDEBAR_SECTION_LABEL_STYLE = {
     "fontSize": "11px", "letterSpacing": "0.08em", "textTransform": "uppercase",
     "color": "var(--body-text)", "padding": "0 10px 8px",
@@ -2139,7 +2150,7 @@ def _build_sidebar():
         for view, row_id, label, meta in _SIDEBAR_NAV_ITEMS
     ]
     return html.Div(
-        style=_SIDEBAR_STYLE,
+        id="app-sidebar",
         children=[
             html.Div(
                 style={"display": "flex", "alignItems": "center", "gap": "10px", "padding": "0 8px"},
@@ -2163,9 +2174,17 @@ def _build_sidebar():
                                 id="global-search-input", type="text",
                                 placeholder="Search ticker, fund, member",
                                 autoComplete="off", n_submit=0,
-                                style={"flex": "1", "border": "none", "backgroundColor": "transparent",
-                                       "padding": "0", "fontSize": "13px", "color": "var(--text)",
-                                       "outline": "none"},
+                                # minWidth: flex items (this renders as a
+                                # flex child via the wrapper div dcc.Input
+                                # puts its style on) default to min-width:
+                                # auto, which for a text input means it
+                                # won't shrink below its own content's
+                                # intrinsic width -- without this override
+                                # it was blowing out the whole sidebar's
+                                # width on narrow (mobile) viewports.
+                                style={"flex": "1", "minWidth": "0", "border": "none",
+                                       "backgroundColor": "transparent", "padding": "0", "fontSize": "13px",
+                                       "color": "var(--text)", "outline": "none"},
                             ),
                             html.Span("⌘K", style={"fontFamily": "'IBM Plex Mono', monospace",
                                                     "fontSize": "11px", "padding": "2px 5px",
@@ -2209,8 +2228,7 @@ def _tracker_panel_style(view):
 
 
 app.layout = html.Div(
-    style={"display": "grid", "gridTemplateColumns": "232px minmax(0,1fr)", "minHeight": "100vh",
-           "backgroundColor": "var(--bg)"},
+    id="app-shell",
     children=[
         # storage_type="local" persists the choice in the browser's own
         # localStorage and re-hydrates it before any Python callback

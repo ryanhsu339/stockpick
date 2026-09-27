@@ -56,6 +56,85 @@ html, body {
 a { color: var(--accent); }
 a:hover { color: var(--text); }
 
+/* App shell: fixed-width sidebar + flexible main column. Split out of
+   dash_app.py's inline styles (app.layout / _build_sidebar) specifically
+   so the mobile media query below can override them -- an inline style
+   always wins over an external stylesheet rule, media query or not,
+   unless that rule also lives here. Desktop values below are unchanged
+   from before this split. */
+#app-shell {
+    display: grid;
+    grid-template-columns: 232px minmax(0, 1fr);
+    min-height: 100vh;
+    background-color: var(--bg);
+}
+#app-sidebar {
+    border-right: 1px solid var(--border);
+    padding: 20px 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+    position: sticky;
+    top: 0;
+    height: 100vh;
+    box-sizing: border-box;
+    background-color: var(--bg);
+}
+
+/* Mobile: stack the sidebar above the content instead of beside it --
+   below this width the fixed 232px sidebar was eating well over half the
+   viewport, squeezing every table/card/chart into a sliver. Only these
+   two rules change; nothing above this query (or in dash_app.py's other
+   inline styles) is touched, so desktop is unaffected. */
+@media (max-width: 768px) {
+    #app-shell {
+        /* minmax(0, 1fr), not bare 1fr -- a grid track (like a flex
+           track) defaults its items' min-width to auto, so a plain 1fr
+           track still won't shrink a child below ITS content's own
+           intrinsic width. Without the 0 floor here, anything inside the
+           sidebar that itself resists shrinking (the search input, see
+           its own min-width fix) blows out the whole shell's width
+           instead of wrapping/shrinking to the viewport. */
+        grid-template-columns: minmax(0, 1fr);
+    }
+    #app-sidebar {
+        position: static;
+        height: auto;
+        border-right: none;
+        border-bottom: 1px solid var(--border);
+    }
+
+    /* dcc.Tabs (Dash 4) has its own internal responsive breakpoint that
+       collapses a too-narrow pill row into a tall vertical stack instead
+       of actually wrapping -- squeezed next to "High $x / Low $x" on a
+       phone-width chart card, that ate most of the chart's height. Giving
+       it flex-basis: 100% forces it onto its own full-width row below
+       High/Low (the row's own flexWrap: wrap, already set for desktop,
+       does the rest), so it renders as a normal wrapping pill row again
+       instead of Dash's own collapsed layout. */
+    #range-tabs {
+        flex-basis: 100%;
+    }
+
+    /* Politician Tracker's trade rows (see _build_trade_row) use a
+       5-column CSS grid sized for desktop (member/ticker/pill/range-bar/
+       date side by side, ~450px minimum) -- inline Python styles, so
+       !important is needed to override them here. [id*="trade-row"]
+       matches the pattern-matching id's literal {"type":"trade-row",...}
+       JSON, which is unique to these rows -- _build_leaderboard_row's
+       simpler 3-column grid already fits phone widths and stays as-is.
+       Switching to a wrapping flex row lets each piece reflow across a
+       couple of lines instead of being clipped at the card's edge. */
+    [id*="trade-row"] {
+        display: flex !important;
+        flex-wrap: wrap !important;
+        row-gap: 4px !important;
+    }
+    [id*="trade-row"] > * {
+        flex: 1 1 auto;
+    }
+}
+
 h2 { font-size: 28px; font-weight: 600; letter-spacing: -0.02em; margin: 8px 0 4px; }
 h3 { font-size: 20px; font-weight: 600; letter-spacing: -0.005em; margin: 28px 0 8px; }
 p  { line-height: 1.55; text-wrap: pretty; }
