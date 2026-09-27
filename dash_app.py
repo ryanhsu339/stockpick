@@ -1423,9 +1423,9 @@ _TOP_MOVES_TABLE_STYLE = {
 # whiteSpace "normal" to wrap a long name onto a second line instead of
 # truncating or forcing that scrollbar.
 _TOP_BUYS_COLUMN_WIDTHS = {
-    "manager_name": "110px",
+    "manager_name": "160px",
     "total_portfolio_value_m": "120px",
-    "issuer": "320px",
+    "issuer": "270px",
     "delta_shares_value_pct_of_portfolio": "110px",
     "delta_shares_value_m": _MANAGER_COLUMN_WIDTHS["delta_shares_value_m"],
     "delta_shares_pct": _MANAGER_COLUMN_WIDTHS["delta_shares_pct"],
