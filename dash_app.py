@@ -1289,10 +1289,10 @@ MANAGER_COLUMNS = [
 # up front to say whose buy each row actually is.
 TOP_BUYS_COLUMNS = [
     {"name": "Manager", "id": "manager_name"},
-    {"name": "Public Equity Portfolio ($MM)", "id": "total_portfolio_value_m", "type": "numeric",
+    {"name": "Equity Portfolio ($MM)", "id": "total_portfolio_value_m", "type": "numeric",
      "format": _MONEY_FORMAT},
     {"name": "Security", "id": "issuer"},
-    {"name": "Buy as % of Portfolio", "id": "delta_shares_value_pct_of_portfolio",
+    {"name": "Buy as % Portfolio", "id": "delta_shares_value_pct_of_portfolio",
      "type": "numeric", "format": _PCT_OF_PORTFOLIO_FORMAT},
     {"name": "~ΔShares Value ($MM)", "id": "delta_shares_value_m", "type": "numeric",
      "format": _DELTA_SHARES_VALUE_FORMAT},
@@ -1409,6 +1409,36 @@ _MANAGER_TABLE_STYLE = dict(
 _TOP_MOVES_TABLE_STYLE = {
     **_MANAGER_TABLE_STYLE,
     "style_table": {**_MANAGER_TABLE_STYLE["style_table"], "height": "420px", "overflowY": "auto"},
+}
+# Top Buys has its own column set (manager_name/total_portfolio_value_m/
+# delta_shares_value_pct_of_portfolio don't exist on the other manager
+# tables), so it needs its own width tuning rather than reusing
+# _MANAGER_COLUMN_WIDTHS wholesale -- though the columns it DOES share
+# (issuer, delta_shares_value_m, delta_shares_pct, value_m,
+# portfolio_pct) keep those same proven widths for consistency. Sized so
+# every header wraps to at most 2 lines and the whole row fits within
+# the page's own maxWidth without a horizontal scrollbar; issuer
+# (Security) also gets whiteSpace "normal" so a long security name wraps
+# onto a second line instead of truncating or forcing that scrollbar.
+_TOP_BUYS_COLUMN_WIDTHS = {
+    "manager_name": "150px",
+    "total_portfolio_value_m": "120px",
+    "issuer": "160px",
+    "delta_shares_value_pct_of_portfolio": "110px",
+    "delta_shares_value_m": _MANAGER_COLUMN_WIDTHS["delta_shares_value_m"],
+    "delta_shares_pct": _MANAGER_COLUMN_WIDTHS["delta_shares_pct"],
+    "value_m": _MANAGER_COLUMN_WIDTHS["value_m"],
+    "portfolio_pct": _MANAGER_COLUMN_WIDTHS["portfolio_pct"],
+}
+_TOP_BUYS_TABLE_STYLE = {
+    **_TOP_MOVES_TABLE_STYLE,
+    "style_cell_conditional": [
+        {"if": {"column_id": "issuer"}, "textAlign": "left", "color": _SECURITY_TEXT_COLOR,
+         "whiteSpace": "normal"},
+    ] + [
+        {"if": {"column_id": col_id}, "minWidth": width, "width": width}
+        for col_id, width in _TOP_BUYS_COLUMN_WIDTHS.items()
+    ],
 }
 # Public Company Tracker's Financials tables (Growth Rates, Income Statement,
 # Balance Sheet, Cash Flow Statement, Top Holdings) reuse the Investment
@@ -1555,7 +1585,7 @@ def _manager_tracker_children():
         dash_table.DataTable(
             id="top-buys-table", columns=TOP_BUYS_COLUMNS,
             data=[_top_buy_row_to_record(r) for r in top_buys_across_managers(top_n=50)],
-            cell_selectable=False, **_TOP_MOVES_TABLE_STYLE,
+            cell_selectable=False, **_TOP_BUYS_TABLE_STYLE,
         ),
         html.H3("Look Up a Manager", style={**_HEADER_STYLE, "marginTop": "40px"}),
         html.Div(
