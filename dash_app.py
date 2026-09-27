@@ -1964,7 +1964,7 @@ app.layout = html.Div(
                         **_NAV_CONTAINER_STYLE,
                         "width": "100%", "boxSizing": "border-box",
                         "borderRadius": "0", "marginTop": "0",
-                        "padding": "4px 110px 4px 24px",
+                        "padding": "4px 110px 6px 24px",
                     },
                     children=[
                         dcc.Tab(
