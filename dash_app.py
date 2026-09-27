@@ -1588,7 +1588,7 @@ def _manager_tracker_children():
         dash_table.DataTable(
             id="top-buys-table", columns=TOP_BUYS_COLUMNS,
             data=[_top_buy_row_to_record(r) for r in top_buys_across_managers(top_n=50)],
-            cell_selectable=False, **_TOP_BUYS_TABLE_STYLE,
+            cell_selectable=False, fixed_rows={"headers": True}, **_TOP_BUYS_TABLE_STYLE,
         ),
         html.H3("Look Up a Manager", style={**_HEADER_STYLE, "marginTop": "40px"}),
         html.Div(
@@ -1625,7 +1625,7 @@ def _manager_tracker_children():
                         html.P(_MANAGER_NOTE, style={**_PARA_STYLE, "fontSize": "13px"}),
                         dash_table.DataTable(id="increases-table", columns=MANAGER_COLUMNS,
                                               data=[], cell_selectable=False,
-                                              **_TOP_MOVES_TABLE_STYLE),
+                                              fixed_rows={"headers": True}, **_TOP_MOVES_TABLE_STYLE),
                     ],
                 ),
                 html.Div(
@@ -1635,7 +1635,7 @@ def _manager_tracker_children():
                         html.P(_MANAGER_NOTE, style={**_PARA_STYLE, "fontSize": "13px"}),
                         dash_table.DataTable(id="decreases-table", columns=MANAGER_COLUMNS,
                                               data=[], cell_selectable=False,
-                                              **_TOP_MOVES_TABLE_STYLE),
+                                              fixed_rows={"headers": True}, **_TOP_MOVES_TABLE_STYLE),
                     ],
                 ),
             ],
@@ -1940,7 +1940,7 @@ server = app.server
 # each tab's own content wrapper below carries its own maxWidth/centering
 # instead of one wrapper around the whole page doing it (see
 # _APP_CONTENT_STYLE and its three usages just below).
-_APP_CONTENT_STYLE = {"maxWidth": "1400px", "margin": "24px auto 0", "padding": "0 16px"}
+_APP_CONTENT_STYLE = {"maxWidth": "1400px", "margin": "24px auto 60px", "padding": "0 16px"}
 
 app.layout = html.Div(
     children=[
