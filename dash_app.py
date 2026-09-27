@@ -1289,10 +1289,10 @@ MANAGER_COLUMNS = [
 # up front to say whose buy each row actually is.
 TOP_BUYS_COLUMNS = [
     {"name": "Manager", "id": "manager_name"},
-    {"name": "Manager Total Portfolio Value ($MM)", "id": "total_portfolio_value_m", "type": "numeric",
+    {"name": "Public Equity Portfolio ($MM)", "id": "total_portfolio_value_m", "type": "numeric",
      "format": _MONEY_FORMAT},
     {"name": "Security", "id": "issuer"},
-    {"name": "ΔShares Value, % of Portfolio", "id": "delta_shares_value_pct_of_portfolio",
+    {"name": "Buy as % of Portfolio", "id": "delta_shares_value_pct_of_portfolio",
      "type": "numeric", "format": _PCT_OF_PORTFOLIO_FORMAT},
     {"name": "~ΔShares Value ($MM)", "id": "delta_shares_value_m", "type": "numeric",
      "format": _DELTA_SHARES_VALUE_FORMAT},

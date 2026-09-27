@@ -792,14 +792,29 @@ def _load_top_managers_snapshot():
     return _top_managers_cache
 
 
-def top_buys_across_managers(top_n=50):
+_MIN_PUBLIC_EQUITY_PORTFOLIO_M = 1000  # $1B -- see min_public_equity_portfolio_m below
+
+
+def top_buys_across_managers(top_n=50, min_public_equity_portfolio_m=_MIN_PUBLIC_EQUITY_PORTFOLIO_M):
     """The largest buys across every precomputed top-AUM manager
     (see build_top_managers), ranked by ~ΔShares Value as a percentage
-    of that manager's OWN total portfolio value rather than the raw
-    dollar amount -- a $50M buy is a rounding error for a $300B index
-    fund but could be a huge conviction bet for a $500M fund, so
-    ranking by the raw dollar figure just surfaces mega-funds' routine
-    rebalancing over everyone else's actual high-conviction moves.
+    of that manager's OWN total *public equity* portfolio value rather
+    than the raw dollar amount -- a $50M buy is a rounding error for a
+    $300B index fund but could be a huge conviction bet for a $500M
+    fund, so ranking by the raw dollar figure just surfaces mega-funds'
+    routine rebalancing over everyone else's actual high-conviction
+    moves.
+
+    aum13f.com (see build_top_managers) ranks managers by broad
+    regulatory AUM, which for a private-equity/VC-style firm is mostly
+    private fund stakes a 13F never reports -- Pathway Capital
+    Management, e.g., ranks as a top-300 manager there but its own 13F
+    covers just 6 positions worth $24M total, almost all incidental
+    public shares from portfolio companies' IPOs. Ranking THAT by % of
+    portfolio would make a single small position look like a massive
+    conviction bet, so managers whose own 13F-derived total public
+    equity portfolio falls under min_public_equity_portfolio_m are
+    excluded entirely rather than just ranked low.
 
     Pools from each manager's full all_positions (not the smaller,
     already-capped top_increases) specifically because that ranking-
@@ -816,21 +831,24 @@ def top_buys_across_managers(top_n=50):
     sort key), and "total_portfolio_value_m" (that manager's total 13F
     portfolio value, same derivation run in reverse) so the table can
     show which manager made the buy, how big a bet it was for them
-    specifically, and how large that manager's whole portfolio is."""
+    specifically, and how large that manager's whole public equity
+    portfolio is."""
     pooled = []
     for cik, comparison in _load_top_managers_snapshot().items():
         manager_name = comparison.get("manager_name", "")
         for row in comparison.get("all_positions", []):
             value_m = row.get("value_m")
             portfolio_pct = row.get("portfolio_pct")
-            if row.get("delta_shares_value_m", 0) <= 0 or not value_m:
+            if row.get("delta_shares_value_m", 0) <= 0 or not value_m or not portfolio_pct:
                 continue
-            pct_of_portfolio = row["delta_shares_value_m"] * portfolio_pct / value_m
             # Same value_m/portfolio_pct relationship as pct_of_portfolio
-            # above, just solved for the total instead of applied to the
+            # below, just solved for the total instead of applied to the
             # buy -- this position is portfolio_pct% of it, so dividing
             # value_m back out by that recovers the whole thing.
-            total_portfolio_value_m = value_m / (portfolio_pct / 100) if portfolio_pct else None
+            total_portfolio_value_m = value_m / (portfolio_pct / 100)
+            if total_portfolio_value_m < min_public_equity_portfolio_m:
+                continue
+            pct_of_portfolio = row["delta_shares_value_m"] * portfolio_pct / value_m
             pooled.append({
                 **row, "manager_name": manager_name, "cik": cik,
                 "delta_shares_value_pct_of_portfolio": pct_of_portfolio,
