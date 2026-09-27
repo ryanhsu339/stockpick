@@ -438,12 +438,28 @@ def get_filing_holdings(session, cik, accession):
         value_el = fields.get("value")
         value = float(value_el.text) if value_el is not None and value_el.text else 0.0
         shares = 0
+        shares_type = None
         shrs_el = fields.get("shrsOrPrnAmt")
         if shrs_el is not None:
             for child in shrs_el:
-                if local(child.tag) == "sshPrnamt" and child.text:
+                tag = local(child.tag)
+                if tag == "sshPrnamt" and child.text:
                     shares = int(float(child.text))
+                elif tag == "sshPrnamtType" and child.text:
+                    shares_type = child.text.strip()
         if not cusip:
+            continue
+        # sshPrnamtType "PRN" means this quantity is a bond/note's
+        # principal amount, not a share count -- and unlike shares,
+        # filers report principal amount in inconsistent units (whole
+        # dollars one quarter, thousands the next, for the very same
+        # CUSIP), which silently wrecks every downstream calculation
+        # that assumes "shares" is a stable, comparable count (delta
+        # shares, implied price-per-share, ...). Skipping debt positions
+        # entirely means this data only covers equity holdings, which is
+        # what "shares"/"ΔShares"/"Portfolio %" already implicitly
+        # assume everywhere else in this app.
+        if shares_type == "PRN":
             continue
         # SEC "value" was reported in thousands of dollars for periods
         # before Q1 2023 (period end < 2023-01-01), whole dollars from Q1
