@@ -1558,6 +1558,7 @@ def _manager_tracker_children():
             data=[_top_buy_row_to_record(r) for r in top_buys_across_managers(top_n=50)],
             cell_selectable=False, **_TOP_MOVES_TABLE_STYLE,
         ),
+        html.H3("Look Up a Manager", style={**_HEADER_STYLE, "marginTop": "40px"}),
         html.Div(
             style={"display": "flex", "gap": "12px", "alignItems": "flex-end", "flexWrap": "wrap"},
             children=[
