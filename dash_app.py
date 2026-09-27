@@ -1416,14 +1416,16 @@ _TOP_MOVES_TABLE_STYLE = {
 # _MANAGER_COLUMN_WIDTHS wholesale -- though the columns it DOES share
 # (issuer, delta_shares_value_m, delta_shares_pct, value_m,
 # portfolio_pct) keep those same proven widths for consistency. Sized so
-# every header wraps to at most 2 lines and the whole row fits within
-# the page's own maxWidth without a horizontal scrollbar; issuer
-# (Security) also gets whiteSpace "normal" so a long security name wraps
-# onto a second line instead of truncating or forcing that scrollbar.
+# every header wraps to at most 2 lines and the whole row still fits
+# within the page's own maxWidth without a horizontal scrollbar. issuer
+# (Security) is widest -- security names run longer than manager names
+# in practice -- and manager_name shrunk to compensate, so both get
+# whiteSpace "normal" to wrap a long name onto a second line instead of
+# truncating or forcing that scrollbar.
 _TOP_BUYS_COLUMN_WIDTHS = {
-    "manager_name": "150px",
+    "manager_name": "110px",
     "total_portfolio_value_m": "120px",
-    "issuer": "160px",
+    "issuer": "320px",
     "delta_shares_value_pct_of_portfolio": "110px",
     "delta_shares_value_m": _MANAGER_COLUMN_WIDTHS["delta_shares_value_m"],
     "delta_shares_pct": _MANAGER_COLUMN_WIDTHS["delta_shares_pct"],
@@ -1435,6 +1437,7 @@ _TOP_BUYS_TABLE_STYLE = {
     "style_cell_conditional": [
         {"if": {"column_id": "issuer"}, "textAlign": "left", "color": _SECURITY_TEXT_COLOR,
          "whiteSpace": "normal"},
+        {"if": {"column_id": "manager_name"}, "whiteSpace": "normal"},
     ] + [
         {"if": {"column_id": col_id}, "minWidth": width, "width": width}
         for col_id, width in _TOP_BUYS_COLUMN_WIDTHS.items()
