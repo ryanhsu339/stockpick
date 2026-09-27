@@ -1289,6 +1289,8 @@ MANAGER_COLUMNS = [
 # up front to say whose buy each row actually is.
 TOP_BUYS_COLUMNS = [
     {"name": "Manager", "id": "manager_name"},
+    {"name": "Manager Total Portfolio Value ($MM)", "id": "total_portfolio_value_m", "type": "numeric",
+     "format": _MONEY_FORMAT},
     {"name": "Security", "id": "issuer"},
     {"name": "ΔShares Value, % of Portfolio", "id": "delta_shares_value_pct_of_portfolio",
      "type": "numeric", "format": _PCT_OF_PORTFOLIO_FORMAT},
@@ -1316,6 +1318,7 @@ def _manager_row_to_record(r):
 def _top_buy_row_to_record(r):
     return {
         "manager_name": r["manager_name"],
+        "total_portfolio_value_m": r["total_portfolio_value_m"],
         "issuer": r["issuer"],
         "delta_shares_value_pct_of_portfolio": r["delta_shares_value_pct_of_portfolio"],
         "delta_shares_value_m": r["delta_shares_value_m"],

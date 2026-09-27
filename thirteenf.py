@@ -796,9 +796,11 @@ def top_buys_across_managers(top_n=50):
     field needed.
 
     Each row is the same shape as an all_positions row, plus
-    "manager_name", "cik", and "delta_shares_value_pct_of_portfolio"
-    (the sort key) so the table can show which manager made the buy and
-    how big a bet it was for them specifically."""
+    "manager_name", "cik", "delta_shares_value_pct_of_portfolio" (the
+    sort key), and "total_portfolio_value_m" (that manager's total 13F
+    portfolio value, same derivation run in reverse) so the table can
+    show which manager made the buy, how big a bet it was for them
+    specifically, and how large that manager's whole portfolio is."""
     pooled = []
     for cik, comparison in _load_top_managers_snapshot().items():
         manager_name = comparison.get("manager_name", "")
@@ -808,9 +810,15 @@ def top_buys_across_managers(top_n=50):
             if row.get("delta_shares_value_m", 0) <= 0 or not value_m:
                 continue
             pct_of_portfolio = row["delta_shares_value_m"] * portfolio_pct / value_m
+            # Same value_m/portfolio_pct relationship as pct_of_portfolio
+            # above, just solved for the total instead of applied to the
+            # buy -- this position is portfolio_pct% of it, so dividing
+            # value_m back out by that recovers the whole thing.
+            total_portfolio_value_m = value_m / (portfolio_pct / 100) if portfolio_pct else None
             pooled.append({
                 **row, "manager_name": manager_name, "cik": cik,
                 "delta_shares_value_pct_of_portfolio": pct_of_portfolio,
+                "total_portfolio_value_m": total_portfolio_value_m,
             })
     pooled.sort(key=lambda r: r["delta_shares_value_pct_of_portfolio"], reverse=True)
     return pooled[:top_n]
