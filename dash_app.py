@@ -613,6 +613,14 @@ def build_dcf_chart(historical, base_revenue, base_fcf, growth_rate, years, them
     return fig
 
 
+# Fixed (not var(--header)) like the Price/over-under-valuation segments'
+# own colors below -- this bar's text is hardcoded white, and --header
+# swings from near-black in dark mode to near-white in light mode post-
+# redesign (it's now just the nav pill track color), which left "DCF
+# Value" nearly illegible in light mode.
+_DCF_VALUE_BAR_COLOR = "#2a2a27"
+
+
 def _dcf_valuation_bar(label, value_pct, color, align="left"):
     justify = "flex-start" if align == "left" else "flex-end"
     pad_side = "paddingLeft" if align == "left" else "paddingRight"
@@ -659,7 +667,7 @@ def build_dcf_banner(ticker, title, fair_value, current_price, growth_rate, disc
         dcf_row = html.Div(
             style={"display": "flex", "height": "28px", "borderRadius": "4px", "overflow": "hidden"},
             children=[
-                _dcf_valuation_bar("DCF Value", dcf_pct, _HEADER_COLOR),
+                _dcf_valuation_bar("DCF Value", dcf_pct, _DCF_VALUE_BAR_COLOR),
                 # Just the percentage, not "OVERVALUATION 43%" -- the full
                 # word doesn't reliably fit this segment's width (it's
                 # sized to the valuation gap, which can be narrow), and
@@ -678,7 +686,7 @@ def build_dcf_banner(ticker, title, fair_value, current_price, growth_rate, disc
     else:
         dcf_row = html.Div(
             style={"display": "flex", "height": "28px", "borderRadius": "4px", "overflow": "hidden"},
-            children=[_dcf_valuation_bar("DCF Value", 100, _HEADER_COLOR)],
+            children=[_dcf_valuation_bar("DCF Value", 100, _DCF_VALUE_BAR_COLOR)],
         )
         price_row = html.Div(
             style={"display": "flex", "height": "22px", "borderRadius": "4px", "overflow": "hidden",
@@ -1122,21 +1130,34 @@ def _financials_valuation_block(suffix, mirror=False):
                "yours to adjust — click Calculate to re-run with your changes.",
                style={**_PARA_STYLE, "fontSize": "13px"}),
         dcc.Interval(id=f"dcf-price-refresh{suffix}", interval=60000, n_intervals=0),
+        # One shared Loading boundary around the banner, the assumptions
+        # panel/chart, AND dcf-defaults-store itself (a non-visual Store,
+        # but still a descendant here) -- so Dash's loading-state tracking
+        # picks up generate's own in-flight status too (it Outputs
+        # dcf-defaults-store.data), not just update_dcf's. Without that,
+        # the spinner only ever covered update_dcf's own fast,
+        # pure-computation run, never the slower live SEC fetches in
+        # generate that precede it -- so on first load (or any fresh
+        # ticker) the sliders would sit at their placeholder min-bound
+        # value (0%, 6%, 0%) for however long those fetches took, reading
+        # as "this didn't load" rather than "still loading."
         dcc.Loading(
             type="default",
-            children=html.Div(
-                id=f"dcf-banner{suffix}",
-                style={"backgroundColor": _MANAGER_TABLE_BG, "borderRadius": "10px",
-                       "padding": "20px", "marginTop": "8px"},
-            ),
-        ),
-        html.Div(
-            style={"display": "flex", "gap": "16px", "alignItems": "flex-start", "marginTop": "16px"},
-            children=dcf_row_children,
+            children=[
+                html.Div(
+                    id=f"dcf-banner{suffix}",
+                    style={"backgroundColor": _MANAGER_TABLE_BG, "borderRadius": "10px",
+                           "padding": "20px", "marginTop": "8px"},
+                ),
+                html.Div(
+                    style={"display": "flex", "gap": "16px", "alignItems": "flex-start", "marginTop": "16px"},
+                    children=dcf_row_children,
+                ),
+                dcc.Store(id=f"dcf-defaults-store{suffix}", data=None),
+            ],
         ),
         dcc.Store(id=f"rows-store{suffix}"),
         dcc.Store(id=f"suppress-next-suggestions{suffix}", data=False),
-        dcc.Store(id=f"dcf-defaults-store{suffix}", data=None),
     ]
 
 

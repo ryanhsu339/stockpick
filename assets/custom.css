@@ -57,7 +57,7 @@ a { color: var(--accent); }
 a:hover { color: var(--text); }
 
 h2 { font-size: 28px; font-weight: 600; letter-spacing: -0.02em; margin: 8px 0 4px; }
-h3 { font-size: 16px; font-weight: 600; letter-spacing: -0.005em; margin: 28px 0 8px; }
+h3 { font-size: 20px; font-weight: 600; letter-spacing: -0.005em; margin: 28px 0 8px; }
 p  { line-height: 1.55; text-wrap: pretty; }
 
 /* Tables: mono tabular figures, first column stays in the UI sans */
