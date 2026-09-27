@@ -24,19 +24,22 @@ class HoldingsDataError(Exception):
 # range key -> yfinance kwargs. Intraday ranges use fine intervals (Yahoo
 # only retains 1m data for ~7 days and other intraday data for ~60 days,
 # which is why 1D/5D/1M each need a different granularity). "3Y" isn't a
-# valid yfinance `period` string, so it's built from explicit start/end.
+# valid yfinance `period` string, so it's built from explicit start/end;
+# "YTD" isn't one either (yfinance has "ytd" for calendar-quarter-based
+# tickers only), so it's built from Jan 1 of the current year instead.
 _RANGE_CONFIG = {
     "1D": {"period": "1d", "interval": "5m"},
     "5D": {"period": "5d", "interval": "15m"},
     "1M": {"period": "1mo", "interval": "1d"},
     "3M": {"period": "3mo", "interval": "1d"},
     "6M": {"period": "6mo", "interval": "1d"},
+    "YTD": {"ytd": True, "interval": "1d"},
     "1Y": {"period": "1y", "interval": "1d"},
     "3Y": {"years_back": 3, "interval": "1d"},
     "ALL": {"period": "max", "interval": "1d"},
 }
 
-RANGE_KEYS = ["1D", "5D", "1M", "3M", "6M", "1Y", "3Y", "ALL"]
+RANGE_KEYS = ["1D", "5D", "1M", "3M", "6M", "YTD", "1Y", "3Y", "ALL"]
 
 
 def fetch_price_history(ticker, range_key):
@@ -53,6 +56,10 @@ def fetch_price_history(ticker, range_key):
         start = end - timedelta(days=365 * config["years_back"])
         kwargs["start"] = start.isoformat()
         kwargs["end"] = end.isoformat()
+    elif config.get("ytd"):
+        today = date.today()
+        kwargs["start"] = date(today.year, 1, 1).isoformat()
+        kwargs["end"] = today.isoformat()
     else:
         kwargs["period"] = config["period"]
 
