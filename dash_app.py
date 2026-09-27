@@ -2023,7 +2023,8 @@ def _politician_tracker_children():
         ),
         html.H3("All Equity Positions (Estimated)", style={**_HEADER_STYLE, "marginTop": "40px"}),
         html.Div(
-            style={"display": "flex", "gap": "16px", "alignItems": "flex-start", "marginTop": "8px"},
+            style={"display": "flex", "flexWrap": "wrap", "gap": "16px", "alignItems": "flex-start",
+                   "marginTop": "8px"},
             children=[
                 html.Div(
                     style=_FILTER_PANEL_STYLE,
@@ -2061,7 +2062,12 @@ def _politician_tracker_children():
                     ],
                 ),
                 html.Div(
-                    style={"flex": "1", "minWidth": "0"},
+                    # minWidth 280px, not 0 -- see dcf_chart_column's same
+                    # fix: paired with a fixed-width sibling (the filter
+                    # panel) and flexWrap on the parent, minWidth:0 here
+                    # just let the browser shrink this instead of ever
+                    # wrapping it below the filter panel on mobile.
+                    style={"flex": "1", "minWidth": "280px"},
                     children=dash_table.DataTable(
                         id="politician-positions-table",
                         columns=POLITICIAN_POSITIONS_COLUMNS,
