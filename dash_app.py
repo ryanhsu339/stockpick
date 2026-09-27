@@ -1433,10 +1433,8 @@ _MANAGER_NOTE = ("Ranked by ΔShares Value: the change in share count priced at 
 # thirteenf.top_buys_across_managers) rather than a live search across
 # all of them -- so this is only as current as the weekly snapshot, and
 # only covers the managers that snapshot successfully precomputed.
-_TOP_BUYS_NOTE = ("The biggest buys this past quarter, ranked by ~ΔShares Value as a percentage of "
-                   "each manager's OWN total portfolio (not the raw dollar amount) -- so a large "
-                   "conviction bet by a smaller manager ranks above a mega-fund's routine index "
-                   "rebalancing, pooled across every precomputed top-AUM manager below.")
+_TOP_BUYS_NOTE = ("The biggest buys this past quarter, ranked by purchase activity as percentage of "
+                   "AUM signaling largest conviction")
 
 # Politician Tracker: House and Senate members' STOCK Act disclosures
 # (Periodic Transaction Reports). These report individual buy/sell events in a
@@ -1552,8 +1550,6 @@ _ACTIVITY_WINDOW_NOTE = (
 def _manager_tracker_children():
     return [
         html.H2("Investment Manager Tracker", style=_HEADER_STYLE),
-        html.P("Top holding increases and decreases quarter-over-quarter, from SEC 13F-HR filings.",
-               style=_PARA_STYLE),
         html.H3("Top Buys From Largest Managers", style=_HEADER_STYLE),
         html.P(_TOP_BUYS_NOTE, style={**_PARA_STYLE, "fontSize": "13px"}),
         dash_table.DataTable(
@@ -1584,8 +1580,10 @@ def _manager_tracker_children():
             children=html.Div(id="manager-status-msg", style={"marginTop": "16px", "whiteSpace": "pre-wrap"}),
         ),
         html.Div(id="manager-candidates", style={"marginTop": "8px"}),
+        html.P("Top holding increases and decreases quarter-over-quarter, from SEC 13F-HR filings.",
+               style={**_PARA_STYLE, "marginTop": "24px"}),
         html.Div(
-            style={"display": "flex", "gap": "24px", "flexWrap": "wrap", "marginTop": "24px"},
+            style={"display": "flex", "gap": "24px", "flexWrap": "wrap"},
             children=[
                 html.Div(
                     style={"flex": "1 1 420px", "minWidth": "0"},
