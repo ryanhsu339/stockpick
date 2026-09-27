@@ -777,23 +777,42 @@ def _load_top_managers_snapshot():
 
 
 def top_buys_across_managers(top_n=50):
-    """The largest ~ΔShares Value increases across every precomputed
-    top-AUM manager's own top_increases (see build_top_managers) --
-    pooling from each manager's already-ranked top 10 rather than
-    re-deriving from their full holdings, so this is just an in-memory
-    sort over data already loaded (via _load_top_managers_snapshot), no
-    extra fetch. A manager's 11th-largest buy could in principle beat
-    another manager's 10th and get missed, but that would need one
-    manager to account for 11+ of the global top `top_n` alone --
-    negligible in practice across a few hundred managers. Each row is
-    the same shape as a top_increases row, plus "manager_name" and
-    "cik" so the table can show which manager made the buy."""
+    """The largest buys across every precomputed top-AUM manager
+    (see build_top_managers), ranked by ~ΔShares Value as a percentage
+    of that manager's OWN total portfolio value rather than the raw
+    dollar amount -- a $50M buy is a rounding error for a $300B index
+    fund but could be a huge conviction bet for a $500M fund, so
+    ranking by the raw dollar figure just surfaces mega-funds' routine
+    rebalancing over everyone else's actual high-conviction moves.
+
+    Pools from each manager's full all_positions (not the smaller,
+    already-capped top_increases) specifically because that ranking-
+    by-dollar cap is exactly what could cut a smaller manager's
+    proportionally-huge-but-dollar-modest buy before it ever reaches
+    this function. A position's own value_m and portfolio_pct already
+    imply the manager's total portfolio value (value_m / (portfolio_pct
+    / 100)), so delta_shares_value_m * portfolio_pct / value_m is that
+    same ratio applied to the buy itself -- no separate total-portfolio
+    field needed.
+
+    Each row is the same shape as an all_positions row, plus
+    "manager_name", "cik", and "delta_shares_value_pct_of_portfolio"
+    (the sort key) so the table can show which manager made the buy and
+    how big a bet it was for them specifically."""
     pooled = []
     for cik, comparison in _load_top_managers_snapshot().items():
         manager_name = comparison.get("manager_name", "")
-        for row in comparison.get("top_increases", []):
-            pooled.append({**row, "manager_name": manager_name, "cik": cik})
-    pooled.sort(key=lambda r: r["delta_shares_value_m"], reverse=True)
+        for row in comparison.get("all_positions", []):
+            value_m = row.get("value_m")
+            portfolio_pct = row.get("portfolio_pct")
+            if row.get("delta_shares_value_m", 0) <= 0 or not value_m:
+                continue
+            pct_of_portfolio = row["delta_shares_value_m"] * portfolio_pct / value_m
+            pooled.append({
+                **row, "manager_name": manager_name, "cik": cik,
+                "delta_shares_value_pct_of_portfolio": pct_of_portfolio,
+            })
+    pooled.sort(key=lambda r: r["delta_shares_value_pct_of_portfolio"], reverse=True)
     return pooled[:top_n]
 
 

@@ -1257,6 +1257,7 @@ _DELTA_PORTFOLIO_PCT_FORMAT = Format(precision=4, scheme=Scheme.fixed, sign=Sign
 _DELTA_PCT_OR_NEW_FORMAT = Format(precision=2, scheme=Scheme.fixed, sign=Sign.positive).nully("New")
 _DELTA_SHARES_FORMAT = Format(precision=2, scheme=Scheme.fixed, sign=Sign.positive, group=True)
 _DELTA_SHARES_VALUE_FORMAT = Format(precision=2, scheme=Scheme.fixed, sign=Sign.positive, group=True)
+_PCT_OF_PORTFOLIO_FORMAT = Format(precision=2, scheme=Scheme.fixed)
 # share_price/prev_share_price are None for a position with no shares held
 # that quarter (brand-new or fully-exited) -- "—" rather than "New" since
 # there's no meaningful price to show either way.
@@ -1280,11 +1281,23 @@ MANAGER_COLUMNS = [
     {"name": "Portfolio %", "id": "portfolio_pct", "type": "numeric", "format": _PORTFOLIO_PCT_FORMAT},
     {"name": "ΔPortfolio %", "id": "delta_pct", "type": "numeric", "format": _DELTA_PORTFOLIO_PCT_FORMAT},
 ]
-# Same rows as MANAGER_COLUMNS' top_increases, pooled across every
-# precomputed top-AUM manager instead of just one -- see
-# thirteenf.top_buys_across_managers -- so this needs the manager's name
+# Pooled across every precomputed top-AUM manager's own all_positions
+# (not the MANAGER_COLUMNS shape those managers' own top_increases/
+# top_decreases tables use) -- see thirteenf.top_buys_across_managers --
+# ranked by how big a bet each buy was AS A SHARE OF that manager's own
+# portfolio, not the raw dollar amount, so this needs the manager's name
 # up front to say whose buy each row actually is.
-TOP_BUYS_COLUMNS = [{"name": "Manager", "id": "manager_name"}] + MANAGER_COLUMNS
+TOP_BUYS_COLUMNS = [
+    {"name": "Manager", "id": "manager_name"},
+    {"name": "Security", "id": "issuer"},
+    {"name": "ΔShares Value, % of Portfolio", "id": "delta_shares_value_pct_of_portfolio",
+     "type": "numeric", "format": _PCT_OF_PORTFOLIO_FORMAT},
+    {"name": "~ΔShares Value ($MM)", "id": "delta_shares_value_m", "type": "numeric",
+     "format": _DELTA_SHARES_VALUE_FORMAT},
+    {"name": "ΔShares %", "id": "delta_shares_pct", "type": "numeric", "format": _DELTA_PCT_OR_NEW_FORMAT},
+    {"name": "Value ($MM)", "id": "value_m", "type": "numeric", "format": _MONEY_FORMAT},
+    {"name": "Portfolio %", "id": "portfolio_pct", "type": "numeric", "format": _PORTFOLIO_PCT_FORMAT},
+]
 
 
 def _manager_row_to_record(r):
@@ -1301,7 +1314,15 @@ def _manager_row_to_record(r):
 
 
 def _top_buy_row_to_record(r):
-    return {"manager_name": r["manager_name"], **_manager_row_to_record(r)}
+    return {
+        "manager_name": r["manager_name"],
+        "issuer": r["issuer"],
+        "delta_shares_value_pct_of_portfolio": r["delta_shares_value_pct_of_portfolio"],
+        "delta_shares_value_m": r["delta_shares_value_m"],
+        "delta_shares_pct": r["delta_shares_pct"],
+        "value_m": r["value_m"],
+        "portfolio_pct": r["portfolio_pct"],
+    }
 
 
 ALL_POSITIONS_COLUMNS = [
@@ -1405,12 +1426,14 @@ _FINANCIALS_TABLE_STYLE = dict(
 )
 _MANAGER_NOTE = ("Ranked by ΔShares Value: the change in share count priced at the last known "
                   "per-share price")
-# Pooled from every precomputed top-AUM manager's own top_increases (see
+# Pooled from every precomputed top-AUM manager's own all_positions (see
 # thirteenf.top_buys_across_managers) rather than a live search across
 # all of them -- so this is only as current as the weekly snapshot, and
 # only covers the managers that snapshot successfully precomputed.
-_TOP_BUYS_NOTE = ("The single biggest estimated buys (~ΔShares Value) this past quarter, pooled "
-                   "across every precomputed top-AUM manager below rather than just one.")
+_TOP_BUYS_NOTE = ("The biggest buys this past quarter, ranked by ~ΔShares Value as a percentage of "
+                   "each manager's OWN total portfolio (not the raw dollar amount) -- so a large "
+                   "conviction bet by a smaller manager ranks above a mega-fund's routine index "
+                   "rebalancing, pooled across every precomputed top-AUM manager below.")
 
 # Politician Tracker: House and Senate members' STOCK Act disclosures
 # (Periodic Transaction Reports). These report individual buy/sell events in a
