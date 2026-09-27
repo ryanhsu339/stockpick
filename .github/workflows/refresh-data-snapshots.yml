@@ -27,10 +27,12 @@ jobs:
       # build_manager_directory.py for the one-time backfill).
       - run: python build_manager_directory.py
 
+      - run: python build_ticker_map.py
+
       - name: Commit and push if changed
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add data/congress_activity_summary.json data/congress_member_positions.json data/thirteenf_manager_directory.json
+          git add data/congress_activity_summary.json data/congress_member_positions.json data/thirteenf_manager_directory.json data/ticker_map.json
           git diff --cached --quiet || git commit -m "Refresh data snapshots"
           git push

@@ -52,9 +52,11 @@ KNOWN LIMITATIONS (read before trusting old data blindly)
 """
 
 import argparse
+import json
 import sys
 import time
 from datetime import date
+from pathlib import Path
 
 try:
     import requests
@@ -221,14 +223,15 @@ def sec_get(session, url):
     return resp.json()
 
 
-_ticker_cache = {"companies": None, "loaded_at": 0}
-TICKER_CACHE_TTL = 24 * 3600  # SEC republishes this file periodically, not per-request
+_TICKER_MAP_SNAPSHOT_PATH = Path(__file__).parent / "data" / "ticker_map.json"
 
 
-def load_ticker_map(session, use_cache=True):
-    if use_cache and _ticker_cache["companies"] is not None \
-            and (time.time() - _ticker_cache["loaded_at"]) < TICKER_CACHE_TTL:
-        return _ticker_cache["companies"]
+def fetch_ticker_map_live(session=None):
+    """Live SEC fetch of the full company + ETF/mutual-fund ticker map.
+    This is the one-time-per-day batch job (build_ticker_map.py) uses to
+    refresh the repo-committed snapshot load_ticker_map reads from at
+    request time -- not meant to be called from the live app directly."""
+    session = session or requests.Session()
     data = sec_get(session, TICKER_MAP_URL)
     # data is {"0": {"cik_str":..., "ticker":..., "title":...}, "1": {...}, ...}
     companies = list(data.values())
@@ -248,6 +251,33 @@ def load_ticker_map(session, use_cache=True):
             companies.append({"cik_str": cik, "ticker": symbol, "title": symbol, "is_fund": True})
     except (requests.RequestException, ValueError, KeyError):
         pass
+    return companies
+
+
+_ticker_cache = {"companies": None, "loaded_at": 0}
+TICKER_CACHE_TTL = 24 * 3600  # how often to re-read the local snapshot off disk
+
+
+def load_ticker_map(session, use_cache=True):
+    """The full company + ETF/mutual-fund ticker map search_companies/
+    resolve_company search. Reads the repo-committed daily snapshot (see
+    build_ticker_map.py) rather than hitting SEC live on every cache miss
+    -- company_tickers.json is a few MB, and every gunicorn worker used to
+    fetch it independently on its own first request; enough of them
+    cold-starting around the same time (e.g. right after a deploy) was
+    enough to trip SEC's rate limit (429 Too Many Requests) for the whole
+    app. Falls back to a live fetch only if the snapshot is missing
+    entirely -- e.g. the very first deploy, before the scheduled build has
+    run even once."""
+    if use_cache and _ticker_cache["companies"] is not None \
+            and (time.time() - _ticker_cache["loaded_at"]) < TICKER_CACHE_TTL:
+        return _ticker_cache["companies"]
+
+    try:
+        with open(_TICKER_MAP_SNAPSHOT_PATH, encoding="utf-8") as f:
+            companies = json.load(f)
+    except (OSError, json.JSONDecodeError):
+        companies = fetch_ticker_map_live(session)
 
     _ticker_cache["companies"] = companies
     _ticker_cache["loaded_at"] = time.time()
