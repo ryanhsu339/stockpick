@@ -74,6 +74,42 @@ def fetch_price_history(ticker, range_key):
     return df[["Close", "Volume"]]
 
 
+def fetch_ticker_overview(ticker):
+    """Return a dict of yfinance's own overview stats for `ticker` (market
+    cap, trailing P/E, trailing-twelve-month revenue, net margin, exchange,
+    sector) for the Company Tracker's KPI tiles. Individual fields come back
+    None when yfinance doesn't have them for this ticker (e.g. ETFs have no
+    P/E) -- only raises if the ticker itself can't be resolved at all."""
+    try:
+        info = yf.Ticker(ticker).info
+    except Exception as e:
+        raise PriceDataError(f"Could not fetch overview data for {ticker}: {e}") from e
+    if not info:
+        raise PriceDataError(f"No overview data available for {ticker}.")
+    return {
+        "market_cap": info.get("marketCap"),
+        "trailing_pe": info.get("trailingPE"),
+        "revenue_ttm": info.get("totalRevenue"),
+        "net_margin": info.get("profitMargins"),
+        "exchange": info.get("fullExchangeName") or info.get("exchange"),
+        "sector": info.get("sector"),
+    }
+
+
+def fetch_fund_name(ticker):
+    """Best-effort real name for an ETF/mutual fund ticker. SEC's own fund
+    ticker map (see load_ticker_map in company_growth_calc.py) only carries
+    cik/series/class/symbol, no name at all, so the search/suggestion UI
+    falls back to this for a real label instead of just repeating the
+    ticker. Returns None (never raises) if yfinance has nothing for it --
+    callers fall back to a generic label."""
+    try:
+        info = yf.Ticker(ticker).info
+    except Exception:
+        return None
+    return info.get("longName") or info.get("shortName") or None
+
+
 def fetch_top_holdings(ticker, limit=10):
     """Return a DataFrame of `ticker`'s top holdings (columns: symbol, name,
     holding_pct) for an ETF/mutual fund, via yfinance's fund data. Raises

@@ -24,8 +24,10 @@ REQUIREMENTS
     pip install dash requests yfinance pdfplumber pandas openpyxl
 """
 
+import concurrent.futures
 import io
 import json
+import math
 import re
 from datetime import date
 
@@ -48,7 +50,8 @@ from company_growth_calc import (
     resolve_company,
     search_companies,
 )
-from stock_price import HoldingsDataError, PriceDataError, RANGE_KEYS, fetch_price_history, fetch_top_holdings
+from stock_price import (HoldingsDataError, PriceDataError, RANGE_KEYS, fetch_fund_name, fetch_price_history,
+                          fetch_ticker_overview, fetch_top_holdings)
 from thirteenf import (
     FilingDataError,
     ManagerLookupError,
@@ -112,6 +115,44 @@ _DCF_INPUT_FIELDS = [
     ("shares_out", "Diluted Shares Out. (M)"),
     ("current_price", "Current Price ($)"),
 ]
+# The three bounded, continuously-tunable assumptions become sliders (per
+# the redesign); the rest (base FCF, years, net debt, shares out, current
+# price) aren't naturally bounded 0-X ranges and stay plain number inputs.
+_DCF_SLIDER_FIELDS = {
+    "growth_rate": {"min": 0, "max": 20, "step": 0.5},
+    "discount_rate": {"min": 6, "max": 14, "step": 0.25},
+    "terminal_growth": {"min": 0, "max": 4, "step": 0.25},
+}
+
+
+def _dcf_field_component(field, suffix):
+    """update_dcf/update_dcf_2 already read/write every `dcf-{field}{suffix}`
+    by its "value" prop regardless of component type, so swapping Input for
+    Slider on the three fields above needs no callback changes."""
+    comp_id = f"dcf-{field}{suffix}"
+    bounds = _DCF_SLIDER_FIELDS.get(field)
+    if bounds is None:
+        return dcc.Input(id=comp_id, type="number", style=_FILTER_INPUT_STYLE)
+    return dcc.Slider(
+        id=comp_id, min=bounds["min"], max=bounds["max"], step=bounds["step"],
+        value=bounds["min"], marks=None,
+        tooltip={"placement": "bottom", "always_visible": True},
+    )
+
+
+# Full-strength --text (not the usual muted --body-text) -- the DCF panel's
+# labels sit directly against the page's near-black card background with
+# nothing else around them, where --body-text's usual grey reads as too
+# low-contrast to scan quickly.
+_DCF_FIELD_LABEL_STYLE = {"color": "var(--text)", "fontSize": "12px", "fontWeight": "500",
+                          "display": "block", "marginBottom": "3px"}
+
+
+def _dcf_field_wrapper_style(field):
+    # Slider fields show a live value bubble below the track (tooltip,
+    # always_visible) that needs more room than a plain number input --
+    # without the extra margin here it overlaps the next field down.
+    return {"marginBottom": "34px" if field in _DCF_SLIDER_FIELDS else "10px"}
 
 
 def _pct(v):
@@ -194,25 +235,25 @@ def financial_table_records(periods, line_items):
 # the rest of the page does, and needs the current theme's actual color
 # picked in Python instead. See _CHART_THEMES/_chart_colors and
 # toggle_theme's Input into every figure-producing callback.
-_PRICE_UP_COLOR = "#22c55e"
-_PRICE_DOWN_COLOR = "#ef4444"
+_PRICE_UP_COLOR = "#4cc38a"
+_PRICE_DOWN_COLOR = "#e5675a"
 _CHART_THEMES = {
     "dark": {
-        "surface": "#1c1c1c",
-        "gridline": "#333333",
-        "axis_line": "#444444",
-        "muted_text": "#9a9a9a",
-        "primary_text": "#ffffff",
-        "hover_bg": "#2a2a2a",
+        "surface": "#161615",
+        "gridline": "#232321",
+        "axis_line": "#2f2f2c",
+        "muted_text": "#85837c",
+        "primary_text": "#ecebe6",
+        "hover_bg": "#1f1f1c",
         "halo": "rgba(255,255,255,0.35)",
         "forecast_shade": "rgba(255,255,255,0.05)",
     },
     "light": {
-        "surface": "#f0f0f0",
-        "gridline": "#d6d6d6",
-        "axis_line": "#999999",
-        "muted_text": "#666666",
-        "primary_text": "#1a1a1a",
+        "surface": "#ffffff",
+        "gridline": "#eeede8",
+        "axis_line": "#d6d5cf",
+        "muted_text": "#6e6d66",
+        "primary_text": "#1b1b19",
         "hover_bg": "#ffffff",
         "halo": "rgba(0,0,0,0.25)",
         "forecast_shade": "rgba(0,0,0,0.05)",
@@ -246,21 +287,42 @@ def empty_price_figure(message="Enter a ticker and click Generate to load a char
     return fig
 
 
+# Same first/last/change/hi-lo math build_price_figure computes inline for
+# its own title/colors (kept separate rather than shared, so this stays a
+# trivial, easily-swappable-out function and never risks the chart itself).
+# Feeds the real HTML price header (see update_price_chart's extra Outputs)
+# now that the price/change text moved out of the Plotly title.
+def _price_change_stats(df):
+    closes = df["Close"]
+    first, last = float(closes.iloc[0]), float(closes.iloc[-1])
+    change = last - first
+    pct = (change / first * 100) if first else 0.0
+    lo, hi = float(closes.min()), float(closes.max())
+    return {"last": last, "change": change, "pct": pct, "up": change >= 0, "lo": lo, "hi": hi}
+
+
+def _price_header_texts(stats):
+    """(price, change-text, change-style, high, low) for update_price_chart's
+    header Outputs, from a _price_change_stats() dict."""
+    color = "var(--up)" if stats["up"] else "var(--down)"
+    arrow = "▲" if stats["up"] else "▼"
+    sign = "+" if stats["change"] >= 0 else ""
+    price_text = f"${stats['last']:,.2f}"
+    change_text = f"{arrow} {sign}{stats['change']:,.2f} ({sign}{stats['pct']:.2f}%)"
+    return price_text, change_text, {"color": color}, f"${stats['hi']:,.2f}", f"${stats['lo']:,.2f}"
+
+
 def build_price_figure(df, ticker, range_key, theme="dark"):
     colors = _chart_colors(theme)
     closes = df["Close"]
     volume = df["Volume"]
     first, last = float(closes.iloc[0]), float(closes.iloc[-1])
-    change = last - first
-    pct = (change / first * 100) if first else 0.0
-    up = change >= 0
+    up = last >= first
     color = _PRICE_UP_COLOR if up else _PRICE_DOWN_COLOR
     # A flat translucent fill read as a barely-there tint on the old light
     # card; against the dark card it needs more opacity to actually look
     # "highlighted" rather than washing out to the background color.
     fill_color = "rgba(34,197,94,0.18)" if up else "rgba(239,68,68,0.18)"
-    sign = "+" if change >= 0 else ""
-    arrow = "▲" if up else "▼"
 
     # Zoom the price axis to the period's actual range (with a little
     # headroom) instead of anchoring at zero, so price movement is legible.
@@ -336,28 +398,12 @@ def build_price_figure(df, ticker, range_key, theme="dark"):
     if range_key in ("1D", "5D"):
         rangebreaks.append(dict(bounds=[16, 9.5], pattern="hour"))  # market close -> next open, ET
 
-    # Ticker + current price large and bold on their own line; the
-    # change and timeframe (smaller, change colored by up/down) on a
-    # second line below, matching a typical broker-app price header.
-    title_text = (
-        f"<b>{ticker}  ${last:,.2f}</b><br>"
-        f"<span style='font-size:14px'>"
-        f"<span style='color:{color}'>{arrow} {sign}{change:,.2f} ({sign}{pct:.2f}%)</span>"
-        f" · {range_key}"
-        f"</span>"
-    )
+    # Ticker/price/change now live in the real HTML header above the chart
+    # (see update_price_chart's extra Outputs and _price_change_stats) --
+    # no Plotly title here any more, both to avoid showing the same numbers
+    # twice and for a quieter, less chart-junk-y look.
     fig.update_layout(
-        title=dict(
-            text=title_text,
-            font=dict(size=24, color=colors["primary_text"]),
-            # Plotly's title.xref defaults to "container" -- x=0 sits at
-            # the literal left edge of the whole image, ignoring margin.l
-            # entirely, which is why increasing that margin alone didn't
-            # move the title. "paper" ties x to the margin-inset plot
-            # area instead, so it actually respects margin.l below.
-            xref="paper", x=0, xanchor="left",
-        ),
-        margin=dict(l=24, r=10, t=75, b=30),
+        margin=dict(l=24, r=10, t=20, b=30),
         height=_CHART_HEIGHT,
         paper_bgcolor=colors["surface"],
         plot_bgcolor=colors["surface"],
@@ -382,7 +428,9 @@ def build_price_figure(df, ticker, range_key, theme="dark"):
             rangebreaks=rangebreaks,
         ),
         yaxis=dict(
-            showgrid=True, gridcolor=colors["gridline"], zeroline=False,
+            # Quiet chart: no gridlines -- the price header above now
+            # carries the numbers a busier axis used to help convey.
+            showgrid=False, zeroline=False,
             tickfont=dict(color=colors["muted_text"], size=11),
             tickprefix="$", side="right", range=y_range, autorange=False,
         ),
@@ -612,8 +660,14 @@ def build_dcf_banner(ticker, title, fair_value, current_price, growth_rate, disc
             style={"display": "flex", "height": "28px", "borderRadius": "4px", "overflow": "hidden"},
             children=[
                 _dcf_valuation_bar("DCF Value", dcf_pct, _HEADER_COLOR),
-                _dcf_valuation_bar(f"OVERVALUATION {diff_pct_label}", 100 - dcf_pct,
-                                    _PRICE_DOWN_COLOR, align="right"),
+                # Just the percentage, not "OVERVALUATION 43%" -- the full
+                # word doesn't reliably fit this segment's width (it's
+                # sized to the valuation gap, which can be narrow), and
+                # unlike "DCF Value" opposite it, a clipped label here
+                # doesn't just lose context, it reads as a jumbled cut-off
+                # word. Direction is already conveyed by color, and spelled
+                # out in the narrative sentence above.
+                _dcf_valuation_bar(diff_pct_label, 100 - dcf_pct, _PRICE_DOWN_COLOR, align="right"),
             ],
         )
         price_row = html.Div(
@@ -631,8 +685,7 @@ def build_dcf_banner(ticker, title, fair_value, current_price, growth_rate, disc
                    "marginTop": "6px"},
             children=[
                 _dcf_valuation_bar(f"Price  ${current_price:,.2f}", price_pct, "#555555"),
-                _dcf_valuation_bar(f"UNDERVALUATION {diff_pct_label}", 100 - price_pct,
-                                    _PRICE_UP_COLOR, align="right"),
+                _dcf_valuation_bar(diff_pct_label, 100 - price_pct, _PRICE_UP_COLOR, align="right"),
             ],
         )
 
@@ -704,26 +757,27 @@ _PARA_STYLE = {"color": _BODY_TEXT_COLOR}
 # page behind them, so their cell text needs an explicit dark color rather
 # than inheriting the page's light default (which would wash out unreadable
 # on the table's white cells).
-_TABLE_CELL_STYLE = {"padding": "6px 10px", "fontSize": "14px", "textAlign": "right", "color": "#0b0b0b"}
+_TABLE_CELL_STYLE = {"padding": "9px 12px", "fontSize": "13px", "textAlign": "right", "color": "#0b0b0b"}
 # var(--table-header-bg): a near-white header row barely stood out from
 # the table's white cells even in dark mode, and stood out even less
 # once light mode made the page around the table light too -- darker in
 # light mode specifically for that contrast (see assets/custom.css).
-_TABLE_HEADER_STYLE = {"fontWeight": "bold", "backgroundColor": "var(--table-header-bg)", "color": "#0b0b0b"}
+_TABLE_HEADER_STYLE = {"fontWeight": "500", "backgroundColor": "var(--table-header-bg)", "color": "#0b0b0b",
+                       "fontSize": "11px", "textTransform": "uppercase", "letterSpacing": "0.05em"}
 
 # Compact pill-style nav bar (fits its content instead of stretching full
-# width) shared by the range picker and the statement-view tabs. Track is
-# the same dark slate blue as the section headers; the selected tab gets
-# a translucent white overlay rather than swapping to a different text
-# color, so both selected and unselected labels stay white.
+# width) shared by the range picker and the statement-view tabs. Track
+# color follows var(--header) -- a subtle near-bg tint in the current
+# palette -- so both selected and unselected labels need to follow the
+# page theme too rather than assuming a fixed dark backdrop.
 _NAV_CONTAINER_STYLE = {
     "display": "inline-flex",
     "gap": "4px",
     "backgroundColor": _HEADER_COLOR,
-    "padding": "4px",
-    "borderRadius": "10px",
+    "padding": "3px",
+    "borderRadius": "9px",
     "marginTop": "16px",
-    "border": "none",
+    "border": "1px solid var(--border)",
 }
 _NAV_TAB_STYLE = {
     "padding": "8px 16px",
@@ -731,33 +785,22 @@ _NAV_TAB_STYLE = {
     "borderBottom": "none",
     "borderRadius": "8px",
     "fontSize": "13px",
-    "fontWeight": "600",
-    "color": "#ffffff",
+    "fontWeight": "500",
+    "color": "var(--body-text)",
     "backgroundColor": "transparent",
     "flex": "initial",
 }
 _NAV_TAB_SELECTED_STYLE = {
     **_NAV_TAB_STYLE,
-    "fontWeight": "700",
-    "color": "#ffffff",
-    "backgroundColor": "rgba(255,255,255,0.22)",
-    "boxShadow": "0 1px 2px rgba(0,0,0,0.15)",
+    "fontWeight": "600",
+    "color": "var(--text)",
+    "backgroundColor": "var(--pill-active)",
+    "boxShadow": "0 1px 2px rgba(0,0,0,0.12)",
 }
 # Financials tabs (Growth Rates/Income/Balance/Cash Flow) don't apply to
 # ETFs/funds (no 10-K data); Top Holdings only applies to funds. The
 # Financials view-tabs callback toggles between these two per search.
 _NAV_TAB_HIDDEN_STYLE = {"display": "none"}
-
-# Top-level app nav (Public Company Tracker vs Investment Manager Tracker):
-# same pill treatment, just a little larger since it's the primary nav.
-# lineHeight pinned to a concrete px value (not left to each element's
-# own default "normal") so the theme-toggle button -- a real <button>,
-# with its own browser-default line-height/baseline metrics that don't
-# necessarily match a div-based tab pill even at identical padding and
-# font-size -- can match it exactly instead of sitting a few px off.
-_APP_TAB_STYLE = {**_NAV_TAB_STYLE, "padding": "6px 18px", "fontSize": "14px", "lineHeight": "20px"}
-_APP_TAB_SELECTED_STYLE = {**_NAV_TAB_SELECTED_STYLE, "padding": "6px 18px", "fontSize": "14px",
-                            "lineHeight": "20px"}
 
 # Live typeahead dropdown, connected visually to the search box it overlays.
 # Positioning lives on the always-present outer container (shown/hidden via
@@ -776,8 +819,8 @@ _SUGGESTIONS_CONTAINER_STYLE = {
     "marginTop": "4px",
 }
 _SUGGESTIONS_CARD_STYLE = {
-    "backgroundColor": "#ffffff",
-    "border": "1px solid #e1e0d9",
+    "backgroundColor": "var(--card-bg)",
+    "border": "1px solid var(--border)",
     "borderRadius": "8px",
     "boxShadow": "0 4px 12px rgba(11,11,11,0.12)",
     "overflow": "hidden",
@@ -788,9 +831,9 @@ _SUGGESTION_ROW_STYLE = {
     "textAlign": "left",
     "padding": "8px 12px",
     "border": "none",
-    "borderBottom": "1px solid #f0efec",
-    "backgroundColor": "#ffffff",
-    "color": "#0b0b0b",
+    "borderBottom": "1px solid var(--border)",
+    "backgroundColor": "var(--card-bg)",
+    "color": "var(--text)",
     "cursor": "pointer",
     "fontSize": "13px",
 }
@@ -812,42 +855,36 @@ def _financials_valuation_block(suffix, mirror=False):
                                                  "marginBottom": "10px"}),
             *[
                 html.Div(
-                    style={"marginBottom": "10px"},
+                    style=_dcf_field_wrapper_style(field),
                     children=[
-                        html.Label(label, style={"color": _BODY_TEXT_COLOR, "fontSize": "12px",
-                                                  "display": "block", "marginBottom": "3px"}),
-                        dcc.Input(id=f"dcf-{field}{suffix}", type="number",
-                                  style=_FILTER_INPUT_STYLE),
+                        html.Label(label, style=_DCF_FIELD_LABEL_STYLE),
+                        _dcf_field_component(field, suffix),
                     ],
                 )
                 for field, label in _DCF_INPUT_FIELDS[:3]
             ],
             html.Div("Model Settings", style={"color": _HEADER_TEXT_COLOR, "fontWeight": "700",
                                                 "marginTop": "14px", "marginBottom": "10px",
-                                                "borderTop": "1px solid #333333", "paddingTop": "12px"}),
+                                                "borderTop": "1px solid var(--border)", "paddingTop": "12px"}),
             *[
                 html.Div(
-                    style={"marginBottom": "10px"},
+                    style=_dcf_field_wrapper_style(field),
                     children=[
-                        html.Label(label, style={"color": _BODY_TEXT_COLOR, "fontSize": "12px",
-                                                  "display": "block", "marginBottom": "3px"}),
-                        dcc.Input(id=f"dcf-{field}{suffix}", type="number",
-                                  style=_FILTER_INPUT_STYLE),
+                        html.Label(label, style=_DCF_FIELD_LABEL_STYLE),
+                        _dcf_field_component(field, suffix),
                     ],
                 )
                 for field, label in _DCF_INPUT_FIELDS[3:5]
             ],
             html.Div("Market Data", style={"color": _HEADER_TEXT_COLOR, "fontWeight": "700",
                                              "marginTop": "14px", "marginBottom": "10px",
-                                             "borderTop": "1px solid #333333", "paddingTop": "12px"}),
+                                             "borderTop": "1px solid var(--border)", "paddingTop": "12px"}),
             *[
                 html.Div(
-                    style={"marginBottom": "10px"},
+                    style=_dcf_field_wrapper_style(field),
                     children=[
-                        html.Label(label, style={"color": _BODY_TEXT_COLOR, "fontSize": "12px",
-                                                  "display": "block", "marginBottom": "3px"}),
-                        dcc.Input(id=f"dcf-{field}{suffix}", type="number",
-                                  style=_FILTER_INPUT_STYLE),
+                        html.Label(label, style=_DCF_FIELD_LABEL_STYLE),
+                        _dcf_field_component(field, suffix),
                     ],
                 )
                 for field, label in _DCF_INPUT_FIELDS[5:]
@@ -877,13 +914,14 @@ def _financials_valuation_block(suffix, mirror=False):
                                 columns=[{"name": "Line Item", "id": "line"}],
                                 data=[],
                                 cell_selectable=False,
-                                style_table={"overflowX": "auto"},
-                                style_cell=_TABLE_CELL_STYLE,
+                                style_table={"overflowX": "auto", "backgroundColor": _MANAGER_TABLE_BG},
+                                style_cell=_MANAGER_TABLE_CELL_STYLE,
                                 style_cell_conditional=[
                                     {"if": {"column_id": "line"}, "textAlign": "left",
                                      "fontWeight": "600", "color": _SECURITY_TEXT_COLOR},
                                 ],
-                                style_header=_TABLE_HEADER_STYLE,
+                                style_header=_MANAGER_TABLE_HEADER_STYLE,
+                                style_data={"backgroundColor": _MANAGER_TABLE_BG},
                             ),
                             html.Div(
                                 style={"marginTop": "16px", "maxWidth": "420px"},
@@ -895,13 +933,14 @@ def _financials_valuation_block(suffix, mirror=False):
                                     ],
                                     data=[],
                                     cell_selectable=False,
-                                    style_table={"overflowX": "auto"},
-                                    style_cell=_TABLE_CELL_STYLE,
+                                    style_table={"overflowX": "auto", "backgroundColor": _MANAGER_TABLE_BG},
+                                    style_cell=_MANAGER_TABLE_CELL_STYLE,
                                     style_cell_conditional=[
                                         {"if": {"column_id": "metric"}, "textAlign": "left",
                                          "fontWeight": "600", "color": _SECURITY_TEXT_COLOR},
                                     ],
-                                    style_header=_TABLE_HEADER_STYLE,
+                                    style_header=_MANAGER_TABLE_HEADER_STYLE,
+                                    style_data={"backgroundColor": _MANAGER_TABLE_BG},
                                 ),
                             ),
                         ],
@@ -1044,7 +1083,7 @@ def _financials_valuation_block(suffix, mirror=False):
                                 # that id is only on one element).
                                 css=[
                                     {"selector": 'td[data-dash-column="symbol"]:hover',
-                                     "rule": "color: #ffffff !important;"},
+                                     "rule": "color: var(--text) !important; text-decoration: underline;"},
                                     # DataTable's built-in active/selected-cell
                                     # highlight (a hotpink border + reddish fill) is
                                     # meant for selecting/copying data, not a
@@ -1057,8 +1096,8 @@ def _financials_valuation_block(suffix, mirror=False):
                                     # their non-selected appearance.
                                     {"selector": "td.dash-cell",
                                      "rule": f"background-color: {_MANAGER_TABLE_BG} !important; "
-                                             "border-color: #333333 !important; "
-                                             "outline-color: #333333 !important;"},
+                                             "border-color: var(--border) !important; "
+                                             "outline-color: var(--border) !important;"},
                                     # style_cell_conditional only passes through a
                                     # fixed set of known style keys and silently drops
                                     # anything else, so this needs the raw-CSS route
@@ -1103,33 +1142,59 @@ def _financials_valuation_block(suffix, mirror=False):
 
 def _company_tracker_children():
     return [
+        # stock-header-{meta,name,price,change} start as placeholder/blank
+        # text and are filled in by update_price_chart/update_company_overview
+        # once a ticker's loaded (see those callbacks) -- price/change used
+        # to be baked into the Plotly chart's own title; pulling them out
+        # into real HTML lets the chart itself go quiet (no title, no
+        # gridlines) while still surfacing the numbers prominently.
         html.Div(
-            style={"display": "flex", "justifyContent": "space-between", "alignItems": "center",
-                   "flexWrap": "wrap", "gap": "12px"},
+            id="stock-header",
+            style={"display": "flex", "justifyContent": "space-between", "alignItems": "flex-end",
+                   "gap": "16px", "flexWrap": "wrap"},
             children=[
-                html.H2("Public Company Tracker", style=_HEADER_STYLE),
-                # Two-segment toggle (same pill styling as the range picker
-                # and Financials tabs elsewhere) rather than a single button
-                # whose label swaps -- both modes stay visible so it reads
-                # as a toggle, not an action. sync_compare_mode below turns
-                # its selected value into the "compare-mode" store every
-                # other callback in Compare mode actually keys off.
-                dcc.Tabs(
-                    id="compare-mode-tabs",
-                    value="single",
-                    style=_NAV_CONTAINER_STYLE,
+                html.Div(
+                    style={"display": "flex", "flexDirection": "column", "gap": "6px"},
                     children=[
-                        dcc.Tab(label="Single Stock", value="single", style=_NAV_TAB_STYLE,
-                                selected_style=_NAV_TAB_SELECTED_STYLE),
-                        dcc.Tab(label="Compare", value="compare", style=_NAV_TAB_STYLE,
-                                selected_style=_NAV_TAB_SELECTED_STYLE),
+                        html.Div(id="stock-header-meta", style={"fontSize": "12px", "color": "var(--body-text)",
+                                                                  "fontFamily": "'IBM Plex Mono', monospace"}),
+                        html.Div("Public Company Tracker", id="stock-header-name",
+                                 style={"fontSize": "28px", "fontWeight": "600", "letterSpacing": "-0.02em",
+                                        "color": "var(--text)"}),
+                    ],
+                ),
+                html.Div(
+                    style={"display": "flex", "alignItems": "baseline", "gap": "12px", "flexWrap": "wrap"},
+                    children=[
+                        html.Span(id="stock-header-price", style={"fontFamily": "'IBM Plex Mono', monospace",
+                                                                    "fontSize": "26px", "color": "var(--text)"}),
+                        html.Span(id="stock-header-change", style={"fontFamily": "'IBM Plex Mono', monospace",
+                                                                     "fontSize": "13px"}),
+                        # Two-segment toggle (same pill styling as the range
+                        # picker below) rather than a single button whose
+                        # label swaps -- both modes stay visible so it reads
+                        # as a toggle, not an action. sync_compare_mode
+                        # below turns its selected value into the
+                        # "compare-mode" store every other callback in
+                        # Compare mode actually keys off.
+                        dcc.Tabs(
+                            id="compare-mode-tabs",
+                            value="single",
+                            style={**_NAV_CONTAINER_STYLE, "marginTop": "0"},
+                            children=[
+                                dcc.Tab(label="Single Stock", value="single", style=_NAV_TAB_STYLE,
+                                        selected_style=_NAV_TAB_SELECTED_STYLE),
+                                dcc.Tab(label="+ Compare", value="compare", style=_NAV_TAB_STYLE,
+                                        selected_style=_NAV_TAB_SELECTED_STYLE),
+                            ],
+                        ),
                     ],
                 ),
             ],
         ),
         dcc.Store(id="compare-mode", data=False),
         html.P("Sales, earnings, equity, cash, and ROIC growth from SEC 10-K XBRL data.",
-               style=_PARA_STYLE),
+               style={**_PARA_STYLE, "marginTop": "10px"}),
         html.Div(
             style={"display": "flex", "gap": "12px", "alignItems": "flex-end",
                    "flexWrap": "wrap"},
@@ -1142,7 +1207,7 @@ def _company_tracker_children():
                         dcc.Input(id="company-input", type="text", value="AAPL",
                                   placeholder="e.g. AAPL or Apple",
                                   autoComplete="off", n_submit=0,
-                                  style={"width": "220px", "display": "block", "color": "#0b0b0b"}),
+                                  style={"width": "220px", "display": "block", "color": "var(--text)"}),
                         html.Div(id="company-suggestions", style=_SUGGESTIONS_CONTAINER_STYLE),
                     ],
                 ),
@@ -1156,7 +1221,7 @@ def _company_tracker_children():
                         dcc.Input(id="company-input-2", type="text", value="",
                                   placeholder="e.g. NVDA or Nvidia",
                                   autoComplete="off", n_submit=0,
-                                  style={"width": "220px", "display": "block", "color": "#0b0b0b"}),
+                                  style={"width": "220px", "display": "block", "color": "var(--text)"}),
                         html.Div(id="company-suggestions-2", style=_SUGGESTIONS_CONTAINER_STYLE),
                     ],
                 ),
@@ -1178,37 +1243,68 @@ def _company_tracker_children():
                 html.Div(id="company-candidates-2", style={"marginTop": "8px"}),
             ],
         ),
-        html.H3("Stock Price", style={**_HEADER_STYLE, "marginTop": "40px"}),
-        dcc.Tabs(
-            id="range-tabs",
-            value="6M",
-            style=_NAV_CONTAINER_STYLE,
-            children=[dcc.Tab(label=k, value=k, style=_NAV_TAB_STYLE,
-                               selected_style=_NAV_TAB_SELECTED_STYLE)
-                      for k in RANGE_KEYS],
-        ),
-        dcc.Interval(id="price-chart-refresh", interval=15000, n_intervals=0),
-        # Drives the live-price dot's pulsing halo -- deliberately not wired
-        # to update_price_chart; a clientside callback below just tweaks the
-        # existing figure's marker opacity in place (see build_price_figure)
-        # rather than round-tripping to the server every ~1s.
-        dcc.Interval(id="price-pulse-interval", interval=900, n_intervals=0),
-        html.Div(id="price-pulse-sink", style={"display": "none"}),
-        # No dcc.Loading here (unlike elsewhere in this app): its spinner
-        # overlay would flash over the whole chart on every 15s auto-refresh,
-        # which is the "blinks when it refreshes" behavior -- the chart swap
-        # itself is fast enough not to need loading feedback.
+        # Chart card: High/Low + range picker sit above the (now title-less,
+        # gridline-less) chart itself, inside one bordered card.
         html.Div(
-            dcc.Graph(
-                id="price-chart",
-                figure=empty_price_figure(),
-                config={"displayModeBar": False},
-            ),
-            style={"marginTop": "16px"},
+            style={"backgroundColor": "var(--card-bg)", "border": "1px solid var(--border)",
+                   "borderRadius": "14px", "padding": "18px 20px 12px", "marginTop": "24px"},
+            children=[
+                html.Div(
+                    style={"display": "flex", "justifyContent": "space-between", "alignItems": "center",
+                           "gap": "12px", "flexWrap": "wrap"},
+                    children=[
+                        html.Div(
+                            style={"display": "flex", "gap": "18px", "fontSize": "12px",
+                                   "color": "var(--body-text)"},
+                            children=[
+                                html.Span(["High ", html.Span(
+                                    id="stock-header-hi",
+                                    style={"fontFamily": "'IBM Plex Mono', monospace", "color": "var(--text)"})]),
+                                html.Span(["Low ", html.Span(
+                                    id="stock-header-lo",
+                                    style={"fontFamily": "'IBM Plex Mono', monospace", "color": "var(--text)"})]),
+                            ],
+                        ),
+                        dcc.Tabs(
+                            id="range-tabs",
+                            value="6M",
+                            style={**_NAV_CONTAINER_STYLE, "marginTop": "0"},
+                            children=[dcc.Tab(label=k, value=k, style=_NAV_TAB_STYLE,
+                                               selected_style=_NAV_TAB_SELECTED_STYLE)
+                                      for k in RANGE_KEYS],
+                        ),
+                    ],
+                ),
+                dcc.Interval(id="price-chart-refresh", interval=15000, n_intervals=0),
+                # Drives the live-price dot's pulsing halo -- deliberately not
+                # wired to update_price_chart; a clientside callback below
+                # just tweaks the existing figure's marker opacity in place
+                # (see build_price_figure) rather than round-tripping to the
+                # server every ~1s.
+                dcc.Interval(id="price-pulse-interval", interval=900, n_intervals=0),
+                html.Div(id="price-pulse-sink", style={"display": "none"}),
+                # No dcc.Loading here (unlike elsewhere in this app): its
+                # spinner overlay would flash over the whole chart on every
+                # 15s auto-refresh, which is the "blinks when it refreshes"
+                # behavior -- the chart swap itself is fast enough not to
+                # need loading feedback.
+                html.Div(
+                    dcc.Graph(
+                        id="price-chart",
+                        figure=empty_price_figure(),
+                        config={"displayModeBar": False},
+                    ),
+                    style={"marginTop": "8px"},
+                ),
+            ],
         ),
+        # Filled in by update_company_overview once a ticker's loaded.
+        html.Div(id="stock-kpi-grid",
+                 style={"display": "grid", "gridTemplateColumns": "repeat(auto-fit, minmax(150px,1fr))",
+                        "gap": "10px", "marginTop": "20px"}),
         html.Div(
             id="financials-columns",
-            style={"display": "flex", "gap": "32px", "alignItems": "flex-start"},
+            style={"display": "flex", "gap": "32px", "alignItems": "flex-start", "marginTop": "24px"},
             children=[
                 html.Div(style={"flex": "1", "minWidth": "0"},
                          children=_financials_valuation_block("", mirror=False)),
@@ -1227,22 +1323,12 @@ EMPTY_COLS = [{"name": "Breakdown", "id": "line"}]
 # table at once, since some managers file thousands of positions.
 _POSITIONS_PAGE_SIZE = 100
 
-# Between-filters for the All Equity Positions table: (field, label) pairs,
-# each rendered as a Min/Max number-input pair to the table's left.
-_POSITION_FILTERS = [
-    ("shares_m", "Shares (MM)"),
-    ("prev_shares_m", "Prev Shares (MM)"),
-    ("value_m", "Value ($MM)"),
-    ("prev_value_m", "Prev Value ($MM)"),
-    ("portfolio_pct", "Portfolio %"),
-    ("prev_portfolio_pct", "Prev Portfolio %"),
-]
 _FILTER_PANEL_STYLE = {
     "minWidth": "180px", "maxWidth": "180px",
     "backgroundColor": "var(--card-bg)", "borderRadius": "8px",
     "padding": "12px", "flex": "0 0 auto",
 }
-_FILTER_INPUT_STYLE = {"width": "100%", "fontSize": "12px", "color": "#0b0b0b", "boxSizing": "border-box"}
+_FILTER_INPUT_STYLE = {"width": "100%", "fontSize": "12px", "color": "var(--text)", "boxSizing": "border-box"}
 
 # Columns hold raw numeric values (not pre-formatted strings) so
 # sort_action="native" sorts numerically instead of lexicographically —
@@ -1255,9 +1341,7 @@ _MONEY_FORMAT = Format(precision=2, scheme=Scheme.fixed, group=True)
 _PORTFOLIO_PCT_FORMAT = Format(precision=4, scheme=Scheme.fixed)
 _DELTA_PORTFOLIO_PCT_FORMAT = Format(precision=4, scheme=Scheme.fixed, sign=Sign.positive)
 _DELTA_PCT_OR_NEW_FORMAT = Format(precision=2, scheme=Scheme.fixed, sign=Sign.positive).nully("New")
-_DELTA_SHARES_FORMAT = Format(precision=2, scheme=Scheme.fixed, sign=Sign.positive, group=True)
 _DELTA_SHARES_VALUE_FORMAT = Format(precision=2, scheme=Scheme.fixed, sign=Sign.positive, group=True)
-_PCT_OF_PORTFOLIO_FORMAT = Format(precision=2, scheme=Scheme.fixed)
 # share_price/prev_share_price are None for a position with no shares held
 # that quarter (brand-new or fully-exited) -- "—" rather than "New" since
 # there's no meaningful price to show either way.
@@ -1270,36 +1354,6 @@ _SHARE_PRICE_FORMAT = Format(precision=2, scheme=Scheme.fixed, group=True).nully
 # buying/selling activity, but a raw share-count change means nothing
 # without pricing it (10,000 shares of a $5 stock vs. a $500 one are very
 # different trades). See build_holdings_comparison.
-MANAGER_COLUMNS = [
-    {"name": "Security", "id": "issuer"},
-    {"name": "Shares (MM)", "id": "shares_m", "type": "numeric", "format": _MONEY_FORMAT},
-    {"name": "Prev Shares (MM)", "id": "prev_shares_m", "type": "numeric", "format": _MONEY_FORMAT},
-    {"name": "ΔShares (MM)", "id": "delta_shares_m", "type": "numeric", "format": _DELTA_SHARES_FORMAT},
-    {"name": "~ΔShares Value ($MM)", "id": "delta_shares_value_m", "type": "numeric",
-     "format": _DELTA_SHARES_VALUE_FORMAT},
-    {"name": "Value (MM$)", "id": "value_m", "type": "numeric", "format": _MONEY_FORMAT},
-    {"name": "Portfolio %", "id": "portfolio_pct", "type": "numeric", "format": _PORTFOLIO_PCT_FORMAT},
-    {"name": "ΔPortfolio %", "id": "delta_pct", "type": "numeric", "format": _DELTA_PORTFOLIO_PCT_FORMAT},
-]
-# Pooled across every precomputed top-AUM manager's own all_positions
-# (not the MANAGER_COLUMNS shape those managers' own top_increases/
-# top_decreases tables use) -- see thirteenf.top_buys_across_managers --
-# ranked by how big a bet each buy was AS A SHARE OF that manager's own
-# portfolio, not the raw dollar amount, so this needs the manager's name
-# up front to say whose buy each row actually is.
-TOP_BUYS_COLUMNS = [
-    {"name": "Manager", "id": "manager_name"},
-    {"name": "Equity Portfolio ($MM)", "id": "total_portfolio_value_m", "type": "numeric",
-     "format": _MONEY_FORMAT},
-    {"name": "Security", "id": "issuer"},
-    {"name": "Buy as % Portfolio", "id": "delta_shares_value_pct_of_portfolio",
-     "type": "numeric", "format": _PCT_OF_PORTFOLIO_FORMAT},
-    {"name": "~ΔShares Value ($MM)", "id": "delta_shares_value_m", "type": "numeric",
-     "format": _DELTA_SHARES_VALUE_FORMAT},
-    {"name": "ΔShares %", "id": "delta_shares_pct", "type": "numeric", "format": _DELTA_PCT_OR_NEW_FORMAT},
-    {"name": "Value ($MM)", "id": "value_m", "type": "numeric", "format": _MONEY_FORMAT},
-    {"name": "Portfolio %", "id": "portfolio_pct", "type": "numeric", "format": _PORTFOLIO_PCT_FORMAT},
-]
 
 
 def _manager_row_to_record(r):
@@ -1326,6 +1380,108 @@ def _top_buy_row_to_record(r):
         "value_m": r["value_m"],
         "portfolio_pct": r["portfolio_pct"],
     }
+
+
+# delta_shares_pct is None for a brand-new position (see
+# _DELTA_PCT_OR_NEW_FORMAT elsewhere) -- the same signal used here to tag
+# cards/bar-rows as New vs Added vs Trimmed, and by the position-filter
+# chips' predicate below.
+def _delta_tag(delta_shares_pct):
+    if delta_shares_pct is None:
+        return "New"
+    if delta_shares_pct > 0:
+        return "Added"
+    if delta_shares_pct < 0:
+        return "Trimmed"
+    return "Unchanged"
+
+
+_CARD_STYLE = {
+    "backgroundColor": "var(--card-bg)", "border": "1px solid var(--border)", "borderRadius": "10px",
+    "padding": "14px", "display": "flex", "flexDirection": "column", "gap": "10px",
+    "width": "210px", "flexShrink": "0",
+}
+_CARD_BADGE_STYLE = {
+    "fontFamily": "'IBM Plex Mono', monospace", "fontSize": "12px", "padding": "2px 7px",
+    "borderRadius": "4px", "backgroundColor": "rgba(76,195,138,0.14)", "color": "var(--up)",
+}
+
+
+def _build_top_buy_card(r):
+    pct = r.get("delta_shares_value_pct_of_portfolio")
+    pct_text = f"+{pct:.1f}%" if pct is not None else "—"
+    value_m = r.get("delta_shares_value_m") or 0
+    return html.Div(
+        style=_CARD_STYLE,
+        children=[
+            html.Div(
+                style={"display": "flex", "justifyContent": "space-between", "alignItems": "center"},
+                children=[
+                    html.Span(r["issuer"], style={"fontFamily": "'IBM Plex Mono', monospace",
+                                                    "fontSize": "15px", "fontWeight": "500",
+                                                    "color": "var(--security-text)"}),
+                    html.Span(pct_text, style=_CARD_BADGE_STYLE),
+                ],
+            ),
+            html.Div(r["manager_name"], style={"fontSize": "13px", "color": "var(--body-text)",
+                                                 "lineHeight": "1.35"}),
+            html.Div(
+                style={"display": "flex", "justifyContent": "space-between", "fontSize": "12px",
+                       "color": "var(--body-text)", "fontFamily": "'IBM Plex Mono', monospace"},
+                children=[
+                    html.Span(f"${value_m:,.0f}M"),
+                    html.Span(_delta_tag(r.get("delta_shares_pct"))),
+                ],
+            ),
+        ],
+    )
+
+
+def _build_delta_bar_row(r, max_abs_value, up):
+    value_m = r.get("delta_shares_value_m") or 0
+    width_pct = min(100.0, abs(value_m) / max_abs_value * 100) if max_abs_value else 0.0
+    color = "var(--up)" if up else "var(--down)"
+    sign = "+" if value_m >= 0 else "-"
+    return html.Div(
+        style={"display": "grid", "gridTemplateColumns": "72px minmax(0,1fr) 90px", "gap": "12px",
+               "alignItems": "center", "fontSize": "13px", "padding": "4px 0"},
+        children=[
+            html.Span(r["issuer"], style={"color": "var(--security-text)", "overflow": "hidden",
+                                           "textOverflow": "ellipsis", "whiteSpace": "nowrap"}),
+            html.Div(
+                style={"height": "6px", "backgroundColor": "var(--card-bg-2)", "borderRadius": "3px"},
+                children=html.Div(style={"height": "6px", "borderRadius": "3px",
+                                          "backgroundColor": color, "width": f"{width_pct}%"}),
+            ),
+            html.Span(f"{sign}${abs(value_m):,.0f}M", style={"fontFamily": "'IBM Plex Mono', monospace",
+                                                                "textAlign": "right", "color": color}),
+        ],
+    )
+
+
+def _build_delta_bar_list(records, up):
+    if not records:
+        return [html.Div("No data.", style={"fontSize": "13px", "color": "var(--body-text)"})]
+    max_abs = max((abs(r.get("delta_shares_value_m") or 0) for r in records), default=0) or 1
+    return [_build_delta_bar_row(r, max_abs, up) for r in records]
+
+
+def _manager_summary_tiles(all_positions):
+    if not all_positions:
+        return []
+    aum_m = sum(r.get("value_m") or 0 for r in all_positions)
+    # all_positions is already sorted by portfolio_pct descending (see
+    # thirteenf.build_holdings_comparison), so the first 5 are the top 5.
+    top5_weight = sum(r.get("portfolio_pct") or 0 for r in all_positions[:5])
+    new_count = sum(1 for r in all_positions if r.get("delta_shares_pct") is None)
+    turnover = (sum(abs(r.get("delta_shares_value_m") or 0) for r in all_positions) / aum_m
+                if aum_m else None)
+    return [
+        _kpi_tile("Equity AUM", _fmt_big_dollars(aum_m * 1e6) if aum_m else None),
+        _kpi_tile("Top 5 Weight", f"{top5_weight:.1f}%" if all_positions else None),
+        _kpi_tile("New Positions", str(new_count)),
+        _kpi_tile("Turnover", f"{turnover * 100:.1f}%" if turnover is not None else None),
+    ]
 
 
 ALL_POSITIONS_COLUMNS = [
@@ -1359,8 +1515,11 @@ _MANAGER_TABLE_CELL_STYLE = {
 }
 _MANAGER_TABLE_HEADER_STYLE = {
     "backgroundColor": _MANAGER_TABLE_BG,
-    "color": "var(--text)",
-    "fontWeight": "bold",
+    "color": "var(--body-text)",
+    "fontWeight": "500",
+    "fontSize": "11px",
+    "textTransform": "uppercase",
+    "letterSpacing": "0.05em",
     "border": "none",
     "borderBottom": "1px solid var(--border)",
     # Column names like "Prev Portfolio %" don't fit the numeric columns'
@@ -1389,6 +1548,26 @@ _MANAGER_COLUMN_WIDTHS = {
     "prev_portfolio_pct": "105px",
     "delta_pct": "100px",
 }
+_DELTA_COLUMNS = ["delta_shares_m", "delta_shares_value_m", "delta_shares_pct",
+                  "delta_value_pct", "delta_pct", "delta_shares_value_pct_of_portfolio"]
+_DELTA_CONDITIONALS = [
+    rule for c in _DELTA_COLUMNS for rule in (
+        {"if": {"filter_query": f"{{{c}}} > 0", "column_id": c}, "color": "var(--up)"},
+        {"if": {"filter_query": f"{{{c}}} < 0", "column_id": c}, "color": "var(--down)"},
+    )
+] + [
+    # null ΔShares/ΔValue % renders as "New" (see _DELTA_PCT_OR_NEW_FORMAT)
+    {"if": {"filter_query": f"{{{c}}} is blank", "column_id": c}, "color": "var(--up)"}
+    for c in ("delta_shares_pct", "delta_value_pct")
+]
+_POL_CONDITIONALS = [
+    {"if": {"filter_query": '{transaction_type} = "Purchase"', "column_id": "transaction_type"},
+     "color": "var(--up)", "fontWeight": "600"},
+    {"if": {"filter_query": '{transaction_type} contains "Sale"', "column_id": "transaction_type"},
+     "color": "var(--down)", "fontWeight": "600"},
+    {"if": {"filter_query": "{net_estimated_value} < 0", "column_id": "net_estimated_value"},
+     "color": "var(--down)"},
+]
 _MANAGER_TABLE_STYLE = dict(
     style_table={"overflowX": "auto", "backgroundColor": _MANAGER_TABLE_BG},
     style_cell=_MANAGER_TABLE_CELL_STYLE,
@@ -1400,49 +1579,8 @@ _MANAGER_TABLE_STYLE = dict(
     ],
     style_header=_MANAGER_TABLE_HEADER_STYLE,
     style_data={"backgroundColor": _MANAGER_TABLE_BG},
+    style_data_conditional=_DELTA_CONDITIONALS,
 )
-# Top Increases/Decreases sit side by side, but each is independently capped
-# at top_n=10 rows and one side often has fewer positive/negative movers
-# than the other -- a fixed height (rather than _MANAGER_TABLE_STYLE's
-# content-sized default) keeps both cards the same height regardless of how
-# many rows either one actually has.
-_TOP_MOVES_TABLE_STYLE = {
-    **_MANAGER_TABLE_STYLE,
-    "style_table": {**_MANAGER_TABLE_STYLE["style_table"], "height": "420px", "overflowY": "auto"},
-}
-# Top Buys has its own column set (manager_name/total_portfolio_value_m/
-# delta_shares_value_pct_of_portfolio don't exist on the other manager
-# tables), so it needs its own width tuning rather than reusing
-# _MANAGER_COLUMN_WIDTHS wholesale -- though the columns it DOES share
-# (issuer, delta_shares_value_m, delta_shares_pct, value_m,
-# portfolio_pct) keep those same proven widths for consistency. Sized so
-# every header wraps to at most 2 lines and the whole row still fits
-# within the page's own maxWidth without a horizontal scrollbar. issuer
-# (Security) is widest -- security names run longer than manager names
-# in practice -- and manager_name shrunk to compensate, so both get
-# whiteSpace "normal" to wrap a long name onto a second line instead of
-# truncating or forcing that scrollbar.
-_TOP_BUYS_COLUMN_WIDTHS = {
-    "manager_name": "160px",
-    "total_portfolio_value_m": "120px",
-    "issuer": "270px",
-    "delta_shares_value_pct_of_portfolio": "110px",
-    "delta_shares_value_m": _MANAGER_COLUMN_WIDTHS["delta_shares_value_m"],
-    "delta_shares_pct": _MANAGER_COLUMN_WIDTHS["delta_shares_pct"],
-    "value_m": _MANAGER_COLUMN_WIDTHS["value_m"],
-    "portfolio_pct": _MANAGER_COLUMN_WIDTHS["portfolio_pct"],
-}
-_TOP_BUYS_TABLE_STYLE = {
-    **_TOP_MOVES_TABLE_STYLE,
-    "style_cell_conditional": [
-        {"if": {"column_id": "issuer"}, "textAlign": "left", "color": _SECURITY_TEXT_COLOR,
-         "whiteSpace": "normal"},
-        {"if": {"column_id": "manager_name"}, "whiteSpace": "normal"},
-    ] + [
-        {"if": {"column_id": col_id}, "minWidth": width, "width": width}
-        for col_id, width in _TOP_BUYS_COLUMN_WIDTHS.items()
-    ],
-}
 # Public Company Tracker's Financials tables (Growth Rates, Income Statement,
 # Balance Sheet, Cash Flow Statement, Top Holdings) reuse the Investment
 # Manager Tracker's dark-card theme so the two tabs look consistent. A
@@ -1517,6 +1655,7 @@ _POLITICIAN_TABLE_STYLE = dict(
     ],
     style_header=_MANAGER_TABLE_HEADER_STYLE,
     style_data={"backgroundColor": _MANAGER_TABLE_BG},
+    style_data_conditional=_POL_CONDITIONALS,
 )
 _POLITICIAN_NOTE = ("Every ticker with disclosed activity, ranked by estimated net position, built "
                      "by accumulating the midpoint of each disclosed buy (+) and sell (-) over all "
@@ -1534,45 +1673,6 @@ _POLITICIAN_FILTER_FIELDS = [field for field, _label in _POLITICIAN_POSITION_FIL
 # Cross-chamber summary tables (above the House/Senate nav): "member" is
 # the blue left-aligned column here instead of "ticker"/"issuer".
 _CHAMBER_LABELS = {"house": "House", "senate": "Senate"}
-RECENT_TRADES_COLUMNS = [
-    {"name": "Member", "id": "member"},
-    {"name": "Chamber", "id": "chamber"},
-    {"name": "Ticker", "id": "ticker"},
-    {"name": "Type", "id": "transaction_type"},
-    {"name": "Date", "id": "transaction_date"},
-    {"name": "Amount Low ($)", "id": "amount_low", "type": "numeric", "format": _POL_MONEY_FORMAT},
-    {"name": "Amount High ($)", "id": "amount_high", "type": "numeric", "format": _POL_MONEY_FORMAT},
-]
-CONGRESS_LEADERBOARD_COLUMNS = [
-    {"name": "Member", "id": "member"},
-    {"name": "Chamber", "id": "chamber"},
-    {"name": "Est. Net Value ($)", "id": "net_estimated_value", "type": "numeric", "format": _POL_MONEY_FORMAT},
-    {"name": "Transactions", "id": "transaction_count", "type": "numeric", "format": _POL_COUNT_FORMAT},
-]
-_ACTIVITY_COLUMN_WIDTHS = {
-    "member": "170px",
-    "chamber": "80px",
-    "ticker": "80px",
-    "transaction_type": "110px",
-    "transaction_date": "100px",
-    "amount_low": "120px",
-    "amount_high": "120px",
-    "net_estimated_value": "140px",
-    "transaction_count": "110px",
-}
-_ACTIVITY_TABLE_STYLE = dict(
-    style_table={"overflowX": "auto", "backgroundColor": _MANAGER_TABLE_BG,
-                 "maxHeight": "420px", "overflowY": "auto"},
-    style_cell=_MANAGER_TABLE_CELL_STYLE,
-    style_cell_conditional=[
-        {"if": {"column_id": "member"}, "textAlign": "left", "color": _SECURITY_TEXT_COLOR},
-    ] + [
-        {"if": {"column_id": col_id}, "minWidth": width, "width": width}
-        for col_id, width in _ACTIVITY_COLUMN_WIDTHS.items()
-    ],
-    style_header=_MANAGER_TABLE_HEADER_STYLE,
-    style_data={"backgroundColor": _MANAGER_TABLE_BG},
-)
 _ACTIVITY_WINDOW_NOTE = (
     "Covers filings from roughly the last 6 months across every current House member and "
     "senator. Does not include activity before elected to office therefore portfolio values "
@@ -1580,15 +1680,35 @@ _ACTIVITY_WINDOW_NOTE = (
 )
 
 
+_POSITION_CHIPS = [
+    ("all", "All"),
+    ("new", "New positions"),
+    ("added", "Added"),
+    ("trimmed", "Trimmed"),
+    ("big", "> 1% of fund"),
+]
+
+
+def _position_chip_style(active):
+    return {
+        "fontSize": "12px", "padding": "5px 10px", "borderRadius": "999px", "cursor": "pointer",
+        "whiteSpace": "nowrap",
+        "border": f"1px solid {'var(--up)' if active else 'var(--border)'}",
+        "backgroundColor": "rgba(76,195,138,0.12)" if active else "transparent",
+        "color": "var(--up)" if active else "var(--body-text)",
+    }
+
+
 def _manager_tracker_children():
     return [
         html.H2("Investment Manager Tracker", style=_HEADER_STYLE),
         html.H3("Top Buys From Largest Managers", style=_HEADER_STYLE),
         html.P(_TOP_BUYS_NOTE, style={**_PARA_STYLE, "fontSize": "13px"}),
-        dash_table.DataTable(
-            id="top-buys-table", columns=TOP_BUYS_COLUMNS,
-            data=[_top_buy_row_to_record(r) for r in top_buys_across_managers(top_n=50)],
-            cell_selectable=False, fixed_rows={"headers": True}, **_TOP_BUYS_TABLE_STYLE,
+        html.Div(
+            id="top-buys-table-container",
+            style={"display": "flex", "gap": "10px", "overflowX": "auto", "paddingBottom": "6px"},
+            children=[_build_top_buy_card(_top_buy_row_to_record(r))
+                      for r in top_buys_across_managers(top_n=50)],
         ),
         html.H3("Look Up a Manager", style={**_HEADER_STYLE, "marginTop": "40px"}),
         html.Div(
@@ -1602,7 +1722,7 @@ def _manager_tracker_children():
                         dcc.Input(id="manager-input", type="text", value="Berkshire Hathaway",
                                   placeholder="e.g. Berkshire Hathaway",
                                   autoComplete="off", n_submit=0,
-                                  style={"width": "260px", "display": "block", "color": "#0b0b0b"}),
+                                  style={"width": "260px", "display": "block", "color": "var(--text)"}),
                         html.Div(id="manager-suggestions", style=_SUGGESTIONS_CONTAINER_STYLE),
                     ],
                 ),
@@ -1613,6 +1733,12 @@ def _manager_tracker_children():
             children=html.Div(id="manager-status-msg", style={"marginTop": "16px", "whiteSpace": "pre-wrap"}),
         ),
         html.Div(id="manager-candidates", style={"marginTop": "8px"}),
+        # Filled in by generate_manager/select_manager_candidate once a
+        # manager's loaded (empty/hidden until then, same as the KPI grid
+        # on the Company Tracker).
+        html.Div(id="manager-summary-tiles",
+                 style={"display": "grid", "gridTemplateColumns": "repeat(auto-fit, minmax(150px,1fr))",
+                        "gap": "10px", "marginTop": "16px"}),
         html.P("Top holding increases and decreases quarter-over-quarter, from SEC 13F-HR filings.",
                style={**_PARA_STYLE, "marginTop": "24px"}),
         html.Div(
@@ -1623,9 +1749,7 @@ def _manager_tracker_children():
                     children=[
                         html.H3("Top Increases This Quarter", style=_HEADER_STYLE),
                         html.P(_MANAGER_NOTE, style={**_PARA_STYLE, "fontSize": "13px"}),
-                        dash_table.DataTable(id="increases-table", columns=MANAGER_COLUMNS,
-                                              data=[], cell_selectable=False,
-                                              fixed_rows={"headers": True}, **_TOP_MOVES_TABLE_STYLE),
+                        html.Div(id="increases-table-container"),
                     ],
                 ),
                 html.Div(
@@ -1633,86 +1757,53 @@ def _manager_tracker_children():
                     children=[
                         html.H3("Top Decreases This Quarter", style=_HEADER_STYLE),
                         html.P(_MANAGER_NOTE, style={**_PARA_STYLE, "fontSize": "13px"}),
-                        dash_table.DataTable(id="decreases-table", columns=MANAGER_COLUMNS,
-                                              data=[], cell_selectable=False,
-                                              fixed_rows={"headers": True}, **_TOP_MOVES_TABLE_STYLE),
+                        html.Div(id="decreases-table-container"),
                     ],
                 ),
             ],
         ),
-        html.Div(
-            style={"display": "flex", "justifyContent": "space-between", "alignItems": "flex-end",
-                   "marginTop": "40px", "flexWrap": "wrap", "gap": "12px"},
-            children=[
-                html.H3("All Equity Positions", style=_HEADER_STYLE),
-                html.Button("Download CSV", id="download-positions-btn", n_clicks=0, disabled=True),
-            ],
-        ),
+        html.H3("All Equity Positions", style={**_HEADER_STYLE, "marginTop": "40px"}),
         dcc.Download(id="download-positions-csv"),
         html.P("Every current or prior-quarter holding, ranked by portfolio weight, with "
                "quarter-over-quarter share/value/allocation changes.",
                style={**_PARA_STYLE, "fontSize": "13px"}),
+        # Filter chips apply instantly (no Calculate step) -- "All" doubles
+        # as the old "Clear Filters" button, since it's just another chip.
+        dcc.Store(id="position-filter-chip", data="all"),
         html.Div(
-            style={"display": "flex", "gap": "16px", "alignItems": "flex-start", "marginTop": "8px"},
+            style={"display": "flex", "gap": "8px", "alignItems": "center", "flexWrap": "wrap",
+                   "marginTop": "8px"},
             children=[
-                html.Div(
-                    style=_FILTER_PANEL_STYLE,
-                    children=[
-                        html.Div("Filters", style={"color": _HEADER_TEXT_COLOR, "fontWeight": "700",
-                                                     "marginBottom": "10px"}),
-                        *[
-                            html.Div(
-                                style={"marginBottom": "10px"},
-                                children=[
-                                    html.Label(label, style={"color": _BODY_TEXT_COLOR, "fontSize": "12px",
-                                                              "display": "block", "marginBottom": "3px"}),
-                                    html.Div(
-                                        style={"display": "flex", "gap": "4px"},
-                                        children=[
-                                            dcc.Input(id=f"filter-{field}-min", type="number",
-                                                      placeholder="Min", style=_FILTER_INPUT_STYLE),
-                                            dcc.Input(id=f"filter-{field}-max", type="number",
-                                                      placeholder="Max", style=_FILTER_INPUT_STYLE),
-                                        ],
-                                    ),
-                                ],
-                            )
-                            for field, label in _POSITION_FILTERS
-                        ],
-                        html.Div(
-                            style={"display": "flex", "gap": "6px"},
-                            children=[
-                                html.Button("Calculate", id="calculate-position-filters-btn", n_clicks=0,
-                                            style={"flex": "1", "fontSize": "12px"}),
-                                html.Button("Clear Filters", id="clear-position-filters-btn", n_clicks=0,
-                                            style={"flex": "1", "fontSize": "12px"}),
-                            ],
-                        ),
-                    ],
-                ),
-                html.Div(
-                    style={"flex": "1", "minWidth": "0"},
-                    children=dash_table.DataTable(
-                        id="all-positions-table",
-                        columns=ALL_POSITIONS_COLUMNS,
-                        data=[],
-                        cell_selectable=False,
-                        page_action="none",
-                        fixed_rows={"headers": True},
-                        # "native" sort puts a null ΔShares/ΔValue % ("New"
-                        # position) last regardless of ascending/descending
-                        # — "custom" hands sorting to the clientside
-                        # callback below instead, which treats null as
-                        # larger than any number so New positions sort
-                        # first when descending, last when ascending.
-                        sort_action="custom",
-                        sort_by=[],
-                        **{**_MANAGER_TABLE_STYLE,
-                           "style_table": {**_MANAGER_TABLE_STYLE["style_table"],
-                                            "maxHeight": "600px", "overflowY": "auto"}},
-                    ),
-                ),
+                html.Span("Show", style={"fontSize": "12px", "color": "var(--body-text)", "marginRight": "4px"}),
+                *[
+                    html.Div(label, id=f"chip-{key}", n_clicks=0, style=_position_chip_style(key == "all"))
+                    for key, label in _POSITION_CHIPS
+                ],
+                html.Button("Export CSV", id="download-positions-btn", n_clicks=0, disabled=True,
+                            style={"marginLeft": "auto", "fontSize": "12px"}),
             ],
+        ),
+        html.Div(
+            style={"marginTop": "12px"},
+            children=dash_table.DataTable(
+                id="all-positions-table",
+                columns=ALL_POSITIONS_COLUMNS,
+                data=[],
+                cell_selectable=False,
+                page_action="none",
+                fixed_rows={"headers": True},
+                # "native" sort puts a null ΔShares/ΔValue % ("New"
+                # position) last regardless of ascending/descending
+                # — "custom" hands sorting to the clientside
+                # callback below instead, which treats null as
+                # larger than any number so New positions sort
+                # first when descending, last when ascending.
+                sort_action="custom",
+                sort_by=[],
+                **{**_MANAGER_TABLE_STYLE,
+                   "style_table": {**_MANAGER_TABLE_STYLE["style_table"],
+                                    "maxHeight": "600px", "overflowY": "auto"}},
+            ),
         ),
         dcc.Store(id="suppress-next-manager-suggestions", data=False),
         dcc.Store(id="manager-search-debounced", data=""),
@@ -1760,6 +1851,36 @@ def _politician_dropdown_options(chamber):
     return options, default_value
 
 
+def _search_all_members(query, limit=5):
+    """Search both chambers' rosters by first/last name substring, for the
+    sidebar's cross-tracker search box -- same matching/ranking logic as
+    congress_trades.search_politicians, just across both chambers instead
+    of House only (that function predates the Senate roster and isn't
+    otherwise used)."""
+    q = query.strip().lower()
+    if not q:
+        return []
+    roster = list_all_house_members(session=_session) + list_all_senators(session=_session)
+    candidates = [
+        c for c in roster
+        if q in c["last"].lower() or q in c["first"].lower() or q in f"{c['first']} {c['last']}".lower()
+    ]
+
+    def rank(c):
+        last = c["last"].lower()
+        full = f"{c['first']} {c['last']}".lower()
+        if last == q:
+            return (0, last)
+        if last.startswith(q):
+            return (1, last)
+        if full.startswith(q):
+            return (2, last)
+        return (3, last)
+
+    candidates.sort(key=rank)
+    return candidates[:limit]
+
+
 def _politician_tracker_children():
     options, default_value = _politician_dropdown_options("house")
     return [
@@ -1773,27 +1894,21 @@ def _politician_tracker_children():
                 style={"display": "flex", "gap": "24px", "flexWrap": "wrap"},
                 children=[
                     html.Div(
-                        style={"flex": "1 1 420px", "minWidth": "0"},
+                        style={"flex": "1 1 420px", "minWidth": "0", "backgroundColor": "var(--card-bg)",
+                               "border": "1px solid var(--border)", "borderRadius": "14px",
+                               "padding": "16px 20px", "maxHeight": "480px", "overflowY": "auto"},
                         children=[
                             html.H3("Most Recent Trades (All Members)", style=_HEADER_STYLE),
-                            dash_table.DataTable(
-                                id="recent-trades-table", columns=RECENT_TRADES_COLUMNS,
-                                data=[], page_action="none",
-                                fixed_rows={"headers": True}, sort_action="native",
-                                **_ACTIVITY_TABLE_STYLE,
-                            ),
+                            html.Div(id="recent-trades-container"),
                         ],
                     ),
                     html.Div(
-                        style={"flex": "1 1 420px", "minWidth": "0"},
+                        style={"flex": "1 1 420px", "minWidth": "0", "backgroundColor": "var(--card-bg)",
+                               "border": "1px solid var(--border)", "borderRadius": "14px",
+                               "padding": "16px 20px", "maxHeight": "480px", "overflowY": "auto"},
                         children=[
                             html.H3("Largest Est. Portfolio Value (All Members)", style=_HEADER_STYLE),
-                            dash_table.DataTable(
-                                id="congress-leaderboard-table", columns=CONGRESS_LEADERBOARD_COLUMNS,
-                                data=[], page_action="none",
-                                fixed_rows={"headers": True}, sort_action="native",
-                                **_ACTIVITY_TABLE_STYLE,
-                            ),
+                            html.Div(id="congress-leaderboard-container"),
                         ],
                     ),
                 ],
@@ -1830,7 +1945,7 @@ def _politician_tracker_children():
                             value=default_value,
                             clearable=False,
                             searchable=True,
-                            style={"width": "320px", "color": "#0b0b0b"},
+                            style={"width": "320px", "color": "var(--text)"},
                         ),
                     ],
                 ),
@@ -1935,88 +2050,396 @@ app.title = "Stockpick"
 # for local `python dash_app.py` runs, not the hosted deployment.
 server = app.server
 
-# The top nav bar's own width (and its color) is deliberately edge-to-edge
-# -- everything else on the page stays readable at a constrained width, so
-# each tab's own content wrapper below carries its own maxWidth/centering
-# instead of one wrapper around the whole page doing it (see
-# _APP_CONTENT_STYLE and its three usages just below).
+# Sidebar replaces the old edge-to-edge top nav bar: a fixed 232px rail
+# (logo, search stub, tracker nav, theme toggle) beside a scrolling main
+# content column. Each panel's own content wrapper still carries its own
+# maxWidth/centering (see _APP_CONTENT_STYLE) since the sidebar itself
+# doesn't constrain it.
 _APP_CONTENT_STYLE = {"maxWidth": "1400px", "margin": "24px auto 60px", "padding": "0 16px"}
 
+_SIDEBAR_STYLE = {
+    "borderRight": "1px solid var(--border)",
+    "padding": "20px 14px",
+    "display": "flex",
+    "flexDirection": "column",
+    "gap": "24px",
+    "position": "sticky",
+    "top": "0",
+    "height": "100vh",
+    "boxSizing": "border-box",
+    "backgroundColor": "var(--bg)",
+}
+_SIDEBAR_SECTION_LABEL_STYLE = {
+    "fontSize": "11px", "letterSpacing": "0.08em", "textTransform": "uppercase",
+    "color": "var(--body-text)", "padding": "0 10px 8px",
+}
+# view id -> (nav row id, label, meta badge). Order matches the design
+# (Managers, Congress, Companies) even though "company" stays the default
+# landing view (_DEFAULT_VIEW) -- nav order and initial view are
+# independent choices.
+_SIDEBAR_NAV_ITEMS = [
+    ("manager", "nav-managers", "Managers", "13F"),
+    ("politician", "nav-congress", "Congress", "PTR"),
+    ("company", "nav-companies", "Companies", ""),
+]
+_DEFAULT_VIEW = "company"
+
+
+def _sidebar_nav_row_style(active):
+    return {
+        "display": "flex", "alignItems": "center", "gap": "10px",
+        "padding": "9px 10px", "borderRadius": "7px", "cursor": "pointer",
+        "fontSize": "14px", "fontWeight": "500",
+        "backgroundColor": "var(--pill-active)" if active else "transparent",
+        "color": "var(--text)" if active else "var(--body-text)",
+    }
+
+
+def _sidebar_nav_dot_style(active):
+    return {
+        "width": "6px", "height": "6px", "borderRadius": "50%", "flex": "0 0 auto",
+        "backgroundColor": "var(--accent)" if active else "var(--border)",
+    }
+
+
+def _build_sidebar():
+    nav_rows = [
+        html.Div(
+            id=row_id,
+            n_clicks=0,
+            style=_sidebar_nav_row_style(view == _DEFAULT_VIEW),
+            children=[
+                html.Span(id=f"{row_id}-dot", style=_sidebar_nav_dot_style(view == _DEFAULT_VIEW)),
+                html.Span(label, style={"flex": "1"}),
+                html.Span(meta, style={"fontFamily": "'IBM Plex Mono', monospace", "fontSize": "11px",
+                                        "color": "var(--body-text)"}),
+            ],
+        )
+        for view, row_id, label, meta in _SIDEBAR_NAV_ITEMS
+    ]
+    return html.Div(
+        style=_SIDEBAR_STYLE,
+        children=[
+            html.Div(
+                style={"display": "flex", "alignItems": "center", "gap": "10px", "padding": "0 8px"},
+                children=[
+                    html.Div(style={"width": "22px", "height": "22px", "borderRadius": "6px",
+                                     "backgroundColor": "var(--accent)"}),
+                    html.Div("Stockpick", style={"fontWeight": "700", "fontSize": "17px",
+                                                  "letterSpacing": "-0.02em", "color": "var(--text)"}),
+                ],
+            ),
+            html.Div(
+                className="global-search-wrap",
+                style={"position": "relative"},
+                children=[
+                    html.Div(
+                        style={"display": "flex", "alignItems": "center", "gap": "8px", "padding": "9px 10px",
+                               "border": "1px solid var(--border)", "borderRadius": "8px",
+                               "backgroundColor": "var(--card-bg)"},
+                        children=[
+                            dcc.Input(
+                                id="global-search-input", type="text",
+                                placeholder="Search ticker, fund, member",
+                                autoComplete="off", n_submit=0,
+                                style={"flex": "1", "border": "none", "backgroundColor": "transparent",
+                                       "padding": "0", "fontSize": "13px", "color": "var(--text)",
+                                       "outline": "none"},
+                            ),
+                            html.Span("⌘K", style={"fontFamily": "'IBM Plex Mono', monospace",
+                                                    "fontSize": "11px", "padding": "2px 5px",
+                                                    "border": "1px solid var(--border)", "borderRadius": "4px",
+                                                    "color": "var(--body-text)"}),
+                        ],
+                    ),
+                    html.Div(id="global-search-suggestions",
+                             style={"position": "absolute", "top": "100%", "left": "0", "width": "100%",
+                                    "zIndex": "30", "marginTop": "4px"}),
+                ],
+            ),
+            dcc.Store(id="global-search-debounced", data=""),
+            html.Div(
+                style={"display": "flex", "flexDirection": "column", "gap": "2px"},
+                children=[html.Div("Trackers", style=_SIDEBAR_SECTION_LABEL_STYLE)] + nav_rows,
+            ),
+            html.Div(
+                style={"marginTop": "auto", "display": "flex", "flexDirection": "column", "gap": "10px"},
+                children=[
+                    html.Button(
+                        "🌙 Dark", id="theme-toggle-btn", n_clicks=0,
+                        style={
+                            "backgroundColor": "var(--card-bg)", "color": "var(--text)",
+                            "border": "1px solid var(--border)", "borderRadius": "8px",
+                            "padding": "8px 12px", "fontSize": "13px", "fontWeight": "600",
+                            "cursor": "pointer", "width": "100%",
+                        },
+                    ),
+                    html.Div("Data: SEC EDGAR 13F · House & Senate PTRs.",
+                             style={"fontSize": "11px", "color": "var(--body-text)", "padding": "0 4px",
+                                    "lineHeight": "1.5"}),
+                ],
+            ),
+        ],
+    )
+
+
+def _tracker_panel_style(view):
+    return {"display": "block" if view == _DEFAULT_VIEW else "none"}
+
+
 app.layout = html.Div(
+    style={"display": "grid", "gridTemplateColumns": "232px minmax(0,1fr)", "minHeight": "100vh",
+           "backgroundColor": "var(--bg)"},
     children=[
         # storage_type="local" persists the choice in the browser's own
         # localStorage and re-hydrates it before any Python callback
         # runs -- see the two clientside callbacks right after this
         # layout for how a click updates it and how it's applied.
         dcc.Store(id="theme-store", storage_type="local", data="dark"),
-        # position:relative here, not on dcc.Tabs itself, just to give the
-        # toggle button (position:absolute below) something to anchor to
-        # -- dcc.Tabs only accepts dcc.Tab children, so the button can't be
-        # a direct child of it and instead overlays on top, independent of
-        # however Tabs structures its own tab-list/content DOM internally.
+        # storage_type="session": a refresh keeps whichever tracker was
+        # open, but a brand-new tab/session lands back on _DEFAULT_VIEW.
+        # Nothing reads this store server-side (see the clientside nav
+        # callback below) -- it exists purely so other future callbacks
+        # have a single source of truth for "which view is active".
+        dcc.Store(id="active-view", storage_type="session", data=_DEFAULT_VIEW),
+        _build_sidebar(),
         html.Div(
-            style={"position": "relative"},
+            id="main-content",
             children=[
-                dcc.Tabs(
-                    id="app-tabs",
-                    value="company",
-                    style={
-                        **_NAV_CONTAINER_STYLE,
-                        "width": "100%", "boxSizing": "border-box",
-                        "borderRadius": "0", "marginTop": "0",
-                        "padding": "4px 110px 6px 24px",
-                    },
-                    children=[
-                        dcc.Tab(
-                            label="Public Company Tracker",
-                            value="company",
-                            style=_APP_TAB_STYLE,
-                            selected_style=_APP_TAB_SELECTED_STYLE,
-                            children=html.Div(style=_APP_CONTENT_STYLE, children=_company_tracker_children()),
-                        ),
-                        dcc.Tab(
-                            label="Investment Manager Tracker",
-                            value="manager",
-                            style=_APP_TAB_STYLE,
-                            selected_style=_APP_TAB_SELECTED_STYLE,
-                            children=html.Div(style=_APP_CONTENT_STYLE, children=_manager_tracker_children()),
-                        ),
-                        dcc.Tab(
-                            label="Politician Tracker",
-                            value="politician",
-                            style=_APP_TAB_STYLE,
-                            selected_style=_APP_TAB_SELECTED_STYLE,
-                            children=html.Div(style=_APP_CONTENT_STYLE, children=_politician_tracker_children()),
-                        ),
-                    ],
-                ),
-                html.Button(
-                    "🌙 Dark",
-                    id="theme-toggle-btn",
-                    n_clicks=0,
-                    style={
-                        # A fixed pixel offset, not top:"50%" -- this
-                        # button's containing block is the div wrapping
-                        # the *entire* dcc.Tabs (bar + whichever tab's
-                        # full content, both bundled into one Tabs
-                        # component), which is as tall as the whole page,
-                        # not just the bar. "50%" centered it there
-                        # instead of in the ~40px bar at the top. "4px"
-                        # matches app-tabs' own top padding below, and the
-                        # padding/fontSize here match _APP_TAB_STYLE's
-                        # pills exactly so the two actually sit at the
-                        # same height instead of just visually close.
-                        "position": "absolute", "top": "4px", "right": "24px",
-                        "backgroundColor": "var(--card-bg)", "color": "var(--text)",
-                        "border": "1px solid var(--border)", "borderRadius": "8px",
-                        "padding": "6px 18px", "fontSize": "14px", "fontWeight": "600",
-                        "lineHeight": "20px", "cursor": "pointer",
-                    },
-                ),
+                html.Div(id="company-panel", style=_tracker_panel_style("company"),
+                          children=html.Div(style=_APP_CONTENT_STYLE, children=_company_tracker_children())),
+                html.Div(id="manager-panel", style=_tracker_panel_style("manager"),
+                          children=html.Div(style=_APP_CONTENT_STYLE, children=_manager_tracker_children())),
+                html.Div(id="politician-panel", style=_tracker_panel_style("politician"),
+                          children=html.Div(style=_APP_CONTENT_STYLE, children=_politician_tracker_children())),
             ],
         ),
     ],
 )
+
+# Drives the sidebar nav: which tracker panel is visible and each nav
+# row's active styling. Clientside (not a server round-trip) for the same
+# reason the theme toggle below is -- instant visual feedback on click.
+# Guarded on all three n_clicks being falsy so the initial call Dash
+# fires for every clientside callback on page load doesn't fight the
+# styles already baked into the layout above (_DEFAULT_VIEW).
+app.clientside_callback(
+    """
+    function(nManagers, nCongress, nCompanies) {
+        if (!nManagers && !nCongress && !nCompanies) {
+            return Array(10).fill(window.dash_clientside.no_update);
+        }
+        const trig = window.dash_clientside.callback_context.triggered_id;
+        const view = trig === "nav-managers" ? "manager" : trig === "nav-congress" ? "politician" : "company";
+        const rowStyle = (active) => ({
+            display: "flex", alignItems: "center", gap: "10px", padding: "9px 10px",
+            borderRadius: "7px", cursor: "pointer", fontSize: "14px", fontWeight: "500",
+            backgroundColor: active ? "var(--pill-active)" : "transparent",
+            color: active ? "var(--text)" : "var(--body-text)",
+        });
+        const dotStyle = (active) => ({
+            width: "6px", height: "6px", borderRadius: "50%", flex: "0 0 auto",
+            backgroundColor: active ? "var(--accent)" : "var(--border)",
+        });
+        return [
+            view,
+            {display: view === "company" ? "block" : "none"},
+            {display: view === "manager" ? "block" : "none"},
+            {display: view === "politician" ? "block" : "none"},
+            rowStyle(view === "manager"), dotStyle(view === "manager"),
+            rowStyle(view === "politician"), dotStyle(view === "politician"),
+            rowStyle(view === "company"), dotStyle(view === "company"),
+        ];
+    }
+    """,
+    Output("active-view", "data"),
+    Output("company-panel", "style"),
+    Output("manager-panel", "style"),
+    Output("politician-panel", "style"),
+    Output("nav-managers", "style"),
+    Output("nav-managers-dot", "style"),
+    Output("nav-congress", "style"),
+    Output("nav-congress-dot", "style"),
+    Output("nav-companies", "style"),
+    Output("nav-companies-dot", "style"),
+    Input("nav-managers", "n_clicks"),
+    Input("nav-congress", "n_clicks"),
+    Input("nav-companies", "n_clicks"),
+)
+
+# Debounces the sidebar search box the same way manager-search-debounced
+# (further below) does for the manager tracker's own search -- waits for a
+# pause in typing before hitting the three search functions below, rather
+# than on every keystroke.
+app.clientside_callback(
+    """
+    function(value) {
+        if (window.__globalSearchTimer) {
+            clearTimeout(window.__globalSearchTimer);
+        }
+        window.__globalSearchTimer = setTimeout(function() {
+            window.dash_clientside.set_props("global-search-debounced", {data: value});
+        }, 400);
+        return window.dash_clientside.no_update;
+    }
+    """,
+    Output("global-search-debounced", "data"),
+    Input("global-search-input", "value"),
+)
+
+_GLOBAL_SEARCH_SECTION_LABEL_STYLE = {
+    "fontSize": "11px", "letterSpacing": "0.06em", "textTransform": "uppercase",
+    "color": "var(--body-text)", "padding": "8px 12px 4px",
+}
+
+
+def _global_search_section(label, buttons):
+    return [html.Div(label, style=_GLOBAL_SEARCH_SECTION_LABEL_STYLE)] + buttons
+
+
+@app.callback(
+    Output("global-search-suggestions", "children"),
+    Input("global-search-debounced", "data"),
+    prevent_initial_call=True,
+)
+def update_global_search_suggestions(query):
+    if not query or len(query.strip()) < 2:
+        return None
+
+    # Each source fails independently -- a transient SEC hiccup on one
+    # shouldn't blank out matches from the other two.
+    companies = []
+    try:
+        companies = search_companies(query, load_ticker_map(_session), limit=5)
+    except requests.RequestException:
+        pass
+    managers = []
+    try:
+        managers = search_managers(query, _session, limit=5)
+    except requests.RequestException:
+        pass
+    members = _search_all_members(query, limit=5)
+
+    if not companies and not managers and not members:
+        return html.Div("No matches.", style={**_SUGGESTIONS_CARD_STYLE, "padding": "10px 12px",
+                                                 "fontSize": "13px", "color": "var(--body-text)"})
+
+    sections = []
+    if companies:
+        _prefetch_fund_names(companies)
+        sections += _global_search_section("Companies", [
+            html.Button(
+                [html.Span(c["ticker"], style={"fontWeight": "700", "marginRight": "8px"}),
+                 html.Span(_display_title(c), style={"color": "var(--body-text)"})],
+                id={"type": "global-search-company", "ticker": c["ticker"]},
+                n_clicks=0, style=_SUGGESTION_ROW_STYLE,
+            )
+            for c in companies
+        ])
+    if managers:
+        sections += _global_search_section("Managers", [
+            html.Button(m["name"], id={"type": "global-search-manager", "name": m["name"]},
+                        n_clicks=0, style=_SUGGESTION_ROW_STYLE)
+            for m in managers
+        ])
+    if members:
+        sections += _global_search_section("Members of Congress", [
+            html.Button(
+                f"{c['display']} ({c['state_dst']})" if c["state_dst"] else c["display"],
+                id={"type": "global-search-member", "chamber": c["chamber"], "last": c["last"],
+                    "first": c["first"]},
+                n_clicks=0, style=_SUGGESTION_ROW_STYLE,
+            )
+            for c in members
+        ])
+    return html.Div(sections, style=_SUGGESTIONS_CARD_STYLE)
+
+
+# Jumps to the right tracker and loads the picked result, from anywhere in
+# the app. Rather than duplicating each tracker's own lookup/render logic
+# here, this leans on the exact mechanism each already listens on:
+# company/manager lookups trigger off n_submit (bumped here the same way a
+# real Enter keypress would), and the politician dropdown's generate_
+# politician already triggers directly off politician-input's value --
+# Dash re-fires an Input-owning callback on any change to that prop
+# regardless of whether a person or another callback's Output produced it.
+@app.callback(
+    Output("active-view", "data", allow_duplicate=True),
+    Output("company-panel", "style", allow_duplicate=True),
+    Output("manager-panel", "style", allow_duplicate=True),
+    Output("politician-panel", "style", allow_duplicate=True),
+    Output("nav-managers", "style", allow_duplicate=True),
+    Output("nav-managers-dot", "style", allow_duplicate=True),
+    Output("nav-congress", "style", allow_duplicate=True),
+    Output("nav-congress-dot", "style", allow_duplicate=True),
+    Output("nav-companies", "style", allow_duplicate=True),
+    Output("nav-companies-dot", "style", allow_duplicate=True),
+    Output("company-input", "value", allow_duplicate=True),
+    Output("company-input", "n_submit"),
+    Output("manager-input", "value", allow_duplicate=True),
+    Output("manager-input", "n_submit"),
+    Output("politician-chamber-tabs", "value", allow_duplicate=True),
+    Output("politician-input", "value", allow_duplicate=True),
+    Output("pending-member-selection", "data", allow_duplicate=True),
+    Output("global-search-input", "value", allow_duplicate=True),
+    Output("global-search-suggestions", "children", allow_duplicate=True),
+    Input({"type": "global-search-company", "ticker": ALL}, "n_clicks"),
+    Input({"type": "global-search-manager", "name": ALL}, "n_clicks"),
+    Input({"type": "global-search-member", "chamber": ALL, "last": ALL, "first": ALL}, "n_clicks"),
+    State("company-input", "n_submit"),
+    State("manager-input", "n_submit"),
+    State("politician-chamber-tabs", "value"),
+    prevent_initial_call=True,
+)
+def select_global_search_result(company_clicks, manager_clicks, member_clicks,
+                                 company_n_submit, manager_n_submit, current_chamber):
+    if not any(company_clicks or []) and not any(manager_clicks or []) and not any(member_clicks or []):
+        raise PreventUpdate  # fires with all-zero clicks whenever the suggestion list re-renders
+    triggered = ctx.triggered_id
+    kind = triggered["type"]
+
+    company_value = company_submit = no_update
+    manager_value = manager_submit = no_update
+    chamber_value = politician_value = pending_selection = no_update
+
+    if kind == "global-search-company":
+        view = "company"
+        company_value = triggered["ticker"]
+        company_submit = (company_n_submit or 0) + 1
+    elif kind == "global-search-manager":
+        view = "manager"
+        manager_value = triggered["name"]
+        manager_submit = (manager_n_submit or 0) + 1
+    else:
+        view = "politician"
+        chamber = triggered["chamber"]
+        dropdown_key = f"{chamber}|{triggered['last']}|{triggered['first']}"
+        if chamber == current_chamber:
+            # Same chamber already showing -- update_politician_roster (see
+            # below) won't fire, since its chamber-tabs Input wouldn't
+            # change, so the dropdown needs setting directly here.
+            politician_value = dropdown_key
+        else:
+            # Switching chambers: update_politician_roster is about to fire
+            # and would otherwise overwrite the dropdown with that
+            # chamber's default member -- stash the real target in
+            # pending-member-selection for it to pick up instead (same
+            # handoff select_member_from_summary uses).
+            chamber_value = chamber
+            pending_selection = dropdown_key
+
+    return (
+        view,
+        {"display": "block" if view == "company" else "none"},
+        {"display": "block" if view == "manager" else "none"},
+        {"display": "block" if view == "politician" else "none"},
+        _sidebar_nav_row_style(view == "manager"), _sidebar_nav_dot_style(view == "manager"),
+        _sidebar_nav_row_style(view == "politician"), _sidebar_nav_dot_style(view == "politician"),
+        _sidebar_nav_row_style(view == "company"), _sidebar_nav_dot_style(view == "company"),
+        company_value, company_submit, manager_value, manager_submit,
+        chamber_value, politician_value, pending_selection, "", None,
+    )
+
 
 # Flips theme-store's persisted value on a click. Guarded on n_clicks so
 # the initial call Dash fires for every clientside callback on page load
@@ -2267,13 +2690,52 @@ def _run_etf_lookup(ticker):
     )
 
 
+# Process-lifetime, not TTL'd like _ticker_cache -- a fund's name doesn't
+# change day to day the way its price/holdings do, so there's no need to
+# ever refetch one once we have it.
+_fund_name_cache = {}
+
+
+def _prefetch_fund_names(companies):
+    """Warms _fund_name_cache for any not-yet-cached funds in `companies`,
+    in parallel. A search full of funds calling fetch_fund_name one at a
+    time inside the results list comprehension (see _display_title) was
+    visibly slow -- several seconds -- since each is its own yfinance
+    round trip; concurrent lookups cut that down to roughly the slowest
+    single one instead of their sum. Called once up front, before building
+    each suggestion/candidate list, so _display_title's own per-ticker
+    calls below are then all cache hits."""
+    missing = [c["ticker"] for c in companies if c.get("is_fund") and c["ticker"] not in _fund_name_cache]
+    if not missing:
+        return
+    with concurrent.futures.ThreadPoolExecutor(max_workers=min(8, len(missing))) as pool:
+        for ticker, name in zip(missing, pool.map(fetch_fund_name, missing)):
+            _fund_name_cache[ticker] = name
+
+
+def _display_title(c):
+    """A ticker-map entry's real display title. For an operating company
+    that's just its own "title" field; for an ETF/mutual fund, "title" is
+    only ever the ticker symbol again (SEC's fund ticker map carries no
+    name at all -- see load_ticker_map), so this fetches the real fund
+    name via yfinance instead, on first use per ticker, falling back to a
+    generic label if yfinance doesn't have one either."""
+    if not c.get("is_fund"):
+        return c["title"]
+    ticker = c["ticker"]
+    if ticker not in _fund_name_cache:
+        _fund_name_cache[ticker] = fetch_fund_name(ticker)
+    return _fund_name_cache[ticker] or "ETF / Fund"
+
+
 def _render_company_candidates(candidates, query, candidate_type="company-candidate"):
     if not candidates:
         return None
     shown = candidates[:_MAX_CANDIDATES_SHOWN]
+    _prefetch_fund_names(shown)
     buttons = [
         html.Button(
-            f"{c['ticker']}  {'ETF / Fund' if c.get('is_fund') else c['title']}",
+            f"{c['ticker']}  {_display_title(c)}",
             id={"type": candidate_type, "ticker": c["ticker"]},
             n_clicks=0,
             style=_CANDIDATE_BTN_STYLE,
@@ -2284,7 +2746,7 @@ def _render_company_candidates(candidates, query, candidate_type="company-candid
     if len(candidates) > _MAX_CANDIDATES_SHOWN:
         note = [html.P(f"Showing the first {_MAX_CANDIDATES_SHOWN} of {len(candidates)} matches — "
                         "refine your search to narrow it down.",
-                        style={"color": "#898781", "fontSize": "12px"})]
+                        style={"color": "var(--body-text)", "fontSize": "12px"})]
     return html.Div(style={"maxWidth": "520px", "marginTop": "8px"}, children=buttons + note)
 
 
@@ -2478,12 +2940,12 @@ def select_company_candidate_2(candidate_clicks, suggestion_clicks, active_cell,
 
 
 def _build_suggestions_dropdown(matches, suggestion_type="company-suggestion"):
+    _prefetch_fund_names(matches)
     return html.Div(
         [
             html.Button(
                 [html.Span(c["ticker"], style={"fontWeight": "700", "marginRight": "8px"}),
-                 html.Span("ETF / Fund" if c.get("is_fund") else c["title"],
-                           style={"color": "#52514e"})],
+                 html.Span(_display_title(c), style={"color": "var(--body-text)"})],
                 id={"type": suggestion_type, "ticker": c["ticker"]},
                 n_clicks=0,
                 style=_SUGGESTION_ROW_STYLE,
@@ -2538,8 +3000,16 @@ def update_company_suggestions_2(query, suppress):
     return _build_suggestions_dropdown(matches, "company-suggestion-2"), False
 
 
+_EMPTY_PRICE_HEADER = ("", "", {}, "", "")
+
+
 @app.callback(
     Output("price-chart", "figure"),
+    Output("stock-header-price", "children"),
+    Output("stock-header-change", "children"),
+    Output("stock-header-change", "style"),
+    Output("stock-header-hi", "children"),
+    Output("stock-header-lo", "children"),
     Input("rows-store", "data"),
     Input("rows-store-2", "data"),
     Input("compare-mode", "data"),
@@ -2549,7 +3019,7 @@ def update_company_suggestions_2(query, suppress):
 )
 def update_price_chart(store, store2, is_compare, range_key, _n_intervals, theme):
     if not store:
-        return empty_price_figure(theme=theme)
+        return empty_price_figure(theme=theme), *_EMPTY_PRICE_HEADER
     ticker = store["ticker"]
 
     if is_compare and store2:
@@ -2558,18 +3028,92 @@ def update_price_chart(store, store2, is_compare, range_key, _n_intervals, theme
             df1 = fetch_price_history(ticker, range_key)
             df2 = fetch_price_history(ticker2, range_key)
         except PriceDataError as e:
-            return empty_price_figure(str(e), theme=theme)
+            return empty_price_figure(str(e), theme=theme), *_EMPTY_PRICE_HEADER
         except Exception as e:
-            return empty_price_figure(f"Price data unavailable: {e}", theme=theme)
-        return build_compare_price_figure(df1, ticker, df2, ticker2, range_key, theme=theme)
+            return empty_price_figure(f"Price data unavailable: {e}", theme=theme), *_EMPTY_PRICE_HEADER
+        figure = build_compare_price_figure(df1, ticker, df2, ticker2, range_key, theme=theme)
+        return (figure, *_price_header_texts(_price_change_stats(df1)))
 
     try:
         df = fetch_price_history(ticker, range_key)
     except PriceDataError as e:
-        return empty_price_figure(str(e), theme=theme)
+        return empty_price_figure(str(e), theme=theme), *_EMPTY_PRICE_HEADER
     except Exception as e:
-        return empty_price_figure(f"Price data unavailable: {e}", theme=theme)
-    return build_price_figure(df, ticker, range_key, theme=theme)
+        return empty_price_figure(f"Price data unavailable: {e}", theme=theme), *_EMPTY_PRICE_HEADER
+    figure = build_price_figure(df, ticker, range_key, theme=theme)
+    return (figure, *_price_header_texts(_price_change_stats(df)))
+
+
+_KPI_TILE_STYLE = {
+    "backgroundColor": "var(--card-bg)", "border": "1px solid var(--border)", "borderRadius": "10px",
+    "padding": "14px", "display": "flex", "flexDirection": "column", "gap": "6px",
+}
+_KPI_TILE_LABEL_STYLE = {"fontSize": "11px", "letterSpacing": "0.06em", "textTransform": "uppercase",
+                          "color": "var(--body-text)"}
+_KPI_TILE_VALUE_STYLE = {"fontFamily": "'IBM Plex Mono', monospace", "fontSize": "19px", "color": "var(--text)"}
+
+
+def _kpi_tile(label, value):
+    return html.Div(
+        style=_KPI_TILE_STYLE,
+        children=[
+            html.Span(label, style=_KPI_TILE_LABEL_STYLE),
+            html.Span(value if value is not None else "—", style=_KPI_TILE_VALUE_STYLE),
+        ],
+    )
+
+
+def _fmt_big_dollars(v):
+    if v is None:
+        return None
+    if v >= 1e12:
+        return f"${v / 1e12:.2f}T"
+    if v >= 1e9:
+        return f"${v / 1e9:.1f}B"
+    if v >= 1e6:
+        return f"${v / 1e6:.0f}M"
+    return f"${v:,.0f}"
+
+
+# Header meta/name and the KPI tile grid only depend on which ticker is
+# loaded, not the selected chart range -- kept as a separate callback from
+# update_price_chart above (which does re-run on every range-tabs click)
+# so switching ranges doesn't re-hit yfinance for an overview fetch that
+# hasn't changed.
+@app.callback(
+    Output("stock-header-meta", "children"),
+    Output("stock-header-name", "children"),
+    Output("stock-kpi-grid", "children"),
+    Input("rows-store", "data"),
+)
+def update_company_overview(store):
+    if not store:
+        return "", "", []
+    ticker = store["ticker"]
+    title = store.get("title") or ticker
+    rows = store.get("rows") or []
+    roic = rows[-1].get("roic") if rows else None
+
+    # Best-effort: yfinance not having overview data for this ticker (funds,
+    # thinly-traded names) shouldn't break the rest of the page -- the KPI
+    # tiles just show "—" for whatever's missing.
+    try:
+        overview = fetch_ticker_overview(ticker)
+    except PriceDataError:
+        overview = {}
+
+    meta_text = " · ".join(p for p in (overview.get("exchange"), ticker, overview.get("sector")) if p)
+    trailing_pe = overview.get("trailing_pe")
+    net_margin = overview.get("net_margin")
+
+    tiles = [
+        _kpi_tile("Market Cap", _fmt_big_dollars(overview.get("market_cap"))),
+        _kpi_tile("P/E (TTM)", f"{trailing_pe:.1f}×" if trailing_pe is not None else None),
+        _kpi_tile("Revenue TTM", _fmt_big_dollars(overview.get("revenue_ttm"))),
+        _kpi_tile("Net Margin", f"{net_margin * 100:.1f}%" if net_margin is not None else None),
+        _kpi_tile("ROIC", f"{roic * 100:.1f}%" if roic is not None else None),
+    ]
+    return meta_text, title, tiles
 
 
 # Pulses the live-price dot's halo (see build_price_figure) by directly
@@ -2914,10 +3458,10 @@ _CANDIDATE_BTN_STYLE = {
     "width": "100%",
     "textAlign": "left",
     "padding": "8px 12px",
-    "border": "1px solid #e1e0d9",
+    "border": "1px solid var(--border)",
     "borderRadius": "6px",
-    "backgroundColor": "#ffffff",
-    "color": "#0b0b0b",
+    "backgroundColor": "var(--card-bg)",
+    "color": "var(--text)",
     "marginBottom": "4px",
     "cursor": "pointer",
     "fontSize": "13px",
@@ -2941,17 +3485,20 @@ def _render_candidates(candidates, query):
     if len(candidates) > _MAX_CANDIDATES_SHOWN:
         note = [html.P(f"Showing the first {_MAX_CANDIDATES_SHOWN} of {len(candidates)} matches — "
                         "refine your search to narrow it down.",
-                        style={"color": "#898781", "fontSize": "12px"})]
+                        style={"color": "var(--body-text)", "fontSize": "12px"})]
     return html.Div(
         style={"maxWidth": "520px", "marginTop": "8px"},
         children=buttons + note,
     )
 
 
+_EMPTY_BAR_LIST = _build_delta_bar_list([], True)
+
+
 @app.callback(
     Output("manager-status-msg", "children"),
-    Output("increases-table", "data"),
-    Output("decreases-table", "data"),
+    Output("increases-table-container", "children"),
+    Output("decreases-table-container", "children"),
     Output("all-positions-table", "data"),
     Output("manager-candidates", "children"),
     Output("manager-suggestions", "children", allow_duplicate=True),
@@ -2959,6 +3506,7 @@ def _render_candidates(candidates, query):
     Output("all-positions-visible-count", "data"),
     Output("download-positions-btn", "disabled"),
     Output("manager-positions-meta", "data"),
+    Output("manager-summary-tiles", "children"),
     Input("manager-input", "n_submit"),
     State("manager-input", "value"),
     # This callback's own "manager-suggestions" output is itself declared
@@ -2971,21 +3519,23 @@ def _render_candidates(candidates, query):
 )
 def generate_manager(_n_submit, query):
     if not query or not query.strip():
-        return ("Enter an investment manager name.", [], [], [], None, None, [],
-                _POSITIONS_PAGE_SIZE, True, None)
+        return ("Enter an investment manager name.", _EMPTY_BAR_LIST, _EMPTY_BAR_LIST, [], None, None, [],
+                _POSITIONS_PAGE_SIZE, True, None, [])
 
     try:
         result = fetch_manager_comparison(query, session=_session)
     except ManagerLookupError as e:
         if e.candidates:
-            return (str(e), [], [], [], _render_candidates(e.candidates, query), None,
-                    [], _POSITIONS_PAGE_SIZE, True, None)
-        return str(e), [], [], [], None, None, [], _POSITIONS_PAGE_SIZE, True, None
+            return (str(e), _EMPTY_BAR_LIST, _EMPTY_BAR_LIST, [], _render_candidates(e.candidates, query), None,
+                    [], _POSITIONS_PAGE_SIZE, True, None, [])
+        return (str(e), _EMPTY_BAR_LIST, _EMPTY_BAR_LIST, [], None, None, [],
+                _POSITIONS_PAGE_SIZE, True, None, [])
     except FilingDataError as e:
-        return f"{query}: {e}", [], [], [], None, None, [], _POSITIONS_PAGE_SIZE, True, None
+        return (f"{query}: {e}", _EMPTY_BAR_LIST, _EMPTY_BAR_LIST, [], None, None, [],
+                _POSITIONS_PAGE_SIZE, True, None, [])
     except requests.RequestException as e:
-        return (f"Network error talking to SEC EDGAR: {e}", [], [], [], None, None,
-                [], _POSITIONS_PAGE_SIZE, True, None)
+        return (f"Network error talking to SEC EDGAR: {e}", _EMPTY_BAR_LIST, _EMPTY_BAR_LIST, [], None, None,
+                [], _POSITIONS_PAGE_SIZE, True, None, [])
 
     status = (f"Found: {result['resolved_name']} (CIK {result['cik']}) — "
               f"{result['latest_period']} vs {result['previous_period']}")
@@ -2993,14 +3543,16 @@ def generate_manager(_n_submit, query):
     decreases = [_manager_row_to_record(r) for r in result["top_decreases"]]
     all_positions = [_all_positions_row_to_record(r) for r in result["all_positions"]]
     meta = {"cik": result["cik"], "truncated": result.get("positions_truncated", False)}
-    return (status, increases, decreases, all_positions[:_POSITIONS_PAGE_SIZE], None, None,
-            all_positions, min(_POSITIONS_PAGE_SIZE, len(all_positions)), not all_positions, meta)
+    return (status, _build_delta_bar_list(increases, True), _build_delta_bar_list(decreases, False),
+            all_positions[:_POSITIONS_PAGE_SIZE], None, None,
+            all_positions, min(_POSITIONS_PAGE_SIZE, len(all_positions)), not all_positions, meta,
+            _manager_summary_tiles(all_positions))
 
 
 @app.callback(
     Output("manager-status-msg", "children", allow_duplicate=True),
-    Output("increases-table", "data", allow_duplicate=True),
-    Output("decreases-table", "data", allow_duplicate=True),
+    Output("increases-table-container", "children", allow_duplicate=True),
+    Output("decreases-table-container", "children", allow_duplicate=True),
     Output("all-positions-table", "data", allow_duplicate=True),
     Output("manager-candidates", "children", allow_duplicate=True),
     Output("manager-suggestions", "children", allow_duplicate=True),
@@ -3010,6 +3562,7 @@ def generate_manager(_n_submit, query):
     Output("all-positions-visible-count", "data", allow_duplicate=True),
     Output("download-positions-btn", "disabled", allow_duplicate=True),
     Output("manager-positions-meta", "data", allow_duplicate=True),
+    Output("manager-summary-tiles", "children", allow_duplicate=True),
     Input({"type": "manager-candidate", "cik": ALL}, "n_clicks"),
     Input({"type": "manager-suggestion", "cik": ALL}, "n_clicks"),
     prevent_initial_call=True,
@@ -3022,11 +3575,11 @@ def select_manager_candidate(candidate_clicks, suggestion_clicks):
     try:
         result = fetch_manager_comparison_by_cik(cik, session=_session)
     except FilingDataError as e:
-        return (f"CIK {cik}: {e}", [], [], [], None, None, no_update, no_update,
-                [], _POSITIONS_PAGE_SIZE, True, None)
+        return (f"CIK {cik}: {e}", _EMPTY_BAR_LIST, _EMPTY_BAR_LIST, [], None, None, no_update, no_update,
+                [], _POSITIONS_PAGE_SIZE, True, None, [])
     except requests.RequestException as e:
-        return (f"Network error talking to SEC EDGAR: {e}", [], [], [], None, None, no_update, no_update,
-                [], _POSITIONS_PAGE_SIZE, True, None)
+        return (f"Network error talking to SEC EDGAR: {e}", _EMPTY_BAR_LIST, _EMPTY_BAR_LIST, [], None, None,
+                no_update, no_update, [], _POSITIONS_PAGE_SIZE, True, None, [])
 
     status = (f"Found: {result['resolved_name']} (CIK {result['cik']}) — "
               f"{result['latest_period']} vs {result['previous_period']}")
@@ -3037,9 +3590,11 @@ def select_manager_candidate(candidate_clicks, suggestion_clicks):
     # Setting manager-input's value below re-triggers update_manager_suggestions
     # (it watches that same value) — this flag tells that callback to skip
     # showing a dropdown for this one programmatic change, not real typing.
-    return (status, increases, decreases, all_positions[:_POSITIONS_PAGE_SIZE], None, None,
+    return (status, _build_delta_bar_list(increases, True), _build_delta_bar_list(decreases, False),
+            all_positions[:_POSITIONS_PAGE_SIZE], None, None,
             result["resolved_name"], True,
-            all_positions, min(_POSITIONS_PAGE_SIZE, len(all_positions)), not all_positions, meta)
+            all_positions, min(_POSITIONS_PAGE_SIZE, len(all_positions)), not all_positions, meta,
+            _manager_summary_tiles(all_positions))
 
 
 @app.callback(
@@ -3053,7 +3608,7 @@ def select_manager_candidate(candidate_clicks, suggestion_clicks):
 def download_positions(_n_clicks, all_positions, manager_name, positions_meta):
     # Always the complete unfiltered position list (all-positions-full),
     # not whatever's currently scrolled into the table or narrowed by the
-    # Filters panel -- a predictable "export everything" rather than
+    # active filter chip -- a predictable "export everything" rather than
     # needing to reconcile against filter/scroll state.
     #
     # For a mega-manager the precomputed snapshot only kept the top
@@ -3181,46 +3736,73 @@ app.clientside_callback(
     State("all-positions-full", "data"),
     prevent_initial_call=True,
 )
-_POSITION_FILTER_FIELDS = [field for field, _label in _POSITION_FILTERS]
-
-# Filters (min/max per field), sorts (custom — see below), and slices the
-# full result down to the currently-visible prefix, in that order. Filter
-# and sort inputs are read as State rather than Input here: a filter edit
-# reaches this callback indirectly, through reset_visible_count_on_filter_
-# change resetting all-positions-visible-count below, so a scroll or a sort
-# click always re-applies whatever filters are currently set without this
-# callback needing its own separate trigger for every filter keystroke.
-# Pure client-side array work — no need to round-trip to the server.
+# Chip click: sets the active filter key, resets the visible-row window
+# back to one page (so "showing 100 of N" stays meaningful for a fresh
+# filter instead of continuing from whatever scroll position it was at),
+# and restyles all five chips. Clientside for instant feedback, same as
+# the sidebar nav above.
 app.clientside_callback(
     """
-    function() {
-        // Dash's clientside callbacks flatten a Python-side grouped list
-        // of dependencies into individual positional arguments (unlike
-        // server-side callbacks, where the same grouping arrives as one
-        // list) — so the 12 filter States land as 12 separate arguments,
-        // not one array. Index into `arguments` directly rather than
-        // naming all 15 positional parameters.
-        var fields = %(fields)s;
-        var n = fields.length;
-        var sortBy = arguments[0];
-        var visibleCount = arguments[1];
-        var mins = Array.prototype.slice.call(arguments, 2, 2 + n);
-        var maxs = Array.prototype.slice.call(arguments, 2 + n, 2 + 2 * n);
-        var fullData = arguments[2 + 2 * n];
+    function(nAll, nNew, nAdded, nTrimmed, nBig) {
+        if (!nAll && !nNew && !nAdded && !nTrimmed && !nBig) {
+            return Array(7).fill(window.dash_clientside.no_update);
+        }
+        var key = window.dash_clientside.callback_context.triggered_id.replace("chip-", "");
+        var chipStyle = function(active) {
+            return {
+                fontSize: "12px", padding: "5px 10px", borderRadius: "999px", cursor: "pointer",
+                whiteSpace: "nowrap",
+                border: "1px solid " + (active ? "var(--up)" : "var(--border)"),
+                backgroundColor: active ? "rgba(76,195,138,0.12)" : "transparent",
+                color: active ? "var(--up)" : "var(--body-text)",
+            };
+        };
+        return [
+            key, %(page_size)d,
+            chipStyle(key === "all"), chipStyle(key === "new"), chipStyle(key === "added"),
+            chipStyle(key === "trimmed"), chipStyle(key === "big"),
+        ];
+    }
+    """ % {"page_size": _POSITIONS_PAGE_SIZE},
+    Output("position-filter-chip", "data"),
+    Output("all-positions-visible-count", "data", allow_duplicate=True),
+    Output("chip-all", "style"),
+    Output("chip-new", "style"),
+    Output("chip-added", "style"),
+    Output("chip-trimmed", "style"),
+    Output("chip-big", "style"),
+    Input("chip-all", "n_clicks"),
+    Input("chip-new", "n_clicks"),
+    Input("chip-added", "n_clicks"),
+    Input("chip-trimmed", "n_clicks"),
+    Input("chip-big", "n_clicks"),
+    prevent_initial_call=True,
+)
+
+# Filters by the active chip, sorts (custom — see below), and slices the
+# full result down to the currently-visible prefix, in that order. Chip and
+# sort are read as State rather than Input here: a chip click reaches this
+# callback indirectly, through the chip-click callback above resetting
+# all-positions-visible-count, so a scroll or a sort click always re-applies
+# whatever chip is currently active without this callback needing its own
+# separate trigger for every chip click. Pure client-side array work — no
+# need to round-trip to the server.
+app.clientside_callback(
+    """
+    function(sortBy, visibleCount, chip, fullData) {
         if (!fullData || !fullData.length) {
             return window.dash_clientside.no_update;
         }
         var rows = fullData.filter(function(row) {
-            for (var i = 0; i < n; i++) {
-                var v = row[fields[i]];
-                if (mins[i] !== null && mins[i] !== undefined && !(v >= mins[i])) {
-                    return false;
-                }
-                if (maxs[i] !== null && maxs[i] !== undefined && !(v <= maxs[i])) {
-                    return false;
-                }
+            var deltaPct = row["delta_shares_pct"];
+            if (chip === "new") return deltaPct === null || deltaPct === undefined;
+            if (chip === "added") return deltaPct !== null && deltaPct !== undefined && deltaPct > 0;
+            if (chip === "trimmed") return deltaPct !== null && deltaPct !== undefined && deltaPct < 0;
+            if (chip === "big") {
+                var pw = row["portfolio_pct"];
+                return pw !== null && pw !== undefined && pw > 1;
             }
-            return true;
+            return true;  // "all"
         });
         if (sortBy && sortBy.length) {
             var columnId = sortBy[0].column_id;
@@ -3239,66 +3821,14 @@ app.clientside_callback(
         }
         return rows.slice(0, visibleCount);
     }
-    """
-    % {"fields": json.dumps(_POSITION_FILTER_FIELDS)},
+    """,
     Output("all-positions-table", "data", allow_duplicate=True),
     Input("all-positions-table", "sort_by"),
     Input("all-positions-visible-count", "data"),
-    *[State(f"filter-{field}-min", "value") for field in _POSITION_FILTER_FIELDS],
-    *[State(f"filter-{field}-max", "value") for field in _POSITION_FILTER_FIELDS],
+    State("position-filter-chip", "data"),
     State("all-positions-full", "data"),
     prevent_initial_call=True,
 )
-
-# Filters only take effect on "Calculate" -- resetting the visible-row
-# window back to one page is what actually triggers the callback above to
-# re-filter (see the comment there), and also keeps "showing 100 of N"
-# meaningful for a fresh filter rather than continuing from whatever the
-# scroll position happened to be. "Clear Filters" is handled entirely by
-# clear_position_filters below instead of also being an Input here: that
-# callback and this one are two independent requests fired from the same
-# click with no ordering guarantee between them, and this one reads the
-# filter fields' values as State -- if it happened to run before the other
-# callback's cleared values reached the browser, it would filter by the
-# stale (pre-clear) values instead of showing everything.
-app.clientside_callback(
-    "function() { return %d; }" % _POSITIONS_PAGE_SIZE,
-    Output("all-positions-visible-count", "data", allow_duplicate=True),
-    Input("calculate-position-filters-btn", "n_clicks"),
-    prevent_initial_call=True,
-)
-
-
-def _sort_rows_for_clear(rows, sort_by):
-    """Mirror the clientside sort's null-handling (see the filter/sort/
-    slice clientside callback above) so clearing filters doesn't also
-    silently drop whatever column sort was active."""
-    if not sort_by:
-        return rows
-    column_id = sort_by[0]["column_id"]
-    desc = sort_by[0]["direction"] == "desc"
-    return sorted(
-        rows,
-        key=lambda r: (r.get(column_id) if r.get(column_id) is not None else float("inf")),
-        reverse=desc,
-    )
-
-
-@app.callback(
-    [Output(f"filter-{field}-min", "value") for field in _POSITION_FILTER_FIELDS]
-    + [Output(f"filter-{field}-max", "value") for field in _POSITION_FILTER_FIELDS]
-    + [Output("all-positions-table", "data", allow_duplicate=True),
-       Output("all-positions-visible-count", "data", allow_duplicate=True)],
-    Input("clear-position-filters-btn", "n_clicks"),
-    State("all-positions-full", "data"),
-    State("all-positions-table", "sort_by"),
-    prevent_initial_call=True,
-)
-def clear_position_filters(_n_clicks, full_data, sort_by):
-    full_data = full_data or []
-    rows = _sort_rows_for_clear(full_data, sort_by)
-    cleared_filters = [None] * (len(_POSITION_FILTER_FIELDS) * 2)
-    return cleared_filters + [rows[:_POSITIONS_PAGE_SIZE], min(_POSITIONS_PAGE_SIZE, len(rows))]
 
 
 def _politician_move_row_to_record(t):
@@ -3422,9 +3952,113 @@ def _leaderboard_row_to_record(e):
     }
 
 
+# Trade amounts are disclosed as a $1K-$5M-ish dollar RANGE (STOCK Act
+# filings don't require exact figures) -- a log scale is what makes both a
+# "$1,001-$15,000" and a "$1M-$5M" trade's bar readable on the same axis
+# without the small ones vanishing to a sliver.
+_RANGE_BAR_L0 = math.log10(1000)
+_RANGE_BAR_L1 = math.log10(5_000_000)
+
+
+def _range_bar_metrics(amount_low, amount_high):
+    lo = max(1000, min(amount_low or 1000, 5_000_000))
+    hi = max(1000, min(amount_high or lo, 5_000_000))
+    left_pct = (math.log10(lo) - _RANGE_BAR_L0) / (_RANGE_BAR_L1 - _RANGE_BAR_L0) * 100
+    width_pct = max(4.0, (math.log10(hi) - math.log10(lo)) / (_RANGE_BAR_L1 - _RANGE_BAR_L0) * 100)
+    return left_pct, width_pct
+
+
+def _fmt_amount(v):
+    if v is None:
+        return "—"
+    if v >= 1e6:
+        return f"${v / 1e6:.1f}M"
+    if v >= 1e3:
+        return f"${v / 1e3:.0f}K"
+    return f"${v:,.0f}"
+
+
+# id carries the (chamber, last, first) selection payload directly, rather
+# than indexing into a separate data Store -- select_member_from_summary
+# below reads it straight off ctx.triggered_id.
+def _build_trade_row(r):
+    is_buy = r["transaction_type"] == "Purchase"
+    pill_color = "var(--up)" if is_buy else "var(--down)"
+    left_pct, width_pct = _range_bar_metrics(r["amount_low"], r["amount_high"])
+    return html.Div(
+        id={"type": "trade-row", "chamber": r["chamber_raw"], "last": r["last"], "first": r["first"]},
+        n_clicks=0,
+        className="pol-row",
+        style={"display": "grid",
+               "gridTemplateColumns": "minmax(150px,1.6fr) 52px 48px minmax(100px,1.2fr) 52px",
+               "gap": "12px", "alignItems": "center", "padding": "12px 0",
+               "borderBottom": "1px solid var(--border)", "fontSize": "13px", "cursor": "pointer"},
+        children=[
+            html.Div(
+                style={"display": "flex", "flexDirection": "column", "gap": "2px", "minWidth": "0"},
+                children=[
+                    html.Span(r["member"], style={"fontWeight": "500", "color": "var(--text)"}),
+                    html.Span(r["chamber"], style={"fontSize": "12px", "color": "var(--body-text)"}),
+                ],
+            ),
+            html.Span(r["ticker"], style={"fontFamily": "'IBM Plex Mono', monospace", "fontWeight": "500",
+                                            "color": "var(--security-text)"}),
+            html.Span(
+                "BUY" if is_buy else "SELL",
+                style={"fontSize": "11px", "fontWeight": "600", "letterSpacing": "0.04em",
+                       "textAlign": "center", "padding": "3px 0", "borderRadius": "4px",
+                       "backgroundColor": "rgba(76,195,138,0.14)" if is_buy else "rgba(229,103,90,0.14)",
+                       "color": pill_color},
+            ),
+            html.Div(
+                style={"display": "flex", "flexDirection": "column", "gap": "4px"},
+                children=[
+                    html.Div(
+                        style={"position": "relative", "height": "4px", "backgroundColor": "var(--card-bg-2)",
+                               "borderRadius": "2px"},
+                        children=html.Div(style={"position": "absolute", "top": "0", "height": "4px",
+                                                   "borderRadius": "2px", "backgroundColor": pill_color,
+                                                   "left": f"{left_pct}%", "width": f"{width_pct}%"}),
+                    ),
+                    html.Span(f"{_fmt_amount(r['amount_low'])} – {_fmt_amount(r['amount_high'])}",
+                               style={"fontFamily": "'IBM Plex Mono', monospace", "fontSize": "11px",
+                                      "color": "var(--body-text)"}),
+                ],
+            ),
+            html.Span(r["transaction_date"], style={"fontFamily": "'IBM Plex Mono', monospace",
+                                                       "fontSize": "12px", "color": "var(--body-text)",
+                                                       "textAlign": "right"}),
+        ],
+    )
+
+
+def _build_leaderboard_row(r, rank):
+    return html.Div(
+        id={"type": "leaderboard-row", "chamber": r["chamber_raw"], "last": r["last"], "first": r["first"]},
+        n_clicks=0,
+        className="pol-row",
+        style={"display": "grid", "gridTemplateColumns": "22px minmax(0,1fr) auto", "gap": "10px",
+               "alignItems": "center", "padding": "11px 0", "borderBottom": "1px solid var(--border)",
+               "fontSize": "13px", "cursor": "pointer"},
+        children=[
+            html.Span(str(rank), style={"fontFamily": "'IBM Plex Mono', monospace", "fontSize": "12px",
+                                          "color": "var(--body-text)"}),
+            html.Div(
+                style={"display": "flex", "flexDirection": "column", "gap": "2px", "minWidth": "0"},
+                children=[
+                    html.Span(r["member"], style={"fontWeight": "500", "color": "var(--text)"}),
+                    html.Span(r["chamber"], style={"fontSize": "12px", "color": "var(--body-text)"}),
+                ],
+            ),
+            html.Span(_fmt_amount(r["net_estimated_value"]),
+                      style={"fontFamily": "'IBM Plex Mono', monospace", "color": "var(--text)"}),
+        ],
+    )
+
+
 @app.callback(
-    Output("recent-trades-table", "data"),
-    Output("congress-leaderboard-table", "data"),
+    Output("recent-trades-container", "children"),
+    Output("congress-leaderboard-container", "children"),
     Input("activity-summary-trigger", "n_intervals"),
     prevent_initial_call=True,
 )
@@ -3440,50 +4074,36 @@ def load_activity_summary(_n_intervals):
         return [], []
     recent = [_recent_trade_row_to_record(t) for t in summary["recent_trades"][:150]]
     leaderboard = [_leaderboard_row_to_record(e) for e in summary["leaderboard"][:100]]
-    return recent, leaderboard
+    return ([_build_trade_row(r) for r in recent],
+             [_build_leaderboard_row(r, i + 1) for i, r in enumerate(leaderboard)])
 
 
 @app.callback(
     Output("politician-chamber-tabs", "value", allow_duplicate=True),
     Output("politician-input", "value", allow_duplicate=True),
     Output("pending-member-selection", "data", allow_duplicate=True),
-    Output("recent-trades-table", "active_cell", allow_duplicate=True),
-    Output("congress-leaderboard-table", "active_cell", allow_duplicate=True),
-    Output("recent-trades-table", "selected_cells", allow_duplicate=True),
-    Output("congress-leaderboard-table", "selected_cells", allow_duplicate=True),
-    Input("recent-trades-table", "active_cell"),
-    Input("congress-leaderboard-table", "active_cell"),
-    State("recent-trades-table", "data"),
-    State("congress-leaderboard-table", "data"),
+    Input({"type": "trade-row", "chamber": ALL, "last": ALL, "first": ALL}, "n_clicks"),
+    Input({"type": "leaderboard-row", "chamber": ALL, "last": ALL, "first": ALL}, "n_clicks"),
     State("politician-chamber-tabs", "value"),
     prevent_initial_call=True,
 )
-def select_member_from_summary(recent_cell, leaderboard_cell, recent_data, leaderboard_data, current_chamber):
-    if ctx.triggered_id == "recent-trades-table":
-        cell, data = recent_cell, recent_data
-    else:
-        cell, data = leaderboard_cell, leaderboard_data
-    if not cell or not data:
-        raise PreventUpdate
-    row = data[cell["row"]]
-    chamber = row["chamber_raw"]
-    dropdown_key = f"{chamber}|{row['last']}|{row['first']}"
-    # A click sets both active_cell (the focus outline) and selected_cells
-    # (the reddish "cell--selected" fill) -- clearing active_cell alone
-    # leaves the fill in place, so both need to be reset here to actually
-    # restore the cell to its unclicked look. A bold-on-hover CSS rule
-    # (custom.css) is the only lasting visual affordance for "clickable".
+def select_member_from_summary(trade_clicks, leaderboard_clicks, current_chamber):
+    if not any(trade_clicks or []) and not any(leaderboard_clicks or []):
+        raise PreventUpdate  # fires with all-zero clicks whenever either row list re-renders
+    target = ctx.triggered_id
+    chamber = target["chamber"]
+    dropdown_key = f"{chamber}|{target['last']}|{target['first']}"
     if chamber == current_chamber:
         # Same chamber already showing -- no tab switch, so
         # update_politician_roster won't fire (its Input wouldn't change).
         # Set the dropdown directly instead of going through the pending-
         # selection store.
-        return no_update, dropdown_key, no_update, None, None, [], []
+        return no_update, dropdown_key, no_update
     # Switching chambers: update_politician_roster is about to fire
     # (its chamber-tabs Input is changing) and would otherwise overwrite
     # the dropdown with that chamber's default member -- stash the real
     # target here for it to pick up instead.
-    return chamber, no_update, dropdown_key, None, None, [], []
+    return chamber, no_update, dropdown_key
 
 
 # Politician position counts are small enough (tens of tickers, not
