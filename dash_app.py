@@ -55,6 +55,7 @@ from thirteenf import (
     fetch_manager_comparison,
     fetch_manager_comparison_by_cik,
     search_managers,
+    top_buys_across_managers,
 )
 from congress_trades import (
     PoliticianDataError,
@@ -1279,6 +1280,30 @@ MANAGER_COLUMNS = [
     {"name": "Portfolio %", "id": "portfolio_pct", "type": "numeric", "format": _PORTFOLIO_PCT_FORMAT},
     {"name": "ΔPortfolio %", "id": "delta_pct", "type": "numeric", "format": _DELTA_PORTFOLIO_PCT_FORMAT},
 ]
+# Same rows as MANAGER_COLUMNS' top_increases, pooled across every
+# precomputed top-AUM manager instead of just one -- see
+# thirteenf.top_buys_across_managers -- so this needs the manager's name
+# up front to say whose buy each row actually is.
+TOP_BUYS_COLUMNS = [{"name": "Manager", "id": "manager_name"}] + MANAGER_COLUMNS
+
+
+def _manager_row_to_record(r):
+    return {
+        "issuer": r["issuer"],
+        "shares_m": r["shares_m"],
+        "prev_shares_m": r["prev_shares_m"],
+        "delta_shares_m": r["delta_shares_m"],
+        "delta_shares_value_m": r["delta_shares_value_m"],
+        "value_m": r["value_m"],
+        "portfolio_pct": r["portfolio_pct"],
+        "delta_pct": r["delta_pct"],
+    }
+
+
+def _top_buy_row_to_record(r):
+    return {"manager_name": r["manager_name"], **_manager_row_to_record(r)}
+
+
 ALL_POSITIONS_COLUMNS = [
     {"name": "Security", "id": "issuer"},
     {"name": "Shares (MM)", "id": "shares_m", "type": "numeric", "format": _MONEY_FORMAT},
@@ -1380,6 +1405,12 @@ _FINANCIALS_TABLE_STYLE = dict(
 )
 _MANAGER_NOTE = ("Ranked by ΔShares Value: the change in share count priced at the last known "
                   "per-share price")
+# Pooled from every precomputed top-AUM manager's own top_increases (see
+# thirteenf.top_buys_across_managers) rather than a live search across
+# all of them -- so this is only as current as the weekly snapshot, and
+# only covers the managers that snapshot successfully precomputed.
+_TOP_BUYS_NOTE = ("The single biggest estimated buys (~ΔShares Value) this past quarter, pooled "
+                   "across every precomputed top-AUM manager below rather than just one.")
 
 # Politician Tracker: House and Senate members' STOCK Act disclosures
 # (Periodic Transaction Reports). These report individual buy/sell events in a
@@ -1497,6 +1528,13 @@ def _manager_tracker_children():
         html.H2("Investment Manager Tracker", style=_HEADER_STYLE),
         html.P("Top holding increases and decreases quarter-over-quarter, from SEC 13F-HR filings.",
                style=_PARA_STYLE),
+        html.H3("Top Buys From Largest Managers", style=_HEADER_STYLE),
+        html.P(_TOP_BUYS_NOTE, style={**_PARA_STYLE, "fontSize": "13px"}),
+        dash_table.DataTable(
+            id="top-buys-table", columns=TOP_BUYS_COLUMNS,
+            data=[_top_buy_row_to_record(r) for r in top_buys_across_managers(top_n=50)],
+            cell_selectable=False, **_TOP_MOVES_TABLE_STYLE,
+        ),
         html.Div(
             style={"display": "flex", "gap": "12px", "alignItems": "flex-end", "flexWrap": "wrap"},
             children=[
@@ -2792,19 +2830,6 @@ def update_dcf_2(defaults, _n_clicks, _n_intervals, theme, *current_values):
     )
 
     return (*input_outputs, data, columns, summary, banner, chart)
-
-
-def _manager_row_to_record(r):
-    return {
-        "issuer": r["issuer"],
-        "shares_m": r["shares_m"],
-        "prev_shares_m": r["prev_shares_m"],
-        "delta_shares_m": r["delta_shares_m"],
-        "delta_shares_value_m": r["delta_shares_value_m"],
-        "value_m": r["value_m"],
-        "portfolio_pct": r["portfolio_pct"],
-        "delta_pct": r["delta_pct"],
-    }
 
 
 def _all_positions_row_to_record(r):

@@ -776,6 +776,27 @@ def _load_top_managers_snapshot():
     return _top_managers_cache
 
 
+def top_buys_across_managers(top_n=50):
+    """The largest ~ΔShares Value increases across every precomputed
+    top-AUM manager's own top_increases (see build_top_managers) --
+    pooling from each manager's already-ranked top 10 rather than
+    re-deriving from their full holdings, so this is just an in-memory
+    sort over data already loaded (via _load_top_managers_snapshot), no
+    extra fetch. A manager's 11th-largest buy could in principle beat
+    another manager's 10th and get missed, but that would need one
+    manager to account for 11+ of the global top `top_n` alone --
+    negligible in practice across a few hundred managers. Each row is
+    the same shape as a top_increases row, plus "manager_name" and
+    "cik" so the table can show which manager made the buy."""
+    pooled = []
+    for cik, comparison in _load_top_managers_snapshot().items():
+        manager_name = comparison.get("manager_name", "")
+        for row in comparison.get("top_increases", []):
+            pooled.append({**row, "manager_name": manager_name, "cik": cik})
+    pooled.sort(key=lambda r: r["delta_shares_value_m"], reverse=True)
+    return pooled[:top_n]
+
+
 def fetch_manager_comparison(query, session=None, user_agent=None, top_n=10):
     """Resolve `query` to an SEC 13F filer and return
     build_holdings_comparison(...)'s dict plus "cik" and "resolved_name".
