@@ -760,6 +760,11 @@ _HEADER_TEXT_COLOR = "var(--header-text)"
 _SECURITY_TEXT_COLOR = "var(--security-text)"
 _BODY_TEXT_COLOR = "var(--body-text)"
 _HEADER_STYLE = {"color": _HEADER_TEXT_COLOR}
+# Only matters once Compare mode stacks a second KPI row underneath the
+# first (see stock-kpi-grid-2) -- otherwise it'd be redundant with the
+# ticker/name already shown in the page's own header above the chart.
+_KPI_SECTION_LABEL_STYLE = {"fontSize": "13px", "fontWeight": "700", "color": "var(--text)",
+                             "marginBottom": "8px"}
 _PARA_STYLE = {"color": _BODY_TEXT_COLOR}
 # DataTables keep their own light "card" background regardless of the dark
 # page behind them, so their cell text needs an explicit dark color rather
@@ -1341,9 +1346,31 @@ def _company_tracker_children():
             ],
         ),
         # Filled in by update_company_overview once a ticker's loaded.
-        html.Div(id="stock-kpi-grid",
-                 style={"display": "grid", "gridTemplateColumns": "repeat(auto-fit, minmax(150px,1fr))",
-                        "gap": "10px", "marginTop": "20px"}),
+        html.Div(
+            id="stock-kpi-wrap",
+            style={"marginTop": "20px"},
+            children=[
+                html.Div(id="stock-kpi-label", style=_KPI_SECTION_LABEL_STYLE),
+                html.Div(id="stock-kpi-grid",
+                         style={"display": "grid", "gridTemplateColumns": "repeat(auto-fit, minmax(150px,1fr))",
+                                "gap": "10px"}),
+            ],
+        ),
+        # Compare mode's second ticker gets its own labeled KPI row right
+        # below the first, rather than being squeezed beside it -- five
+        # tiles per ticker is already a lot of horizontal room to share.
+        # Hidden until Compare mode is on (see render_compare_mode), same
+        # as compare-ticker-wrap/financials-col-2 above.
+        html.Div(
+            id="stock-kpi-wrap-2",
+            style={"marginTop": "16px", "display": "none"},
+            children=[
+                html.Div(id="stock-kpi-label-2", style=_KPI_SECTION_LABEL_STYLE),
+                html.Div(id="stock-kpi-grid-2",
+                         style={"display": "grid", "gridTemplateColumns": "repeat(auto-fit, minmax(150px,1fr))",
+                                "gap": "10px"}),
+            ],
+        ),
         html.Div(
             id="financials-columns",
             style={"display": "flex", "flexWrap": "wrap", "gap": "32px", "alignItems": "flex-start",
@@ -2806,14 +2833,16 @@ def sync_compare_mode(tab_value):
 @app.callback(
     Output("compare-ticker-wrap", "style"),
     Output("compare-status-wrap", "style"),
+    Output("stock-kpi-wrap-2", "style"),
     Output("financials-col-2", "style"),
     Input("compare-mode", "data"),
 )
 def render_compare_mode(is_compare):
     ticker_wrap_style = {"position": "relative"} if is_compare else {"position": "relative", "display": "none"}
     status_wrap_style = {} if is_compare else {"display": "none"}
+    kpi_wrap_2_style = {"marginTop": "16px"} if is_compare else {"marginTop": "16px", "display": "none"}
     col2_style = {"flex": "1", "minWidth": "0"} if is_compare else {"flex": "1", "minWidth": "0", "display": "none"}
-    return ticker_wrap_style, status_wrap_style, col2_style
+    return ticker_wrap_style, status_wrap_style, kpi_wrap_2_style, col2_style
 
 
 @app.callback(
@@ -3120,18 +3149,12 @@ def _fmt_big_dollars(v):
     return f"${v:,.0f}"
 
 
-# Header meta/name and the KPI tile grid only depend on which ticker is
-# loaded, not the selected chart range -- kept as a separate callback from
-# update_price_chart above (which does re-run on every range-tabs click)
-# so switching ranges doesn't re-hit yfinance for an overview fetch that
-# hasn't changed.
-@app.callback(
-    Output("stock-header-meta", "children"),
-    Output("stock-header-name", "children"),
-    Output("stock-kpi-grid", "children"),
-    Input("rows-store", "data"),
-)
-def update_company_overview(store):
+def _company_overview_data(store):
+    """(meta_text, kpi_label, tiles) for a ticker's header meta line, KPI
+    section label, and KPI tiles -- shared between update_company_overview
+    (which also uses meta_text for the page's own header) and Compare
+    mode's update_company_overview_2 (which only needs a label + tiles for
+    its second, no-header KPI row)."""
     if not store:
         return "", "", []
     ticker = store["ticker"]
@@ -3158,7 +3181,38 @@ def update_company_overview(store):
         _kpi_tile("Net Margin", f"{net_margin * 100:.1f}%" if net_margin is not None else None),
         _kpi_tile("ROIC", f"{roic * 100:.1f}%" if roic is not None else None),
     ]
-    return meta_text, title, tiles
+    return meta_text, f"{ticker} — {title}", tiles
+
+
+# Header meta/name and the KPI tile grid only depend on which ticker is
+# loaded, not the selected chart range -- kept as a separate callback from
+# update_price_chart above (which does re-run on every range-tabs click)
+# so switching ranges doesn't re-hit yfinance for an overview fetch that
+# hasn't changed.
+@app.callback(
+    Output("stock-header-meta", "children"),
+    Output("stock-header-name", "children"),
+    Output("stock-kpi-label", "children"),
+    Output("stock-kpi-grid", "children"),
+    Input("rows-store", "data"),
+)
+def update_company_overview(store):
+    meta_text, kpi_label, tiles = _company_overview_data(store)
+    title = (store or {}).get("title") or (store or {}).get("ticker") or ""
+    return meta_text, title, kpi_label, tiles
+
+
+# Compare mode's second ticker: same KPI tiles, but no second page header
+# to also populate (the chart already overlays both tickers on one shared
+# header/chart) -- just its own labeled row underneath the primary one.
+@app.callback(
+    Output("stock-kpi-label-2", "children"),
+    Output("stock-kpi-grid-2", "children"),
+    Input("rows-store-2", "data"),
+)
+def update_company_overview_2(store):
+    _meta_text, kpi_label, tiles = _company_overview_data(store)
+    return kpi_label, tiles
 
 
 # Pulses the live-price dot's halo (see build_price_figure) by directly
