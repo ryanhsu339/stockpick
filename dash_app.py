@@ -1513,7 +1513,11 @@ def _build_delta_bar_row(r, max_abs_value, up):
     color = "var(--up)" if up else "var(--down)"
     sign = "+" if value_m >= 0 else "-"
     return html.Div(
-        style={"display": "grid", "gridTemplateColumns": "72px minmax(0,1fr) 90px", "gap": "12px",
+        # 108px (72 * 1.5): security names were getting cut off too early.
+        # The bar column is minmax(0,1fr) -- flexible -- so widening this
+        # fixed column shrinks the bar to compensate; row height, the
+        # delta-value column, and gaps are all unchanged.
+        style={"display": "grid", "gridTemplateColumns": "108px minmax(0,1fr) 90px", "gap": "12px",
                "alignItems": "center", "fontSize": "13px", "padding": "4px 0"},
         children=[
             html.Span(r["issuer"], style={"color": "var(--security-text)", "overflow": "hidden",
