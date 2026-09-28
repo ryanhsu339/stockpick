@@ -2172,16 +2172,14 @@ _SIDEBAR_SECTION_LABEL_STYLE = {
     "fontSize": "11px", "letterSpacing": "0.08em", "textTransform": "uppercase",
     "color": "var(--body-text)", "padding": "0 10px 8px",
 }
-# view id -> (nav row id, label, meta badge). Order matches the design
-# (Managers, Congress, Companies) even though "company" stays the default
-# landing view (_DEFAULT_VIEW) -- nav order and initial view are
-# independent choices.
+# view id -> (nav row id, label, meta badge). Nav order and initial view
+# (_DEFAULT_VIEW) are independent choices; both happen to be Managers.
 _SIDEBAR_NAV_ITEMS = [
     ("manager", "nav-managers", "Managers", "13F"),
     ("politician", "nav-congress", "Politicians", "PTR"),
     ("company", "nav-companies", "Companies", ""),
 ]
-_DEFAULT_VIEW = "company"
+_DEFAULT_VIEW = "manager"
 
 
 def _sidebar_nav_row_style(active):

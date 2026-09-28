@@ -181,6 +181,7 @@ a:hover { color: var(--text); }
     }
     #compare-mode-tabs-parent {
         order: -3;
+        margin-bottom: 12px;
     }
     #ticker-search-row {
         order: -2;
