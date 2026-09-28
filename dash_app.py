@@ -1224,10 +1224,21 @@ def _company_tracker_children():
                     id="stock-header-price-row",
                     style={"display": "flex", "alignItems": "baseline", "gap": "12px", "flexWrap": "wrap"},
                     children=[
-                        html.Span(id="stock-header-price", style={"fontFamily": "'IBM Plex Mono', monospace",
-                                                                    "fontSize": "26px", "color": "var(--text)"}),
-                        html.Span(id="stock-header-change", style={"fontFamily": "'IBM Plex Mono', monospace",
-                                                                     "fontSize": "13px"}),
+                        # Its own wrapper (not two flat spans) so the mobile
+                        # reorder below can move price+change as one unit,
+                        # independent of the toggle next to it -- see
+                        # #stock-header-price-row's display:contents rule.
+                        html.Div(
+                            id="stock-header-price-inline",
+                            style={"display": "flex", "alignItems": "baseline", "gap": "12px"},
+                            children=[
+                                html.Span(id="stock-header-price",
+                                          style={"fontFamily": "'IBM Plex Mono', monospace", "fontSize": "26px",
+                                                 "color": "var(--text)"}),
+                                html.Span(id="stock-header-change",
+                                          style={"fontFamily": "'IBM Plex Mono', monospace", "fontSize": "13px"}),
+                            ],
+                        ),
                         # Two-segment toggle (same pill styling as the range
                         # picker below) rather than a single button whose
                         # label swaps -- both modes stay visible so it reads

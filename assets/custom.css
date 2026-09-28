@@ -154,25 +154,40 @@ a:hover { color: var(--text); }
         padding-right: 12px;
     }
 
-    /* Company Tracker: the ticker search box and the Single Stock/+Compare
-       toggle move above the company name, right below the sidebar --
-       flex order, not a DOM change, so desktop (which never gets this
-       flex-column treatment) is untouched. #stock-header's own two
-       children get reordered the same way, so the toggle (bundled with
-       price/change in stock-header-price-row) ends up above the name
-       block, not just the search box above the whole header. */
+    /* Company Tracker: reorders to toggle -> search box -> (gap) -> price
+       -> company name on mobile, right below the sidebar -- flex order,
+       not a DOM change, so desktop (which never gets this flex-column
+       treatment) is untouched. #stock-header and #stock-header-price-row
+       both go display:contents (!important: overriding their own inline
+       display:flex), dissolving their own boxes so their children --
+       the name block, the price+change wrapper, and the toggle -- become
+       direct flex items of #company-content and can be ordered
+       independently of each other. Without that, the toggle could only
+       be reordered relative to price/change within their shared row,
+       never pulled onto its own line above the search box.
+       compare-mode-tabs is a dcc.Tabs, which Dash wraps in its own
+       "-parent" div even at the root -- display:contents dissolves
+       everything down to that wrapper, so the wrapper (not the id'd
+       component itself) is the actual flex item that needs the order. */
     #company-content {
         display: flex;
         flex-direction: column;
     }
+    #stock-header {
+        display: contents !important;
+    }
+    #stock-header-price-row {
+        display: contents !important;
+    }
+    #compare-mode-tabs-parent {
+        order: -3;
+    }
     #ticker-search-row {
         order: -2;
     }
-    #stock-header {
+    #stock-header-price-inline {
         order: -1;
-    }
-    #stock-header-price-row {
-        order: -1;
+        margin-top: 16px;
     }
     #stock-header-name-block {
         order: 0;
