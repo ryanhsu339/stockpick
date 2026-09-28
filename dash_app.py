@@ -312,7 +312,7 @@ def _price_header_texts(stats):
     return price_text, change_text, {"color": color}, f"${stats['hi']:,.2f}", f"${stats['lo']:,.2f}"
 
 
-def build_price_figure(df, ticker, range_key, theme="dark"):
+def build_price_figure(df, ticker, range_key, theme="dark", mobile=False):
     colors = _chart_colors(theme)
     closes = df["Close"]
     volume = df["Volume"]
@@ -409,6 +409,14 @@ def build_price_figure(df, ticker, range_key, theme="dark"):
         plot_bgcolor=colors["surface"],
         showlegend=False,
         hovermode="x unified",
+        # On mobile, a touch-drag meant to scrub across the chart (hover
+        # already shows price/volume at the cursor as it moves, via the
+        # spikes below) kept triggering a click-drag zoom box instead --
+        # False disables that drag-to-zoom interaction entirely, leaving
+        # hover-scrubbing as the only thing a drag does. Desktop keeps its
+        # default (zoom) since a mouse drag there is deliberate, not an
+        # incidental scroll/swipe gesture.
+        dragmode=False if mobile else "zoom",
         # Without uirevision, Dash's Plotly.react treats every 15s refresh
         # (or 60s DCF price tick) as a brand-new figure and resets zoom/pan;
         # keeping it constant per ticker+range lets Plotly diff the traces
@@ -451,7 +459,7 @@ _COMPARE_COLOR_1 = "#4A90D9"
 _COMPARE_COLOR_2 = "#F2A93B"
 
 
-def build_compare_price_figure(df1, ticker1, df2, ticker2, range_key, theme="dark"):
+def build_compare_price_figure(df1, ticker1, df2, ticker2, range_key, theme="dark", mobile=False):
     """Overlay both tickers' price as cumulative % change from the first
     point in range, rather than raw price -- the two are almost never
     anywhere near the same price level, so plotting raw $ would just show
@@ -504,6 +512,9 @@ def build_compare_price_figure(df1, ticker1, df2, ticker2, range_key, theme="dar
         showlegend=True,
         legend=dict(orientation="h", xref="paper", x=0, y=1.12, font=dict(color=colors["primary_text"], size=14)),
         hovermode="x unified",
+        # See build_price_figure's identical dragmode -- same mobile
+        # accidental-zoom fix, same desktop behavior kept as-is.
+        dragmode=False if mobile else "zoom",
         uirevision=f"{ticker1}-{ticker2}-{range_key}",
         hoverlabel=dict(bgcolor=colors["hover_bg"], bordercolor=colors["axis_line"],
                          font=dict(color=colors["primary_text"], size=12)),
@@ -1199,6 +1210,7 @@ def _company_tracker_children():
                    "gap": "16px", "flexWrap": "wrap"},
             children=[
                 html.Div(
+                    id="stock-header-name-block",
                     style={"display": "flex", "flexDirection": "column", "gap": "6px"},
                     children=[
                         html.Div(id="stock-header-meta", style={"fontSize": "12px", "color": "var(--body-text)",
@@ -1209,6 +1221,7 @@ def _company_tracker_children():
                     ],
                 ),
                 html.Div(
+                    id="stock-header-price-row",
                     style={"display": "flex", "alignItems": "baseline", "gap": "12px", "flexWrap": "wrap"},
                     children=[
                         html.Span(id="stock-header-price", style={"fontFamily": "'IBM Plex Mono', monospace",
@@ -1242,6 +1255,7 @@ def _company_tracker_children():
         html.P("Sales, earnings, equity, cash, and ROIC growth from SEC 10-K XBRL data.",
                style={**_PARA_STYLE, "marginTop": "10px"}),
         html.Div(
+            id="ticker-search-row",
             style={"display": "flex", "gap": "12px", "alignItems": "flex-end",
                    "flexWrap": "wrap"},
             children=[
@@ -1290,12 +1304,17 @@ def _company_tracker_children():
             ],
         ),
         # Chart card: High/Low + range picker sit above the (now title-less,
-        # gridline-less) chart itself, inside one bordered card.
+        # gridline-less) chart itself, inside one bordered card. id'd (not
+        # just styled) so the mobile media query can break it out to the
+        # full viewport width instead of sitting inset like everything
+        # else on the page (see #stock-chart-card in custom.css).
         html.Div(
+            id="stock-chart-card",
             style={"backgroundColor": "var(--card-bg)", "border": "1px solid var(--border)",
                    "borderRadius": "14px", "padding": "18px 20px 12px", "marginTop": "24px"},
             children=[
                 html.Div(
+                    id="stock-chart-header-row",
                     style={"display": "flex", "justifyContent": "space-between", "alignItems": "center",
                            "gap": "12px", "flexWrap": "wrap"},
                     children=[
@@ -2278,12 +2297,26 @@ app.layout = html.Div(
         # callback below) -- it exists purely so other future callbacks
         # have a single source of truth for "which view is active".
         dcc.Store(id="active-view", storage_type="session", data=_DEFAULT_VIEW),
+        # Kept in sync with the #app-shell mobile breakpoint (768px, see
+        # custom.css) by the clientside callback below -- update_price_chart
+        # reads it to turn off the price chart's click-drag zoom-box on
+        # mobile, where a touch-drag meant to scrub across the chart (Plotly
+        # hover already shows price/volume at the cursor as it moves) kept
+        # triggering an accidental zoom instead.
+        dcc.Store(id="viewport-is-mobile", data=False),
+        # Exists purely as a guaranteed-no-other-writer trigger for the
+        # viewport-is-mobile clientside callback below -- active-view
+        # itself has an upstream producer (the sidebar nav clientside
+        # callback), and chaining a second clientside callback off a prop
+        # another one owns turned out not to fire reliably on initial load.
+        dcc.Store(id="page-load-trigger", data=True),
         _build_sidebar(),
         html.Div(
             id="main-content",
             children=[
                 html.Div(id="company-panel", style=_tracker_panel_style("company"),
-                          children=html.Div(style=_APP_CONTENT_STYLE, children=_company_tracker_children())),
+                          children=html.Div(id="company-content", style=_APP_CONTENT_STYLE,
+                                             children=_company_tracker_children())),
                 html.Div(id="manager-panel", style=_tracker_panel_style("manager"),
                           children=html.Div(style=_APP_CONTENT_STYLE, children=_manager_tracker_children())),
                 html.Div(id="politician-panel", style=_tracker_panel_style("politician"),
@@ -2341,6 +2374,27 @@ app.clientside_callback(
     Input("nav-managers", "n_clicks"),
     Input("nav-congress", "n_clicks"),
     Input("nav-companies", "n_clicks"),
+)
+
+# Keeps viewport-is-mobile in sync with the 768px mobile breakpoint (see
+# #app-shell in custom.css) -- sets it once on load and again on every
+# resize, so rotating a phone or resizing a browser window across the
+# breakpoint is picked up without a refresh.
+app.clientside_callback(
+    """
+    function() {
+        function checkMobile() {
+            window.dash_clientside.set_props("viewport-is-mobile", {data: window.innerWidth <= 768});
+        }
+        if (!window.__mobileResizeBound) {
+            window.__mobileResizeBound = true;
+            window.addEventListener("resize", checkMobile);
+        }
+        return window.innerWidth <= 768;
+    }
+    """,
+    Output("viewport-is-mobile", "data"),
+    Input("page-load-trigger", "data"),
 )
 
 # Debounces the sidebar search box the same way manager-search-debounced
@@ -3094,8 +3148,9 @@ _EMPTY_PRICE_HEADER = ("", "", {}, "", "")
     Input("range-tabs", "value"),
     Input("price-chart-refresh", "n_intervals"),
     Input("theme-store", "data"),
+    Input("viewport-is-mobile", "data"),
 )
-def update_price_chart(store, store2, is_compare, range_key, _n_intervals, theme):
+def update_price_chart(store, store2, is_compare, range_key, _n_intervals, theme, mobile):
     if not store:
         return empty_price_figure(theme=theme), *_EMPTY_PRICE_HEADER
     ticker = store["ticker"]
@@ -3109,7 +3164,7 @@ def update_price_chart(store, store2, is_compare, range_key, _n_intervals, theme
             return empty_price_figure(str(e), theme=theme), *_EMPTY_PRICE_HEADER
         except Exception as e:
             return empty_price_figure(f"Price data unavailable: {e}", theme=theme), *_EMPTY_PRICE_HEADER
-        figure = build_compare_price_figure(df1, ticker, df2, ticker2, range_key, theme=theme)
+        figure = build_compare_price_figure(df1, ticker, df2, ticker2, range_key, theme=theme, mobile=mobile)
         return (figure, *_price_header_texts(_price_change_stats(df1)))
 
     try:
@@ -3118,7 +3173,7 @@ def update_price_chart(store, store2, is_compare, range_key, _n_intervals, theme
         return empty_price_figure(str(e), theme=theme), *_EMPTY_PRICE_HEADER
     except Exception as e:
         return empty_price_figure(f"Price data unavailable: {e}", theme=theme), *_EMPTY_PRICE_HEADER
-    figure = build_price_figure(df, ticker, range_key, theme=theme)
+    figure = build_price_figure(df, ticker, range_key, theme=theme, mobile=mobile)
     return (figure, *_price_header_texts(_price_change_stats(df)))
 
 

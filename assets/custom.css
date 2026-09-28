@@ -133,6 +133,50 @@ a:hover { color: var(--text); }
     [id*="trade-row"] > * {
         flex: 1 1 auto;
     }
+
+    /* Stock price chart card: break out of the page's own 16px side
+       padding (_APP_CONTENT_STYLE) to use the full viewport width --
+       already narrow on a phone, that inset was eating a meaningful
+       fraction of it. The header row (High/Low + range picker) gets its
+       own smaller padding back so its text isn't flush against the
+       screen edge; the chart itself stays edge-to-edge. */
+    #stock-chart-card {
+        margin-left: -16px;
+        margin-right: -16px;
+        border-left: none;
+        border-right: none;
+        border-radius: 0;
+        padding-left: 0;
+        padding-right: 0;
+    }
+    #stock-chart-header-row {
+        padding-left: 12px;
+        padding-right: 12px;
+    }
+
+    /* Company Tracker: the ticker search box and the Single Stock/+Compare
+       toggle move above the company name, right below the sidebar --
+       flex order, not a DOM change, so desktop (which never gets this
+       flex-column treatment) is untouched. #stock-header's own two
+       children get reordered the same way, so the toggle (bundled with
+       price/change in stock-header-price-row) ends up above the name
+       block, not just the search box above the whole header. */
+    #company-content {
+        display: flex;
+        flex-direction: column;
+    }
+    #ticker-search-row {
+        order: -2;
+    }
+    #stock-header {
+        order: -1;
+    }
+    #stock-header-price-row {
+        order: -1;
+    }
+    #stock-header-name-block {
+        order: 0;
+    }
 }
 
 h2 { font-size: 28px; font-weight: 600; letter-spacing: -0.02em; margin: 8px 0 4px; }
