@@ -19,3 +19,20 @@ document.addEventListener("keydown", function (e) {
     input.focus();
     input.select();
 });
+
+// Ticker/manager/global-search typeahead dropdowns are shown purely via a
+// CSS ":focus-within" rule on their wrapper (see custom.css) -- tapping a
+// suggestion button on mobile blurs the search input first (on touchstart),
+// which flips :focus-within false and hides the dropdown with display:none
+// *before* the browser gets to fire the actual "click" on the button, so
+// Dash's n_clicks callback never sees the tap (a keyboard Enter still
+// works since that goes through n_submit, not this click path). Calling
+// preventDefault() on mousedown for anything inside these dropdowns stops
+// the browser's default focus-shift there, so the input never blurs, the
+// dropdown never disappears mid-tap, and the click that follows on
+// mouseup/touchend still fires and reaches Dash normally.
+document.addEventListener("mousedown", function (e) {
+    if (e.target.closest("#company-suggestions, #company-suggestions-2, #manager-suggestions, #global-search-suggestions")) {
+        e.preventDefault();
+    }
+});
