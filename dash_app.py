@@ -439,6 +439,13 @@ def build_price_figure(df, ticker, range_key, theme="dark", mobile=False):
             showspikes=True, spikemode="across", spikesnap="cursor",
             spikedash="dot", spikethickness=1, spikecolor=colors["muted_text"],
             rangebreaks=rangebreaks,
+            # dragmode=False (below) only turns off the drag-to-zoom
+            # rectangle tool -- a raw touch-drag on mobile still panned the
+            # axes underneath the hover crosshair, since nothing had told
+            # Plotly the range itself can't move. fixedrange locks pan/zoom
+            # on this axis via any interaction (drag, scroll, pinch),
+            # leaving hover/spikes as the only thing a finger-drag does.
+            fixedrange=mobile,
         ),
         yaxis=dict(
             # Quiet chart: no gridlines -- the price header above now
@@ -450,11 +457,13 @@ def build_price_figure(df, ticker, range_key, theme="dark", mobile=False):
             tickfont=dict(color=colors["muted_text"], size=11),
             tickprefix="$", side="right", range=y_range, autorange=False,
             showticklabels=not mobile,
+            fixedrange=mobile,
         ),
         yaxis2=dict(
             overlaying="y", side="left", showticklabels=False,
             showgrid=False, zeroline=False,
             range=[0, vol_max * 4] if has_volume else None,
+            fixedrange=mobile,
         ),
     )
     return fig
@@ -536,12 +545,17 @@ def build_compare_price_figure(df1, ticker1, df2, ticker2, range_key, theme="dar
             showspikes=True, spikemode="across", spikesnap="cursor",
             spikedash="dot", spikethickness=1, spikecolor=colors["muted_text"],
             rangebreaks=rangebreaks,
+            # See build_price_figure's identical fixedrange -- locks
+            # pan/zoom on mobile so a finger-drag only moves the hover
+            # crosshair, never the axes underneath it.
+            fixedrange=mobile,
         ),
         yaxis=dict(
             showgrid=True, gridcolor=colors["gridline"], zeroline=False,
             tickfont=dict(color=colors["muted_text"], size=11),
             ticksuffix="%", side="right",
             showticklabels=not mobile,
+            fixedrange=mobile,
         ),
     )
     return fig
