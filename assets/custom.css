@@ -177,6 +177,21 @@ a:hover { color: var(--text); }
         padding-left: 0 !important;
         padding-right: 0 !important;
     }
+
+    /* Plotly's own drag-capture rect over the price chart's plot area --
+       there to catch pan/zoom/select drags -- suppresses hover redraws
+       for as long as it's pressed, regardless of dragmode or fixedrange.
+       These mobile figures don't want that rect handling presses at all
+       (see the price-chart scrub listeners in custom.js, which drive
+       hover manually instead): removing it from the hit-testing lets a
+       press pass straight through to those listeners instead of being
+       swallowed here first. !important: Plotly sets pointer-events:all
+       inline on this rect itself, which otherwise wins regardless of
+       this rule's specificity. Desktop keeps it untouched -- dragmode
+       stays "zoom" there and this rect is exactly what makes that work. */
+    #price-chart .nsewdrag {
+        pointer-events: none !important;
+    }
     #stock-header-price-inline,
     #stock-chart-header-row {
         padding-left: 12px;

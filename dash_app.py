@@ -291,7 +291,10 @@ def empty_price_figure(message="Enter a ticker and click Generate to load a char
 # its own title/colors (kept separate rather than shared, so this stays a
 # trivial, easily-swappable-out function and never risks the chart itself).
 # Feeds the real HTML price header (see update_price_chart's extra Outputs)
-# now that the price/change text moved out of the Plotly title.
+# now that the price/change text moved out of the Plotly title. Also read
+# straight from the client, by name, for the price-scrub feature -- see
+# the "Price" trace in build_price_figure and the scrub listeners in
+# custom.js -- so this shape (first/last close) needs to keep matching.
 def _price_change_stats(df):
     closes = df["Close"]
     first, last = float(closes.iloc[0]), float(closes.iloc[-1])
@@ -417,8 +420,12 @@ def build_price_figure(df, ticker, range_key, theme="dark", mobile=False):
         # On mobile, a touch-drag meant to scrub across the chart (hover
         # already shows price/volume at the cursor as it moves, via the
         # spikes below) kept triggering a click-drag zoom box instead --
-        # False disables that drag-to-zoom interaction entirely, leaving
-        # hover-scrubbing as the only thing a drag does. Desktop keeps its
+        # False disables that drag-to-zoom interaction entirely. Plotly's
+        # OWN hover system still only reacts to a plain mouse move though,
+        # not a press-and-hold drag (the only gesture touch has), so
+        # continuous hover/spikes during an actual finger-drag are driven
+        # manually instead -- see the scrub listeners in custom.js, gated
+        # on this same fixedrange (mobile-only) axis. Desktop keeps its
         # default (zoom) since a mouse drag there is deliberate, not an
         # incidental scroll/swipe gesture.
         dragmode=False if mobile else "zoom",
@@ -534,7 +541,9 @@ def build_compare_price_figure(df1, ticker1, df2, ticker2, range_key, theme="dar
         legend=dict(orientation="h", xref="paper", x=0, y=1.12, font=dict(color=colors["primary_text"], size=14)),
         hovermode="x unified",
         # See build_price_figure's identical dragmode -- same mobile
-        # accidental-zoom fix, same desktop behavior kept as-is.
+        # accidental-zoom fix (hover/spikes during a finger-drag are
+        # driven manually instead, see custom.js), same desktop behavior
+        # kept as-is.
         dragmode=False if mobile else "zoom",
         uirevision=f"{ticker1}-{ticker2}-{range_key}",
         hoverlabel=dict(bgcolor=colors["hover_bg"], bordercolor=colors["axis_line"],
@@ -3354,6 +3363,14 @@ app.clientside_callback(
         // child inside it.
         var gd = container ? container.querySelector('.js-plotly-plot') : null;
         if (!gd || !gd.data) {
+            return window.dash_clientside.no_update;
+        }
+        // Skip this tick while a hover/drag-scrub is actively showing --
+        // restyling mid-gesture on mobile visibly interrupted the spike
+        // line/hover label for a frame every ~900ms, reading as the chart
+        // stuttering or the crosshair flickering out while dragging.
+        var hoverLayer = gd.querySelector('.hoverlayer');
+        if (hoverLayer && hoverLayer.childNodes.length > 0) {
             return window.dash_clientside.no_update;
         }
         var idx = -1;
