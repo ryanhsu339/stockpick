@@ -64,10 +64,29 @@ document.addEventListener("mousedown", function (e) {
 // updates when driven this way. The header's pre-drag text is captured
 // once per gesture and restored on release, so it snaps back to the real
 // latest price/change (not just whatever was last hovered) once you let
-// go, matching Robinhood/Apple Stocks-style scrubbing.
+// go, matching Robinhood/Apple Stocks-style scrubbing. The live-price
+// pulse dot (_pulse_halo/_pulse_dot, normally pinned to the latest point
+// -- see build_price_figure) follows the same pattern: restyled to the
+// scrubbed point on every move, restored to its real last-point position
+// on release.
 (function () {
     let activeGd = null;
-    let restore = null; // {price, change, color} captured at gesture start
+    let restore = null; // {price, change, color, pulse: {x, y}} captured at gesture start
+
+    function pulseTraceIndices(gd) {
+        const indices = [];
+        for (let i = 0; i < gd._fullData.length; i++) {
+            const name = gd._fullData[i].name || "";
+            if (name === "_pulse_halo" || name === "_pulse_dot") indices.push(i);
+        }
+        return indices;
+    }
+
+    function movePulseDot(gd, x, y) {
+        const indices = pulseTraceIndices(gd);
+        if (!indices.length) return;
+        Plotly.restyle(gd, {x: indices.map(() => [x]), y: indices.map(() => [y])}, indices);
+    }
 
     function plotDivFor(target) {
         const container = target && target.closest && target.closest("#price-chart");
@@ -148,14 +167,17 @@ document.addEventListener("mousedown", function (e) {
         Plotly.Fx.hover(gd, [{curveNumber: anchorIdx, pointNumber: idx}], "xy");
 
         // Only the single-stock $ chart has a "Price" trace and a big
-        // price header to update -- Compare mode's % overlay chart still
-        // gets its spike-line scrub above, just not this readout.
+        // price header (+ live-price pulse dot) to update -- Compare
+        // mode's % overlay chart still gets its spike-line scrub above,
+        // just not these.
         let priceIdx = -1;
         for (let i = 0; i < gd._fullData.length; i++) {
             if (gd._fullData[i].name === "Price") { priceIdx = i; break; }
         }
         if (priceIdx === -1) return true;
-        const ys = gd._fullData[priceIdx].y;
+        const priceTrace = gd._fullData[priceIdx];
+        const ys = priceTrace.y;
+        const xs = priceTrace.x;
         if (!ys || idx >= ys.length) return true;
 
         const price = ys[idx];
@@ -171,6 +193,7 @@ document.addEventListener("mousedown", function (e) {
                 " (" + sign + pct.toFixed(2) + "%)",
             up ? "var(--up)" : "var(--down)",
         );
+        movePulseDot(gd, xs[idx], price);
         return true;
     }
 
@@ -179,10 +202,14 @@ document.addEventListener("mousedown", function (e) {
         if (!isScrubbable(gd)) return;
         const priceEl = document.getElementById("stock-header-price");
         const changeEl = document.getElementById("stock-header-change");
+        const pulseIndices = pulseTraceIndices(gd);
         restore = {
             price: priceEl ? priceEl.textContent : null,
             change: changeEl ? changeEl.textContent : null,
             color: changeEl ? changeEl.style.color : null,
+            pulse: pulseIndices.length
+                ? {x: gd._fullData[pulseIndices[0]].x[0], y: gd._fullData[pulseIndices[0]].y[0]}
+                : null,
         };
         if (!scrubTo(gd, clientX)) return;
         activeGd = gd;
@@ -193,6 +220,7 @@ document.addEventListener("mousedown", function (e) {
     function end() {
         if (activeGd) {
             if (window.Plotly) Plotly.Fx.unhover(activeGd);
+            if (restore && restore.pulse) movePulseDot(activeGd, restore.pulse.x, restore.pulse.y);
             if (restore && restore.price !== null) setHeader(restore.price, restore.change, restore.color);
         }
         activeGd = null;

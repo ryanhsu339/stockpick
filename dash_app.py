@@ -443,7 +443,18 @@ def build_price_figure(df, ticker, range_key, theme="dark", mobile=False):
         xaxis=dict(
             showgrid=False, showline=True, linecolor=colors["axis_line"],
             tickfont=dict(color=colors["muted_text"], size=11),
-            showspikes=True, spikemode="across", spikesnap="cursor",
+            showspikes=True, spikemode="across",
+            # "cursor" positions the spike at the mouse's actual pixel
+            # position, which the custom.js scrub listeners' programmatic
+            # Plotly.Fx.hover() call never supplies (only a curve+point
+            # index) -- Plotly silently fell back to pixel 0 for it, which
+            # is why the spike only ever showed up pinned to the left
+            # edge while dragging on mobile. "data" positions it at the
+            # hovered POINT's own pixel position instead, which Fx.hover
+            # always knows regardless of how it was triggered. Desktop
+            # keeps "cursor" (a real mouse position is always available
+            # there) for its smoother continuous-tracking feel.
+            spikesnap="data" if mobile else "cursor",
             spikedash="dot", spikethickness=1, spikecolor=colors["muted_text"],
             rangebreaks=rangebreaks,
             # dragmode=False (below) only turns off the drag-to-zoom
@@ -551,7 +562,12 @@ def build_compare_price_figure(df1, ticker1, df2, ticker2, range_key, theme="dar
         xaxis=dict(
             showgrid=False, showline=True, linecolor=colors["axis_line"],
             tickfont=dict(color=colors["muted_text"], size=11),
-            showspikes=True, spikemode="across", spikesnap="cursor",
+            showspikes=True, spikemode="across",
+            # See build_price_figure's identical spikesnap -- "data" on
+            # mobile so the manually-triggered hover still positions the
+            # spike correctly (it only knows a point index, never a real
+            # cursor pixel), "cursor" kept on desktop for its smoother feel.
+            spikesnap="data" if mobile else "cursor",
             spikedash="dot", spikethickness=1, spikecolor=colors["muted_text"],
             rangebreaks=rangebreaks,
             # See build_price_figure's identical fixedrange -- locks
