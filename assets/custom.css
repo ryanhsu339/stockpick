@@ -104,6 +104,31 @@ a:hover { color: var(--text); }
         border-bottom: 1px solid var(--border);
     }
 
+    /* Sidebar TRACKERS nav: one horizontal row of 3 tabs instead of 3
+       stacked rows -- #sidebar-trackers-list's own flex-direction is set
+       inline from Python (column, for desktop's list), so !important is
+       needed to flip it here. Each row's status dot and meta badge
+       (13F/PTR) are dropped (not just squeezed) to leave enough width for
+       the labels alone at phone width; [id^="nav-"] catches all 3 nav
+       rows (nav-managers/nav-congress/nav-companies) without needing a
+       shared class, since nothing else in the app uses that id prefix. */
+    #sidebar-trackers-list {
+        flex-direction: row !important;
+        gap: 6px;
+    }
+    #sidebar-trackers-list [id^="nav-"] {
+        flex: 1;
+        justify-content: center;
+        padding: 8px 4px;
+    }
+    #sidebar-trackers-list [id^="nav-"] > span:nth-child(2) {
+        flex: initial !important;
+    }
+    #sidebar-trackers-list [id$="-dot"],
+    #sidebar-trackers-list [id^="nav-"] > span:last-child {
+        display: none;
+    }
+
     /* dcc.Tabs (Dash 4) has its own internal responsive breakpoint that
        collapses a too-narrow pill row into a tall vertical stack instead
        of actually wrapping -- squeezed next to "High $x / Low $x" on a
@@ -137,8 +162,11 @@ a:hover { color: var(--text); }
     /* Stock price chart card: break out of the page's own 16px side
        padding (_APP_CONTENT_STYLE) to use the full viewport width --
        already narrow on a phone, that inset was eating a meaningful
-       fraction of it. The header row (High/Low + range picker) gets its
-       own smaller padding back so its text isn't flush against the
+       fraction of it. padding-left/right need !important: the card's
+       Python style sets "padding" as one shorthand value, and an inline
+       style (shorthand or not) always beats a plain external rule. The
+       price display and header row (High/Low + range picker) get their
+       own smaller padding back so their text isn't flush against the
        screen edge; the chart itself stays edge-to-edge. */
     #stock-chart-card {
         margin-left: -16px;
@@ -146,29 +174,32 @@ a:hover { color: var(--text); }
         border-left: none;
         border-right: none;
         border-radius: 0;
-        padding-left: 0;
-        padding-right: 0;
+        padding-left: 0 !important;
+        padding-right: 0 !important;
     }
+    #stock-header-price-inline,
     #stock-chart-header-row {
         padding-left: 12px;
         padding-right: 12px;
     }
 
-    /* Company Tracker: reorders to toggle -> search box -> (gap) -> price
-       -> company name on mobile, right below the sidebar -- flex order,
-       not a DOM change, so desktop (which never gets this flex-column
-       treatment) is untouched. #stock-header and #stock-header-price-row
-       both go display:contents (!important: overriding their own inline
-       display:flex), dissolving their own boxes so their children --
-       the name block, the price+change wrapper, and the toggle -- become
-       direct flex items of #company-content and can be ordered
-       independently of each other. Without that, the toggle could only
-       be reordered relative to price/change within their shared row,
-       never pulled onto its own line above the search box.
-       compare-mode-tabs is a dcc.Tabs, which Dash wraps in its own
-       "-parent" div even at the root -- display:contents dissolves
-       everything down to that wrapper, so the wrapper (not the id'd
-       component itself) is the actual flex item that needs the order. */
+    /* Company Tracker: reorders to toggle -> search box -> company name on
+       mobile, right below the sidebar -- flex order, not a DOM change, so
+       desktop (which never gets this flex-column treatment) is untouched.
+       (Price+change used to live in this header too and share in this
+       reorder, but now render in a fixed DOM position right above the
+       chart instead -- see stock-header-price-inline in dash_app.py --
+       so they're out of this scheme entirely.) #stock-header goes
+       display:contents (!important: overriding its own inline
+       display:flex), dissolving its own box so its children -- the name
+       block and the toggle -- become direct flex items of #company-content
+       and can be ordered independently of each other and of the search
+       box, which otherwise isn't reachable by plain CSS order (a sibling
+       of #stock-header, not one of its children). compare-mode-tabs is a
+       dcc.Tabs, which Dash wraps in its own "-parent" div even at the
+       root -- display:contents dissolves everything down to that wrapper,
+       so the wrapper (not the id'd component itself) is the actual flex
+       item that needs the order. */
     #company-content {
         display: flex;
         flex-direction: column;
@@ -176,19 +207,12 @@ a:hover { color: var(--text); }
     #stock-header {
         display: contents !important;
     }
-    #stock-header-price-row {
-        display: contents !important;
-    }
     #compare-mode-tabs-parent {
-        order: -3;
+        order: -2;
         margin-bottom: 12px;
     }
     #ticker-search-row {
-        order: -2;
-    }
-    #stock-header-price-inline {
         order: -1;
-        margin-top: 16px;
     }
     #stock-header-name-block {
         order: 0;

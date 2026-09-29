@@ -403,7 +403,12 @@ def build_price_figure(df, ticker, range_key, theme="dark", mobile=False):
     # no Plotly title here any more, both to avoid showing the same numbers
     # twice and for a quieter, less chart-junk-y look.
     fig.update_layout(
-        margin=dict(l=24, r=10, t=20, b=30),
+        # On mobile the price axis' tick labels are hidden below (the price
+        # header above the chart already carries that number), so the left
+        # margin that used to reserve room for them would just be dead
+        # space -- shrinking it lets the plot itself use the full card
+        # width instead of leaving a blank strip down the side.
+        margin=dict(l=4, r=4, t=20, b=30) if mobile else dict(l=24, r=10, t=20, b=30),
         height=_CHART_HEIGHT,
         paper_bgcolor=colors["surface"],
         plot_bgcolor=colors["surface"],
@@ -437,10 +442,14 @@ def build_price_figure(df, ticker, range_key, theme="dark", mobile=False):
         ),
         yaxis=dict(
             # Quiet chart: no gridlines -- the price header above now
-            # carries the numbers a busier axis used to help convey.
+            # carries the numbers a busier axis used to help convey. On
+            # mobile the tick labels themselves go too (hover still shows
+            # the exact price), freeing the width they used to reserve for
+            # the chart's own plot area -- see the mobile-only margin above.
             showgrid=False, zeroline=False,
             tickfont=dict(color=colors["muted_text"], size=11),
             tickprefix="$", side="right", range=y_range, autorange=False,
+            showticklabels=not mobile,
         ),
         yaxis2=dict(
             overlaying="y", side="left", showticklabels=False,
@@ -505,7 +514,10 @@ def build_compare_price_figure(df1, ticker1, df2, ticker2, range_key, theme="dar
     fig.add_hline(y=0, line=dict(color=colors["muted_text"], dash="dot", width=1))
 
     fig.update_layout(
-        margin=dict(l=24, r=10, t=50, b=30),
+        # See build_price_figure's identical mobile-only margin shrink --
+        # same reasoning (no reserved axis-label space needed once the
+        # labels themselves are hidden below).
+        margin=dict(l=4, r=4, t=50, b=30) if mobile else dict(l=24, r=10, t=50, b=30),
         height=_CHART_HEIGHT,
         paper_bgcolor=colors["surface"],
         plot_bgcolor=colors["surface"],
@@ -529,6 +541,7 @@ def build_compare_price_figure(df1, ticker1, df2, ticker2, range_key, theme="dar
             showgrid=True, gridcolor=colors["gridline"], zeroline=False,
             tickfont=dict(color=colors["muted_text"], size=11),
             ticksuffix="%", side="right",
+            showticklabels=not mobile,
         ),
     )
     return fig
@@ -820,6 +833,13 @@ _NAV_TAB_STYLE = {
     "color": "var(--body-text)",
     "backgroundColor": "transparent",
     "flex": "initial",
+    # Without this, a too-narrow container (e.g. range-tabs' 9 pills on a
+    # phone screen) shrinks each tab below its own text+padding width
+    # instead of relying on the container's overflow-x: auto to scroll --
+    # the tab's own background (the selected-state highlight) shrinks to
+    # match, so it ends up narrower than and misaligned with its label,
+    # which is what actually overflows out past it uncontained.
+    "flexShrink": "0",
 }
 _NAV_TAB_SELECTED_STYLE = {
     **_NAV_TAB_STYLE,
@@ -1156,39 +1176,49 @@ def _financials_valuation_block(suffix, mirror=False):
                 ),
             ],
         ),
-        html.H3("Valuation", style={**_HEADER_STYLE, "marginTop": "40px"}),
-        html.P("A simple discounted cash flow model: projects Free Cash Flow forward at the "
-               "growth rate below, discounts each year back to present value, and adds a "
-               "discounted terminal value to estimate Enterprise and per-share fair value. "
-               "Inputs default from the company's own financials (where available) but are "
-               "yours to adjust — click Calculate to re-run with your changes.",
-               style={**_PARA_STYLE, "fontSize": "13px"}),
-        dcc.Interval(id=f"dcf-price-refresh{suffix}", interval=60000, n_intervals=0),
-        # One shared Loading boundary around the banner, the assumptions
-        # panel/chart, AND dcf-defaults-store itself (a non-visual Store,
-        # but still a descendant here) -- so Dash's loading-state tracking
-        # picks up generate's own in-flight status too (it Outputs
-        # dcf-defaults-store.data), not just update_dcf's. Without that,
-        # the spinner only ever covered update_dcf's own fast,
-        # pure-computation run, never the slower live SEC fetches in
-        # generate that precede it -- so on first load (or any fresh
-        # ticker) the sliders would sit at their placeholder min-bound
-        # value (0%, 6%, 0%) for however long those fetches took, reading
-        # as "this didn't load" rather than "still loading."
-        dcc.Loading(
-            type="default",
+        # Wrapped (not just the section's own contents) so a fund/ETF ticker
+        # -- no cash flows of its own to project, an operating-company DCF
+        # is meaningless for it -- can hide the whole thing in one shot via
+        # _tab_visibility_styles' dcf_wrap_style, the same is_fund switch
+        # that already toggles the Financials/Holdings tabs above.
+        html.Div(
+            id=f"dcf-wrap{suffix}",
             children=[
-                html.Div(
-                    id=f"dcf-banner{suffix}",
-                    style={"backgroundColor": _MANAGER_TABLE_BG, "borderRadius": "10px",
-                           "padding": "20px", "marginTop": "8px"},
+                html.H3("Valuation", style={**_HEADER_STYLE, "marginTop": "40px"}),
+                html.P("A simple discounted cash flow model: projects Free Cash Flow forward at the "
+                       "growth rate below, discounts each year back to present value, and adds a "
+                       "discounted terminal value to estimate Enterprise and per-share fair value. "
+                       "Inputs default from the company's own financials (where available) but are "
+                       "yours to adjust — click Calculate to re-run with your changes.",
+                       style={**_PARA_STYLE, "fontSize": "13px"}),
+                dcc.Interval(id=f"dcf-price-refresh{suffix}", interval=60000, n_intervals=0),
+                # One shared Loading boundary around the banner, the assumptions
+                # panel/chart, AND dcf-defaults-store itself (a non-visual Store,
+                # but still a descendant here) -- so Dash's loading-state tracking
+                # picks up generate's own in-flight status too (it Outputs
+                # dcf-defaults-store.data), not just update_dcf's. Without that,
+                # the spinner only ever covered update_dcf's own fast,
+                # pure-computation run, never the slower live SEC fetches in
+                # generate that precede it -- so on first load (or any fresh
+                # ticker) the sliders would sit at their placeholder min-bound
+                # value (0%, 6%, 0%) for however long those fetches took, reading
+                # as "this didn't load" rather than "still loading."
+                dcc.Loading(
+                    type="default",
+                    children=[
+                        html.Div(
+                            id=f"dcf-banner{suffix}",
+                            style={"backgroundColor": _MANAGER_TABLE_BG, "borderRadius": "10px",
+                                   "padding": "20px", "marginTop": "8px"},
+                        ),
+                        html.Div(
+                            style={"display": "flex", "flexWrap": "wrap", "gap": "16px", "alignItems": "flex-start",
+                                   "marginTop": "16px"},
+                            children=dcf_row_children,
+                        ),
+                        dcc.Store(id=f"dcf-defaults-store{suffix}", data=None),
+                    ],
                 ),
-                html.Div(
-                    style={"display": "flex", "flexWrap": "wrap", "gap": "16px", "alignItems": "flex-start",
-                           "marginTop": "16px"},
-                    children=dcf_row_children,
-                ),
-                dcc.Store(id=f"dcf-defaults-store{suffix}", data=None),
             ],
         ),
         dcc.Store(id=f"rows-store{suffix}"),
@@ -1220,44 +1250,22 @@ def _company_tracker_children():
                                         "color": "var(--text)"}),
                     ],
                 ),
-                html.Div(
-                    id="stock-header-price-row",
-                    style={"display": "flex", "alignItems": "baseline", "gap": "12px", "flexWrap": "wrap"},
+                # Two-segment toggle (same pill styling as the range picker
+                # below) rather than a single button whose label swaps --
+                # both modes stay visible so it reads as a toggle, not an
+                # action. sync_compare_mode below turns its selected value
+                # into the "compare-mode" store every other callback in
+                # Compare mode actually keys off.
+                dcc.Tabs(
+                    id="compare-mode-tabs",
+                    value="single",
+                    mobile_breakpoint=0,
+                    style={**_NAV_CONTAINER_STYLE, "marginTop": "0"},
                     children=[
-                        # Its own wrapper (not two flat spans) so the mobile
-                        # reorder below can move price+change as one unit,
-                        # independent of the toggle next to it -- see
-                        # #stock-header-price-row's display:contents rule.
-                        html.Div(
-                            id="stock-header-price-inline",
-                            style={"display": "flex", "alignItems": "baseline", "gap": "12px"},
-                            children=[
-                                html.Span(id="stock-header-price",
-                                          style={"fontFamily": "'IBM Plex Mono', monospace", "fontSize": "26px",
-                                                 "color": "var(--text)"}),
-                                html.Span(id="stock-header-change",
-                                          style={"fontFamily": "'IBM Plex Mono', monospace", "fontSize": "13px"}),
-                            ],
-                        ),
-                        # Two-segment toggle (same pill styling as the range
-                        # picker below) rather than a single button whose
-                        # label swaps -- both modes stay visible so it reads
-                        # as a toggle, not an action. sync_compare_mode
-                        # below turns its selected value into the
-                        # "compare-mode" store every other callback in
-                        # Compare mode actually keys off.
-                        dcc.Tabs(
-                            id="compare-mode-tabs",
-                            value="single",
-                            mobile_breakpoint=0,
-                            style={**_NAV_CONTAINER_STYLE, "marginTop": "0"},
-                            children=[
-                                dcc.Tab(label="Single Stock", value="single", style=_NAV_TAB_STYLE,
-                                        selected_style=_NAV_TAB_SELECTED_STYLE),
-                                dcc.Tab(label="+ Compare", value="compare", style=_NAV_TAB_STYLE,
-                                        selected_style=_NAV_TAB_SELECTED_STYLE),
-                            ],
-                        ),
+                        dcc.Tab(label="Single Stock", value="single", style=_NAV_TAB_STYLE,
+                                selected_style=_NAV_TAB_SELECTED_STYLE),
+                        dcc.Tab(label="+ Compare", value="compare", style=_NAV_TAB_STYLE,
+                                selected_style=_NAV_TAB_SELECTED_STYLE),
                     ],
                 ),
             ],
@@ -1324,6 +1332,21 @@ def _company_tracker_children():
             style={"backgroundColor": "var(--card-bg)", "border": "1px solid var(--border)",
                    "borderRadius": "14px", "padding": "18px 20px 12px", "marginTop": "24px"},
             children=[
+                # Right above the chart itself (not up in the page header)
+                # so the number you're looking at and the chart explaining
+                # it sit together -- same on mobile and desktop, a real DOM
+                # position rather than a CSS reorder.
+                html.Div(
+                    id="stock-header-price-inline",
+                    style={"display": "flex", "alignItems": "baseline", "gap": "12px", "marginBottom": "12px"},
+                    children=[
+                        html.Span(id="stock-header-price",
+                                  style={"fontFamily": "'IBM Plex Mono', monospace", "fontSize": "26px",
+                                         "color": "var(--text)"}),
+                        html.Span(id="stock-header-change",
+                                  style={"fontFamily": "'IBM Plex Mono', monospace", "fontSize": "13px"}),
+                    ],
+                ),
                 html.Div(
                     id="stock-chart-header-row",
                     style={"display": "flex", "justifyContent": "space-between", "alignItems": "center",
@@ -2265,7 +2288,17 @@ def _build_sidebar():
             dcc.Store(id="global-search-debounced", data=""),
             html.Div(
                 style={"display": "flex", "flexDirection": "column", "gap": "2px"},
-                children=[html.Div("Trackers", style=_SIDEBAR_SECTION_LABEL_STYLE)] + nav_rows,
+                children=[
+                    html.Div("Trackers", style=_SIDEBAR_SECTION_LABEL_STYLE),
+                    # Its own wrapper (not nav_rows flattened directly into
+                    # the column above) so mobile can flip just this list
+                    # to a horizontal row -- see #sidebar-trackers-list in
+                    # custom.css -- without also dragging the "TRACKERS"
+                    # label into that row.
+                    html.Div(id="sidebar-trackers-list",
+                             style={"display": "flex", "flexDirection": "column", "gap": "2px"},
+                             children=nav_rows),
+                ],
             ),
             html.Div(
                 style={"marginTop": "auto", "display": "flex", "flexDirection": "column", "gap": "10px"},
@@ -2618,11 +2651,16 @@ app.clientside_callback(
 
 
 def _tab_visibility_styles(is_fund):
-    """(growth, income, balance, cashflow, holdings) tab header styles --
-    Financials tabs for regular companies, Top Holdings for funds."""
+    """(growth, income, balance, cashflow, holdings, dcf-wrap) styles --
+    Financials tabs for regular companies, Top Holdings for funds. A fund
+    has no operating cash flows of its own to project, so the DCF
+    valuation panel is hidden outright rather than just left showing
+    meaningless (all-None) inputs."""
     financials_style = _NAV_TAB_HIDDEN_STYLE if is_fund else _NAV_TAB_STYLE
     holdings_style = _NAV_TAB_STYLE if is_fund else _NAV_TAB_HIDDEN_STYLE
-    return (financials_style, financials_style, financials_style, financials_style, holdings_style)
+    dcf_wrap_style = {"display": "none"} if is_fund else {"display": "block"}
+    return (financials_style, financials_style, financials_style, financials_style,
+            holdings_style, dcf_wrap_style)
 
 
 def _empty_company_outputs(status, view_tab="growth", is_fund=False):
@@ -2931,6 +2969,7 @@ def render_compare_mode(is_compare):
     Output("balance-tab", "style"),
     Output("cashflow-tab", "style"),
     Output("holdings-tab", "style"),
+    Output("dcf-wrap", "style"),
     Output("company-candidates", "children"),
     Output("company-suggestions", "children"),
     Output("dcf-defaults-store", "data"),
@@ -2962,6 +3001,7 @@ def generate(_n_submit, company):
     Output("balance-tab-2", "style"),
     Output("cashflow-tab-2", "style"),
     Output("holdings-tab-2", "style"),
+    Output("dcf-wrap-2", "style"),
     Output("company-candidates-2", "children"),
     Output("company-suggestions-2", "children", allow_duplicate=True),
     Output("dcf-defaults-store-2", "data"),
@@ -2997,6 +3037,7 @@ def generate_2(_n_submit, company):
     Output("balance-tab", "style", allow_duplicate=True),
     Output("cashflow-tab", "style", allow_duplicate=True),
     Output("holdings-tab", "style", allow_duplicate=True),
+    Output("dcf-wrap", "style", allow_duplicate=True),
     Output("company-candidates", "children", allow_duplicate=True),
     Output("company-suggestions", "children", allow_duplicate=True),
     Output("company-input", "value", allow_duplicate=True),
@@ -3052,6 +3093,7 @@ def select_company_candidate(candidate_clicks, suggestion_clicks, active_cell, h
     Output("balance-tab-2", "style", allow_duplicate=True),
     Output("cashflow-tab-2", "style", allow_duplicate=True),
     Output("holdings-tab-2", "style", allow_duplicate=True),
+    Output("dcf-wrap-2", "style", allow_duplicate=True),
     Output("company-candidates-2", "children", allow_duplicate=True),
     Output("company-suggestions-2", "children", allow_duplicate=True),
     Output("company-input-2", "value", allow_duplicate=True),
