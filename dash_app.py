@@ -1319,7 +1319,7 @@ def _financials_valuation_block(suffix, mirror=False):
                 # value (0%, 6%, 0%) for however long those fetches took, reading
                 # as "this didn't load" rather than "still loading."
                 dcc.Loading(
-                    type="default",
+                    custom_spinner=html.Div(className="spinner"),
                     children=[
                         html.Div(
                             id=f"dcf-banner{suffix}",
@@ -1425,7 +1425,7 @@ def _company_tracker_children():
             ],
         ),
         dcc.Loading(
-            type="default",
+            custom_spinner=html.Div(className="spinner"),
             children=html.Div(id="status-msg", style={"marginTop": "16px", "whiteSpace": "pre-wrap"}),
         ),
         html.Div(id="company-candidates", style={"marginTop": "8px"}),
@@ -1434,7 +1434,7 @@ def _company_tracker_children():
             style={"display": "none"},
             children=[
                 dcc.Loading(
-                    type="default",
+                    custom_spinner=html.Div(className="spinner"),
                     children=html.Div(id="status-msg-2", style={"marginTop": "8px", "whiteSpace": "pre-wrap"}),
                 ),
                 html.Div(id="company-candidates-2", style={"marginTop": "8px"}),
@@ -1974,7 +1974,7 @@ def _manager_tracker_children():
             ],
         ),
         dcc.Loading(
-            type="default",
+            custom_spinner=html.Div(className="spinner"),
             children=html.Div(id="manager-status-msg", style={"marginTop": "16px", "whiteSpace": "pre-wrap"}),
         ),
         html.Div(id="manager-candidates", style={"marginTop": "8px"}),
@@ -2134,7 +2134,7 @@ def _politician_tracker_children():
                "(Periodic Transaction Reports).", style=_PARA_STYLE),
         html.P(_ACTIVITY_WINDOW_NOTE, style={**_PARA_STYLE, "fontSize": "13px"}),
         dcc.Loading(
-            type="default",
+            custom_spinner=html.Div(className="spinner"),
             children=html.Div(
                 style={"display": "flex", "gap": "24px", "flexWrap": "wrap"},
                 children=[
@@ -2198,7 +2198,7 @@ def _politician_tracker_children():
             ],
         ),
         dcc.Loading(
-            type="default",
+            custom_spinner=html.Div(className="spinner"),
             children=html.Div(id="politician-status-msg", style={"marginTop": "16px", "whiteSpace": "pre-wrap"}),
         ),
         html.P(_POLITICIAN_NOTE, style={**_PARA_STYLE, "fontSize": "13px", "marginTop": "24px"}),
