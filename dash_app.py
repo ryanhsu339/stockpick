@@ -617,7 +617,7 @@ _DCF_REVENUE_BAR_COLOR = "#7a7f87"  # neutral grey -- Revenue, historical + fore
 _DCF_FCF_BAR_COLOR = "#2874a6"      # theme blue -- FCF, historical + forecast
 
 
-def build_dcf_chart(historical, base_revenue, base_fcf, growth_rate, years, theme="dark"):
+def build_dcf_chart(historical, base_revenue, base_fcf, growth_rate, years, theme="dark", mobile=False):
     """Grouped Revenue/FCF bars: actuals from `historical` (see
     _dcf_defaults) followed by a projection grown at `growth_rate` for
     `years` years from base_revenue/base_fcf, with the forecast region
@@ -692,11 +692,22 @@ def build_dcf_chart(historical, base_revenue, base_fcf, growth_rate, years, them
         legend=dict(orientation="h", y=1.1, x=0, font=dict(color=colors["muted_text"], size=11)),
         hoverlabel=dict(bgcolor=colors["hover_bg"], bordercolor=colors["axis_line"],
                          font=dict(color=colors["primary_text"], size=12)),
+        # See build_price_figure's identical mobile dragmode/fixedrange --
+        # a swipe meant to scroll the page past this chart (it's not tall
+        # enough on its own to need scrubbing the way the price chart is)
+        # kept triggering a drag-to-zoom box instead. Unlike the price
+        # chart, nothing here drives hover manually during a press, so
+        # there's no need to also strip pointer-events off the drag-catch
+        # layer -- a plain tap still shows the native hover tooltip either
+        # way; dragmode=False alone is enough to stop the zoom.
+        dragmode=False if mobile else "zoom",
         xaxis=dict(showgrid=False, showline=True, linecolor=colors["axis_line"],
-                   tickfont=dict(color=colors["muted_text"], size=11)),
+                   tickfont=dict(color=colors["muted_text"], size=11),
+                   fixedrange=mobile),
         yaxis=dict(showgrid=True, gridcolor=colors["gridline"], zeroline=False,
                    tickfont=dict(color=colors["muted_text"], size=11),
-                   tickprefix="$", ticksuffix="B"),
+                   tickprefix="$", ticksuffix="B",
+                   fixedrange=mobile),
         shapes=shapes,
         annotations=annotations,
     )
@@ -3649,10 +3660,11 @@ _DCF_FIELD_NAMES = [field for field, _label in _DCF_INPUT_FIELDS]
     Input("calculate-dcf-btn", "n_clicks"),
     Input("dcf-price-refresh", "n_intervals"),
     Input("theme-store", "data"),
+    Input("viewport-is-mobile", "data"),
     [State(f"dcf-{field}", "value") for field in _DCF_FIELD_NAMES],
     prevent_initial_call=True,
 )
-def update_dcf(defaults, _n_clicks, _n_intervals, theme, *current_values):
+def update_dcf(defaults, _n_clicks, _n_intervals, theme, mobile, *current_values):
     if ctx.triggered_id == "dcf-defaults-store":
         if not defaults:
             raise PreventUpdate
@@ -3697,7 +3709,7 @@ def update_dcf(defaults, _n_clicks, _n_intervals, theme, *current_values):
     chart = build_dcf_chart(
         defaults.get("historical") or [], defaults.get("base_revenue"),
         field_values["base_fcf"], field_values["growth_rate"], field_values["years"],
-        theme=theme,
+        theme=theme, mobile=mobile,
     )
 
     return (*input_outputs, data, columns, summary, banner, chart)
@@ -3711,10 +3723,11 @@ def update_dcf(defaults, _n_clicks, _n_intervals, theme, *current_values):
     Input("calculate-dcf-btn-2", "n_clicks"),
     Input("dcf-price-refresh-2", "n_intervals"),
     Input("theme-store", "data"),
+    Input("viewport-is-mobile", "data"),
     [State(f"dcf-{field}-2", "value") for field in _DCF_FIELD_NAMES],
     prevent_initial_call=True,
 )
-def update_dcf_2(defaults, _n_clicks, _n_intervals, theme, *current_values):
+def update_dcf_2(defaults, _n_clicks, _n_intervals, theme, mobile, *current_values):
     if ctx.triggered_id == "dcf-defaults-store-2":
         if not defaults:
             raise PreventUpdate
@@ -3755,7 +3768,7 @@ def update_dcf_2(defaults, _n_clicks, _n_intervals, theme, *current_values):
     chart = build_dcf_chart(
         defaults.get("historical") or [], defaults.get("base_revenue"),
         field_values["base_fcf"], field_values["growth_rate"], field_values["years"],
-        theme=theme,
+        theme=theme, mobile=mobile,
     )
 
     return (*input_outputs, data, columns, summary, banner, chart)
