@@ -125,6 +125,20 @@ a:hover { color: var(--text); }
         font-size: 11px !important;
     }
 
+    /* Sidebar reorder: Trackers above the search box instead of below it
+       -- #app-sidebar is already a flex column (same on desktop), so
+       plain order does it, no display:contents trickery needed since
+       these are already direct siblings. Search box and footer are left
+       at their default order (0), which (ties broken by original DOM
+       position) keeps search right after Trackers and the footer last,
+       same relative order as before between those two. */
+    #sidebar-logo-row {
+        order: -2;
+    }
+    #sidebar-trackers-section {
+        order: -1;
+    }
+
     /* Sidebar TRACKERS nav: one horizontal row of 3 tabs instead of 3
        stacked rows -- #sidebar-trackers-list's own flex-direction is set
        inline from Python (column, for desktop's list), so !important is
@@ -132,10 +146,18 @@ a:hover { color: var(--text); }
        (13F/PTR) are dropped (not just squeezed) to leave enough width for
        the labels alone at phone width; [id^="nav-"] catches all 3 nav
        rows (nav-managers/nav-congress/nav-companies) without needing a
-       shared class, since nothing else in the app uses that id prefix. */
+       shared class, since nothing else in the app uses that id prefix.
+       The accent-colored border (matching the logo square) + rounded
+       corners turn the row into a single pill-strip bar, the same visual
+       language as the range picker / compare toggle elsewhere in the
+       app (see _NAV_CONTAINER_STYLE), rather than 3 bare rows floating
+       on the page. */
     #sidebar-trackers-list {
         flex-direction: row !important;
         gap: 6px;
+        border: 1px solid var(--accent);
+        border-radius: 9px;
+        padding: 4px;
     }
     #sidebar-trackers-list [id^="nav-"] {
         flex: 1;
@@ -258,6 +280,12 @@ a:hover { color: var(--text); }
     /* Descriptive tagline under the ticker search -- not worth the
        vertical space it costs on a phone-width screen. */
     #company-tagline {
+        display: none;
+    }
+
+    /* Sidebar footer data-source line -- same reasoning, freeing up a
+       bit more of the sidebar's tight vertical space on mobile. */
+    #sidebar-data-source {
         display: none;
     }
 

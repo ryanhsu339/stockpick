@@ -2325,6 +2325,7 @@ def _build_sidebar():
         id="app-sidebar",
         children=[
             html.Div(
+                id="sidebar-logo-row",
                 style={"display": "flex", "alignItems": "center", "gap": "10px", "padding": "0 8px"},
                 children=[
                     html.Div(style={"width": "22px", "height": "22px", "borderRadius": "6px",
@@ -2371,6 +2372,7 @@ def _build_sidebar():
             ),
             dcc.Store(id="global-search-debounced", data=""),
             html.Div(
+                id="sidebar-trackers-section",
                 style={"display": "flex", "flexDirection": "column", "gap": "2px"},
                 children=[
                     html.Div("Trackers", style=_SIDEBAR_SECTION_LABEL_STYLE),
@@ -2396,7 +2398,11 @@ def _build_sidebar():
                             "cursor": "pointer", "width": "100%",
                         },
                     ),
+                    # id'd (not just styled) so the mobile media query can
+                    # hide it -- freeing up a bit more of the sidebar's
+                    # tight vertical space there; desktop keeps it.
                     html.Div("Data: SEC EDGAR 13F · House & Senate PTRs.",
+                             id="sidebar-data-source",
                              style={"fontSize": "11px", "color": "var(--body-text)", "padding": "0 4px",
                                     "lineHeight": "1.5"}),
                 ],
