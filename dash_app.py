@@ -2282,11 +2282,16 @@ app.title = "Stockpick"
 # paints as soon as the browser has parsed this far into the page, not
 # waiting on the ~3-4s it otherwise takes for the JS bundle to download,
 # hydrate, and build all three trackers' worth of layout (during which
-# the page LOOKS loaded but doesn't respond to clicks yet). A plain
-# inline <script>, not a Dash callback, hides it again after a fixed
-# 3s -- if hydration is still running past that on a slow connection,
-# the per-panel spinner (search "panel-switch-spinner" below) still
-# covers the remainder on whichever tab gets clicked first.
+# the page LOOKS loaded but doesn't respond to clicks yet). No
+# background color and pointer-events:none -- it's just a reassuring
+# spinner on top, not a solid cover; the real (still-frozen) page
+# underneath stays visible the whole time, and a click reaches it
+# immediately once it's actually ready, without waiting on this
+# overlay's own timer. A plain inline <script>, not a Dash callback,
+# fades it out after a fixed 3s -- if hydration is still running past
+# that on a slow connection, the per-panel spinner (search
+# "panel-switch-spinner" below) still covers the remainder on whichever
+# tab gets clicked first.
 app.index_string = """<!DOCTYPE html>
 <html>
     <head>
@@ -2297,8 +2302,8 @@ app.index_string = """<!DOCTYPE html>
     </head>
     <body>
         <div id="initial-load-overlay" style="position:fixed;inset:0;z-index:9999;
-             background-color:var(--bg,#0f0f0e);display:flex;align-items:center;
-             justify-content:center;">
+             display:flex;align-items:center;justify-content:center;
+             pointer-events:none;">
             <div class="spinner"></div>
         </div>
         <script>
