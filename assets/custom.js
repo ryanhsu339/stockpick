@@ -53,6 +53,29 @@ document.addEventListener("click", function (e) {
     }
 });
 
+// Mobile only: tapping into a search box clears whatever ticker/manager
+// is already in it, so typing a new one doesn't mean backspacing the old
+// one first. Desktop leaves this alone (its own mouse-driven workflow --
+// click, select-all, or just backspace -- is already fine without it).
+// Setting el.value directly wouldn't be picked up by React (these are
+// React-controlled inputs, tracked via its own synthetic value setter,
+// not the raw DOM property) -- going through the native setter and then
+// dispatching a real "input" event is the standard workaround, and also
+// what makes Dash's own value-changed wiring (the ticker suggestions
+// dropdown, in particular) see the clear too, same as if the user had
+// selected-all-and-deleted it themselves.
+document.addEventListener("focusin", function (e) {
+    if (window.innerWidth > 768) return;
+    const id = e.target.id;
+    if (id !== "company-input" && id !== "company-input-2" && id !== "manager-input" && id !== "global-search-input") {
+        return;
+    }
+    if (!e.target.value) return;
+    const setter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, "value").set;
+    setter.call(e.target, "");
+    e.target.dispatchEvent(new Event("input", {bubbles: true}));
+});
+
 // Price chart scrub (mobile only, see fixedrange in dash_app.py's
 // build_price_figure/build_compare_price_figure): a touch-drag across the
 // chart is meant to slide the hover crosshair along and update the big
@@ -80,14 +103,30 @@ document.addEventListener("click", function (e) {
 // updates when driven this way. The header's pre-drag text is captured
 // once per gesture and restored on release, so it snaps back to the real
 // latest price/change (not just whatever was last hovered) once you let
-// go, matching Robinhood/Apple Stocks-style scrubbing. The live-price
-// pulse dot (_pulse_halo/_pulse_dot, normally pinned to the latest point
-// -- see build_price_figure) follows the same pattern: restyled to the
-// scrubbed point on every move, restored to its real last-point position
-// on release.
+// go, matching Robinhood/Apple Stocks-style scrubbing.
+//
+// The live-price pulse dot (_pulse_halo/_pulse_dot, normally pinned to
+// the latest point -- see build_price_figure) is meant to follow the
+// scrub the same way, but it's a regular Plotly trace marker, rendered
+// in a layer that paints BEFORE (so, behind) the spike line's own layer
+// -- Plotly always draws the crosshair spike on top of the data traces,
+// and unlike a dcc.Graph's hoverData prop there's no supported way to
+// change that per-trace paint order. Moving the marker's own SVG element
+// later in the DOM (to paint after the spike) was tried and rejected: it
+// sits in a nested, transformed coordinate group, and re-parenting it
+// shifted its visual position instead of just its paint order. A plain
+// HTML div overlaid on top of the whole chart sidesteps the problem
+// entirely -- it paints after the SVG by construction, so it's always in
+// front of the spike regardless of Plotly's own internal layering.
+// Native markers are hidden (opacity 0) for the duration of the scrub so
+// there's only ever one visible dot, and restored on release; the
+// overlay reuses their existing border color (the period's up/down
+// color, fixed for the whole chart, not scrub-point-relative) rather
+// than recomputing it.
 (function () {
     let activeGd = null;
     let restore = null; // {price, change, color, pulse: {x, y}} captured at gesture start
+    let overlayDot = null;
 
     function pulseTraceIndices(gd) {
         const indices = [];
@@ -96,6 +135,57 @@ document.addEventListener("click", function (e) {
             if (name === "_pulse_halo" || name === "_pulse_dot") indices.push(i);
         }
         return indices;
+    }
+
+    function setPulseOpacity(gd, indices, opacity) {
+        if (!indices.length) return;
+        Plotly.restyle(gd, {"marker.opacity": indices.map(() => opacity)}, indices);
+    }
+
+    function ensureOverlayDot(gd) {
+        if (overlayDot && overlayDot.isConnected && overlayDot.parentNode === gd) return overlayDot;
+        overlayDot = document.createElement("div");
+        overlayDot.style.position = "absolute";
+        overlayDot.style.width = "8px";
+        overlayDot.style.height = "8px";
+        overlayDot.style.borderRadius = "50%";
+        overlayDot.style.pointerEvents = "none";
+        overlayDot.style.zIndex = "5";
+        overlayDot.style.transform = "translate(-50%, -50%)";
+        overlayDot.style.display = "none";
+        if (getComputedStyle(gd).position === "static") {
+            gd.style.position = "relative";
+        }
+        gd.appendChild(overlayDot);
+        return overlayDot;
+    }
+
+    function showOverlayDot(gd, dataX, dataY) {
+        const dot = ensureOverlayDot(gd);
+        const xaxis = gd._fullLayout.xaxis, yaxis = gd._fullLayout.yaxis, size = gd._fullLayout._size;
+        let xPx, yPx;
+        try {
+            xPx = size.l + xaxis.d2p(dataX);
+            yPx = size.t + yaxis.d2p(dataY);
+        } catch (e) {
+            return;
+        }
+        const dotIndices = [];
+        for (let i = 0; i < gd._fullData.length; i++) {
+            if (gd._fullData[i].name === "_pulse_dot") dotIndices.push(i);
+        }
+        const dotTrace = dotIndices.length ? gd._fullData[dotIndices[0]] : null;
+        const borderColor = dotTrace && dotTrace.marker && dotTrace.marker.line ? dotTrace.marker.line.color : "var(--accent)";
+        const fillColor = dotTrace && dotTrace.marker ? dotTrace.marker.color : "#fff";
+        dot.style.left = xPx + "px";
+        dot.style.top = yPx + "px";
+        dot.style.backgroundColor = fillColor;
+        dot.style.border = "1.5px solid " + borderColor;
+        dot.style.display = "block";
+    }
+
+    function hideOverlayDot() {
+        if (overlayDot) overlayDot.style.display = "none";
     }
 
     function movePulseDot(gd, x, y) {
@@ -209,7 +299,7 @@ document.addEventListener("click", function (e) {
                 " (" + sign + pct.toFixed(2) + "%)",
             up ? "var(--up)" : "var(--down)",
         );
-        movePulseDot(gd, xs[idx], price);
+        showOverlayDot(gd, xs[idx], price);
         return true;
     }
 
@@ -227,6 +317,11 @@ document.addEventListener("click", function (e) {
                 ? {x: gd._fullData[pulseIndices[0]].x[0], y: gd._fullData[pulseIndices[0]].y[0]}
                 : null,
         };
+        // Hidden for the whole gesture (not re-toggled on every move) so
+        // there's only ever one visible dot -- the overlay, drawn in
+        // scrubTo below, painting in front of the spike line these
+        // native markers would otherwise be stuck behind.
+        setPulseOpacity(gd, pulseIndices, 0);
         if (!scrubTo(gd, clientX)) return;
         activeGd = gd;
     }
@@ -237,6 +332,8 @@ document.addEventListener("click", function (e) {
         if (activeGd) {
             if (window.Plotly) Plotly.Fx.unhover(activeGd);
             if (restore && restore.pulse) movePulseDot(activeGd, restore.pulse.x, restore.pulse.y);
+            setPulseOpacity(activeGd, pulseTraceIndices(activeGd), 1);
+            hideOverlayDot();
             if (restore && restore.price !== null) setHeader(restore.price, restore.change, restore.color);
         }
         activeGd = null;

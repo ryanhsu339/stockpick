@@ -2364,10 +2364,14 @@ def _build_sidebar():
                                        "backgroundColor": "transparent", "padding": "0", "fontSize": "13px",
                                        "color": "var(--text)", "outline": "none"},
                             ),
-                            html.Span("⌘K", style={"fontFamily": "'IBM Plex Mono', monospace",
-                                                    "fontSize": "11px", "padding": "2px 5px",
-                                                    "border": "1px solid var(--border)", "borderRadius": "4px",
-                                                    "color": "var(--body-text)"}),
+                            # id'd (not just styled) so the mobile media
+                            # query can hide it -- there's no physical
+                            # keyboard shortcut to advertise on a phone.
+                            html.Span("⌘K", id="global-search-shortcut-hint",
+                                      style={"fontFamily": "'IBM Plex Mono', monospace",
+                                             "fontSize": "11px", "padding": "2px 5px",
+                                             "border": "1px solid var(--border)", "borderRadius": "4px",
+                                             "color": "var(--body-text)"}),
                         ],
                     ),
                     html.Div(id="global-search-suggestions",

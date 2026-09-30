@@ -289,32 +289,48 @@ a:hover { color: var(--text); }
         display: none;
     }
 
+    /* No physical keyboard on a phone to advertise a Cmd+K shortcut for. */
+    #global-search-shortcut-hint {
+        display: none;
+    }
+
     /* DCF assumptions panel: fixed at 180px wide on desktop (shared with
        the Politician Tracker filter panel via _FILTER_PANEL_STYLE, so
        that width itself isn't touched here) left most of a phone's width
        sitting empty next to it. max-width needs !important to beat that
-       inline 180px cap. A real 2-column grid (not flex-wrap, which fills
-       row by row -- no way to keep two independently-ordered groups of
-       content each reading top-to-bottom in their own column) with every
-       field/header explicitly placed by id, rather than just wrapping
-       dash_app.py's two Python-level groups (DCF Assumptions+Model
-       Settings, Market Data+Calculate) side by side: those two groups
-       are uneven height (3 sliders' worth of extra tooltip-bubble
+       inline 180px cap. A real 2-column layout (not flex-wrap, which
+       fills row by row -- no way to keep two independently-ordered
+       groups of content each reading top-to-bottom in their own column)
+       with every field/header explicitly placed by id, rather than just
+       wrapping dash_app.py's two Python-level groups (DCF Assumptions+
+       Model Settings, Market Data+Calculate) side by side: those two
+       groups are uneven height (3 sliders' worth of extra tooltip-bubble
        margin vs. plain number inputs), so Base FCF and Projection Years
        are reassigned to the second column here to balance the two
-       columns out, independent of which Python group they're actually
-       in (kept as-is there for desktop, which never applies this grid).
+       columns out, independent of which Python group they're actually in
+       (kept as-is there for desktop, which never applies any of this).
        [id^=...] throughout catches both the primary and Compare-mode
-       ("-2") copies. align-items:start so the shorter of two items
-       sharing a row (Projection Years, next to the taller Discount
-       Rate/WACC slider) sits at the top of that row instead of being
-       stretched to match it. */
+       ("-2") copies.
+       Left column uses a real grid (row height = tallest occupant,
+       which is fine here -- every row only ever has ONE left-column
+       item in it). Right column is deliberately NOT placed in that same
+       grid, even though it looks like it should be a second column:
+       grid row height is shared across BOTH columns (the tallest item
+       in a row sets that row's height for every column), and the left
+       column's sliders are far taller than the right column's plain
+       inputs -- sharing rows produced visibly uneven gaps on the right
+       (6px/34px/34px/6px, measured) even with identical margins, since
+       rows 2-3 inherited the sliders' extra height. Positioning the
+       right column's fields with position:absolute instead removes
+       them from the grid entirely, so their spacing only ever depends
+       on their own stacked height -- genuinely even, and independent of
+       whatever the left column is doing. */
     [id^="dcf-assumptions-panel"] {
         max-width: 100% !important;
+        position: relative;
         display: grid;
         grid-template-columns: 1fr 1fr;
         column-gap: 20px;
-        align-items: start;
     }
     [id^="dcf-assumptions-main"],
     [id^="dcf-market-data"] {
@@ -325,16 +341,51 @@ a:hover { color: var(--text); }
     [id^="dcf-row-terminal_growth"] { grid-column: 1; grid-row: 3; }
     [id^="dcf-header-model-settings"] { grid-column: 1; grid-row: 4; }
     [id^="dcf-row-discount_rate"] { grid-column: 1; grid-row: 5; }
-    [id^="dcf-row-base_fcf"] { grid-column: 2; grid-row: 1; }
-    [id^="dcf-row-net_debt"] { grid-column: 2; grid-row: 2; }
-    [id^="dcf-row-shares_out"] { grid-column: 2; grid-row: 3; }
-    [id^="dcf-row-current_price"] { grid-column: 2; grid-row: 4; }
-    /* Shares row 5 with the Discount Rate/WACC slider opposite it --
-       margin-top nudges it down closer to that slider's own bottom edge
-       (the slider's tooltip bubble makes it taller than a plain input),
-       so the two columns end at roughly the same height. */
-    [id^="dcf-row-years"] { grid-column: 2; grid-row: 5; margin-top: 24px; }
-    [id^="calculate-dcf-btn"] { grid-column: 2; grid-row: 6; }
+    /* Calculate sits at the bottom of the left column now (grid-row 6,
+       same column as Discount Rate/WACC above it) instead of the right
+       one, so the right column can end right where its own last field
+       does, with nothing hanging below it. */
+    [id^="calculate-dcf-btn"] { grid-column: 1; grid-row: 6; margin-top: 14px; }
+
+    /* Right column: Base FCF, Net Debt, Diluted Shares, Current Price,
+       Projection Years. position:absolute (see above) takes each one out
+       of the grid, positioned instead against the panel's own box
+       (position:relative on it, above) -- right:0/width match where
+       grid-column:2 would otherwise sit, so this still lines up with the
+       column-gap between the two. top is a plain fixed offset per row --
+       see the next rule for why 77px specifically -- giving a uniform
+       25px gap between all five, including Projection Years, which no
+       longer gets a bigger gap than the others (tighter than the
+       original 34px some of them had, even though it's a bit more than
+       the absolute minimum, to hit that same next rule's height-match
+       goal). !important on margin-bottom cancels _dcf_field_wrapper_
+       style's inline 10px (desktop's spacing, untouched) now that
+       spacing is controlled by these top offsets instead. */
+    [id^="dcf-row-base_fcf"],
+    [id^="dcf-row-net_debt"],
+    [id^="dcf-row-shares_out"],
+    [id^="dcf-row-current_price"],
+    [id^="dcf-row-years"] {
+        position: absolute;
+        right: 0;
+        width: calc(50% - 10px);
+        margin-bottom: 0 !important;
+    }
+    /* top:12px, not 0, on the first one -- position:absolute's "top"
+       aligns with the panel's padding-box edge, which (0 border-width)
+       is the same as its outer edge, so it ignores _FILTER_PANEL_STYLE's
+       own 12px padding entirely unless added back by hand here; without
+       it Base FCF sits 12px higher than DCF Assumptions' header instead
+       of level with it. The 77px step (each field is 52px tall, so a
+       25px gap) makes this column's total span match the left column's
+       own height (measured: DCF Assumptions header to Calculate's own
+       top is 359px) -- Projection Years' bottom edge lands right at
+       Calculate's top instead of well above it. */
+    [id^="dcf-row-base_fcf"] { top: 12px; }
+    [id^="dcf-row-net_debt"] { top: 89px; }
+    [id^="dcf-row-shares_out"] { top: 166px; }
+    [id^="dcf-row-current_price"] { top: 243px; }
+    [id^="dcf-row-years"] { top: 320px; }
     [id^="dcf-header-market-data"] {
         display: none;
     }
