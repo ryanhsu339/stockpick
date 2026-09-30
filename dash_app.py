@@ -3591,6 +3591,22 @@ app.clientside_callback(
         if (window.__chartScrubbing) {
             return window.dash_clientside.no_update;
         }
+        // Not scrubbing -- _pulse_dot should always be fully opaque here
+        // (only a scrub gesture ever hides it). Self-heals the rare case
+        // where a server-driven figure refresh (see custom.js's
+        // afterplot hook) landed in the small window between a drag's
+        // release and its own restyle-back-to-1 actually taking effect,
+        // rather than leaving the live dot invisible until the next
+        // scrub. Unlike the halo pulse below, not gated on the
+        // hoverlayer check -- a genuine native hover never touches this
+        // trace's opacity, so there's nothing here for it to clash with.
+        var dotIdx = -1;
+        for (var j = 0; j < gd.data.length; j++) {
+            if (gd.data[j].name === '_pulse_dot') { dotIdx = j; break; }
+        }
+        if (dotIdx !== -1 && gd._fullData[dotIdx].marker.opacity !== 1) {
+            Plotly.restyle(gd, {'marker.opacity': [1]}, [dotIdx]);
+        }
         var hoverLayer = gd.querySelector('.hoverlayer');
         if (hoverLayer && hoverLayer.childNodes.length > 0) {
             return window.dash_clientside.no_update;

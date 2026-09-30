@@ -194,6 +194,40 @@ document.addEventListener("focusin", function (e) {
         Plotly.restyle(gd, {x: indices.map(() => [x]), y: indices.map(() => [y])}, indices);
     }
 
+    // A server-driven figure refresh (the 15s price-chart-refresh
+    // interval, a theme switch, a range/ticker change, ...) replaces the
+    // whole figure via Plotly.react -- which resets marker.opacity back
+    // to its server-side default (visible) on the fresh trace instances,
+    // undoing the opacity:0 that start() applied to the traces it
+    // replaced. Nothing else re-hides it for the rest of the gesture (a
+    // plain finger-move only repositions the overlay dot, see scrubTo),
+    // so the native latest-price dot would sit visible at the right edge
+    // -- a second dot -- for however much of the drag is left. Hooking
+    // Plotly's own "afterplot" event, which fires after every such
+    // redraw, closes that gap immediately rather than waiting on the
+    // next price-pulse-interval tick (which skips entirely while
+    // __chartScrubbing, see dash_app.py, instead of re-asserting hidden).
+    function ensureAfterplotHook(gd) {
+        if (gd.__scrubAfterplotHooked) return;
+        gd.__scrubAfterplotHooked = true;
+        // Plotly.restyle() -- the very call this handler makes -- itself
+        // fires "afterplot" synchronously, so without a hard reentrancy
+        // lock this recurses into itself indefinitely (confirmed: an
+        // opacity-state check alone wasn't enough to break the loop,
+        // hit "Maximum call stack size exceeded" in testing). A plain
+        // boolean, true only for the duration of our own restyle call,
+        // makes the nested re-entry a same-tick no-op instead.
+        let restyling = false;
+        gd.on("plotly_afterplot", function () {
+            if (restyling || !window.__chartScrubbing) return;
+            const indices = pulseTraceIndices(gd);
+            if (!indices.length) return;
+            restyling = true;
+            setPulseOpacity(gd, indices, 0);
+            restyling = false;
+        });
+    }
+
     function plotDivFor(target) {
         const container = target && target.closest && target.closest("#price-chart");
         return container ? container.querySelector(".js-plotly-plot") : null;
@@ -306,6 +340,7 @@ document.addEventListener("focusin", function (e) {
     function start(e, clientX) {
         const gd = plotDivFor(e.target);
         if (!isScrubbable(gd)) return;
+        ensureAfterplotHook(gd);
         const priceEl = document.getElementById("stock-header-price");
         const changeEl = document.getElementById("stock-header-change");
         const pulseIndices = pulseTraceIndices(gd);
