@@ -293,20 +293,50 @@ a:hover { color: var(--text); }
        the Politician Tracker filter panel via _FILTER_PANEL_STYLE, so
        that width itself isn't touched here) left most of a phone's width
        sitting empty next to it. max-width needs !important to beat that
-       inline 180px cap; display:flex turns its two sub-groups (DCF
-       Assumptions+Model Settings, Market Data+Calculate -- see
-       dash_app.py) into side-by-side columns instead of one on top of
-       the other, using that space instead of wasting it. [id^=...]
-       catches both the primary and Compare-mode ("-2") copies. */
+       inline 180px cap. A real 2-column grid (not flex-wrap, which fills
+       row by row -- no way to keep two independently-ordered groups of
+       content each reading top-to-bottom in their own column) with every
+       field/header explicitly placed by id, rather than just wrapping
+       dash_app.py's two Python-level groups (DCF Assumptions+Model
+       Settings, Market Data+Calculate) side by side: those two groups
+       are uneven height (3 sliders' worth of extra tooltip-bubble
+       margin vs. plain number inputs), so Base FCF and Projection Years
+       are reassigned to the second column here to balance the two
+       columns out, independent of which Python group they're actually
+       in (kept as-is there for desktop, which never applies this grid).
+       [id^=...] throughout catches both the primary and Compare-mode
+       ("-2") copies. align-items:start so the shorter of two items
+       sharing a row (Projection Years, next to the taller Discount
+       Rate/WACC slider) sits at the top of that row instead of being
+       stretched to match it. */
     [id^="dcf-assumptions-panel"] {
         max-width: 100% !important;
-        display: flex;
-        flex-wrap: wrap;
-        gap: 16px;
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        column-gap: 20px;
+        align-items: start;
     }
-    [id^="dcf-assumptions-panel"] > div {
-        flex: 1 1 160px;
-        min-width: 160px;
+    [id^="dcf-assumptions-main"],
+    [id^="dcf-market-data"] {
+        display: contents;
+    }
+    [id^="dcf-header-assumptions"] { grid-column: 1; grid-row: 1; }
+    [id^="dcf-row-growth_rate"] { grid-column: 1; grid-row: 2; }
+    [id^="dcf-row-terminal_growth"] { grid-column: 1; grid-row: 3; }
+    [id^="dcf-header-model-settings"] { grid-column: 1; grid-row: 4; }
+    [id^="dcf-row-discount_rate"] { grid-column: 1; grid-row: 5; }
+    [id^="dcf-row-base_fcf"] { grid-column: 2; grid-row: 1; }
+    [id^="dcf-row-net_debt"] { grid-column: 2; grid-row: 2; }
+    [id^="dcf-row-shares_out"] { grid-column: 2; grid-row: 3; }
+    [id^="dcf-row-current_price"] { grid-column: 2; grid-row: 4; }
+    /* Shares row 5 with the Discount Rate/WACC slider opposite it --
+       margin-top nudges it down closer to that slider's own bottom edge
+       (the slider's tooltip bubble makes it taller than a plain input),
+       so the two columns end at roughly the same height. */
+    [id^="dcf-row-years"] { grid-column: 2; grid-row: 5; margin-top: 24px; }
+    [id^="calculate-dcf-btn"] { grid-column: 2; grid-row: 6; }
+    [id^="dcf-header-market-data"] {
+        display: none;
     }
 
     /* iOS Safari (and some Android browsers) auto-zoom the whole page on
