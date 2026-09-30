@@ -2278,6 +2278,46 @@ def _politician_tracker_children():
 # for now, per the user's request.
 app = Dash(__name__, update_title=None)
 app.title = "Stockpick"
+# Plain HTML/CSS overlay, outside Dash's own React tree entirely -- it
+# paints as soon as the browser has parsed this far into the page, not
+# waiting on the ~3-4s it otherwise takes for the JS bundle to download,
+# hydrate, and build all three trackers' worth of layout (during which
+# the page LOOKS loaded but doesn't respond to clicks yet). A plain
+# inline <script>, not a Dash callback, hides it again after a fixed
+# 3s -- if hydration is still running past that on a slow connection,
+# the per-panel spinner (search "panel-switch-spinner" below) still
+# covers the remainder on whichever tab gets clicked first.
+app.index_string = """<!DOCTYPE html>
+<html>
+    <head>
+        {%metas%}
+        <title>{%title%}</title>
+        {%favicon%}
+        {%css%}
+    </head>
+    <body>
+        <div id="initial-load-overlay" style="position:fixed;inset:0;z-index:9999;
+             background-color:var(--bg,#0f0f0e);display:flex;align-items:center;
+             justify-content:center;">
+            <div class="spinner"></div>
+        </div>
+        <script>
+            setTimeout(function () {
+                var el = document.getElementById("initial-load-overlay");
+                if (!el) return;
+                el.style.transition = "opacity 0.3s ease";
+                el.style.opacity = "0";
+                setTimeout(function () { el.remove(); }, 300);
+            }, 3000);
+        </script>
+        {%app_entry%}
+        <footer>
+            {%config%}
+            {%scripts%}
+            {%renderer%}
+        </footer>
+    </body>
+</html>"""
 # gunicorn's entry point in production is "dash_app:server" -- it imports
 # this module and serves this Flask app directly, never calling app.run()
 # below, so debug mode (and the dev-tools UI it enables) only ever exist
