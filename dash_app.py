@@ -943,49 +943,64 @@ def _financials_valuation_block(suffix, mirror=False):
     of before it, so the two side-by-side panels mirror each other
     (assumptions hug the middle seam on both sides) rather than both
     having assumptions on the left."""
+    # Two sub-groups (not one flat list of children) so mobile can lay
+    # them out side by side instead of one narrow column with the rest of
+    # the card's width sitting empty -- see [id^="dcf-assumptions-panel"]
+    # in custom.css. On desktop these two divs carry no layout style of
+    # their own, so they just stack in normal block flow exactly as the
+    # flat list used to, pixel-identical to before.
     dcf_assumptions_panel = html.Div(
+        id=f"dcf-assumptions-panel{suffix}",
         style=_FILTER_PANEL_STYLE,
         children=[
-            html.Div("DCF Assumptions", style={"color": _HEADER_TEXT_COLOR, "fontWeight": "700",
-                                                 "marginBottom": "10px"}),
-            *[
-                html.Div(
-                    style=_dcf_field_wrapper_style(field),
-                    children=[
-                        html.Label(label, style=_DCF_FIELD_LABEL_STYLE),
-                        _dcf_field_component(field, suffix),
+            html.Div(
+                children=[
+                    html.Div("DCF Assumptions", style={"color": _HEADER_TEXT_COLOR, "fontWeight": "700",
+                                                         "marginBottom": "10px"}),
+                    *[
+                        html.Div(
+                            style=_dcf_field_wrapper_style(field),
+                            children=[
+                                html.Label(label, style=_DCF_FIELD_LABEL_STYLE),
+                                _dcf_field_component(field, suffix),
+                            ],
+                        )
+                        for field, label in _DCF_INPUT_FIELDS[:3]
                     ],
-                )
-                for field, label in _DCF_INPUT_FIELDS[:3]
-            ],
-            html.Div("Model Settings", style={"color": _HEADER_TEXT_COLOR, "fontWeight": "700",
-                                                "marginTop": "14px", "marginBottom": "10px",
-                                                "borderTop": "1px solid var(--border)", "paddingTop": "12px"}),
-            *[
-                html.Div(
-                    style=_dcf_field_wrapper_style(field),
-                    children=[
-                        html.Label(label, style=_DCF_FIELD_LABEL_STYLE),
-                        _dcf_field_component(field, suffix),
+                    html.Div("Model Settings", style={"color": _HEADER_TEXT_COLOR, "fontWeight": "700",
+                                                        "marginTop": "14px", "marginBottom": "10px",
+                                                        "borderTop": "1px solid var(--border)", "paddingTop": "12px"}),
+                    *[
+                        html.Div(
+                            style=_dcf_field_wrapper_style(field),
+                            children=[
+                                html.Label(label, style=_DCF_FIELD_LABEL_STYLE),
+                                _dcf_field_component(field, suffix),
+                            ],
+                        )
+                        for field, label in _DCF_INPUT_FIELDS[3:5]
                     ],
-                )
-                for field, label in _DCF_INPUT_FIELDS[3:5]
-            ],
-            html.Div("Market Data", style={"color": _HEADER_TEXT_COLOR, "fontWeight": "700",
-                                             "marginTop": "14px", "marginBottom": "10px",
-                                             "borderTop": "1px solid var(--border)", "paddingTop": "12px"}),
-            *[
-                html.Div(
-                    style=_dcf_field_wrapper_style(field),
-                    children=[
-                        html.Label(label, style=_DCF_FIELD_LABEL_STYLE),
-                        _dcf_field_component(field, suffix),
+                ],
+            ),
+            html.Div(
+                children=[
+                    html.Div("Market Data", style={"color": _HEADER_TEXT_COLOR, "fontWeight": "700",
+                                                     "marginTop": "14px", "marginBottom": "10px",
+                                                     "borderTop": "1px solid var(--border)", "paddingTop": "12px"}),
+                    *[
+                        html.Div(
+                            style=_dcf_field_wrapper_style(field),
+                            children=[
+                                html.Label(label, style=_DCF_FIELD_LABEL_STYLE),
+                                _dcf_field_component(field, suffix),
+                            ],
+                        )
+                        for field, label in _DCF_INPUT_FIELDS[5:]
                     ],
-                )
-                for field, label in _DCF_INPUT_FIELDS[5:]
-            ],
-            html.Button("Calculate", id=f"calculate-dcf-btn{suffix}", n_clicks=0,
-                        style={"width": "100%", "fontSize": "12px"}),
+                    html.Button("Calculate", id=f"calculate-dcf-btn{suffix}", n_clicks=0,
+                                style={"width": "100%", "fontSize": "12px"}),
+                ],
+            ),
         ],
     )
     dcf_chart_column = html.Div(

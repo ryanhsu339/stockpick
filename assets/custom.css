@@ -260,6 +260,26 @@ a:hover { color: var(--text); }
     #company-tagline {
         display: none;
     }
+
+    /* DCF assumptions panel: fixed at 180px wide on desktop (shared with
+       the Politician Tracker filter panel via _FILTER_PANEL_STYLE, so
+       that width itself isn't touched here) left most of a phone's width
+       sitting empty next to it. max-width needs !important to beat that
+       inline 180px cap; display:flex turns its two sub-groups (DCF
+       Assumptions+Model Settings, Market Data+Calculate -- see
+       dash_app.py) into side-by-side columns instead of one on top of
+       the other, using that space instead of wasting it. [id^=...]
+       catches both the primary and Compare-mode ("-2") copies. */
+    [id^="dcf-assumptions-panel"] {
+        max-width: 100% !important;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 16px;
+    }
+    [id^="dcf-assumptions-panel"] > div {
+        flex: 1 1 160px;
+        min-width: 160px;
+    }
 }
 
 h2 { font-size: 28px; font-weight: 600; letter-spacing: -0.02em; margin: 8px 0 4px; }
