@@ -94,6 +94,24 @@ try:
 except Exception:
     pass
 
+# Same reasoning, for the sidebar search box's "Members of Congress"
+# results: list_all_house_members/list_all_senators each cache their
+# roster in memory on first call, but building it means live requests
+# against the House/Senate disclosure sites (House: one ZIP per recent
+# year; Senate: a CSRF handshake plus paginated search results) --
+# several seconds of network round-trips that otherwise landed on
+# whichever visitor's search happened to trigger it first. Two separate
+# try/excepts, not one -- House and Senate are unrelated sites, and
+# either one being briefly down shouldn't skip warming the other.
+try:
+    list_all_house_members(session=_session)
+except Exception:
+    pass
+try:
+    list_all_senators(session=_session)
+except Exception:
+    pass
+
 # Fixed number of fiscal years the Financials tables (Growth Rates, Income
 # Statement, Balance Sheet, Cash Flow Statement) pull — previously a user-set
 # "Years" input, now fixed since 5 years covers the trend view these tables
