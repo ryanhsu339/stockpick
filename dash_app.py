@@ -112,6 +112,15 @@ try:
 except Exception:
     pass
 
+# The Politicians tab's Recent Trades/Leaderboard tables read this same
+# repo-committed snapshot (~800KB) on every visit -- see
+# load_activity_summary_snapshot's own cache (congress_trades.py) for
+# why this needed warming the same as everything else above.
+try:
+    load_activity_summary_snapshot()
+except Exception:
+    pass
+
 # Fixed number of fiscal years the Financials tables (Growth Rates, Income
 # Statement, Balance Sheet, Cash Flow Statement) pull — previously a user-set
 # "Years" input, now fixed since 5 years covers the trend view these tables
@@ -1564,6 +1573,14 @@ EMPTY_COLS = [{"name": "Breakdown", "id": "line"}]
 # table at once, since some managers file thousands of positions.
 _POSITIONS_PAGE_SIZE = 100
 
+# Same reasoning, for the Politicians tab's Recent Trades/Leaderboard
+# cards (see recent-trades-scroll-poll/congress-leaderboard-scroll-poll
+# below) -- each row is a richer hand-built card (member/chamber block,
+# ticker, a colored BUY/SELL pill, a log-scale range bar) than a plain
+# DataTable row, so a smaller page than _POSITIONS_PAGE_SIZE keeps the
+# first render snappy.
+_ACTIVITY_PAGE_SIZE = 30
+
 _FILTER_PANEL_STYLE = {
     "minWidth": "180px", "maxWidth": "180px",
     "backgroundColor": "var(--card-bg)", "borderRadius": "8px",
@@ -2159,7 +2176,19 @@ def _politician_tracker_children():
                 ],
             ),
         ),
-        dcc.Interval(id="activity-summary-trigger", interval=800, n_intervals=0, max_intervals=1),
+        # Recent Trades/Leaderboard load incrementally, same reasoning and
+        # mechanism as All Equity Positions' scroll-poll-interval
+        # (dash_app.py, _manager_tracker_children) -- see
+        # load_activity_summary/render_trade_rows/render_leaderboard_rows
+        # and the two scroll-poll clientside callbacks below. The *-records
+        # stores hold the full, already-sorted dataset; only a growing
+        # prefix of each ever gets built into actual row components.
+        dcc.Store(id="recent-trades-records", data=[]),
+        dcc.Store(id="recent-trades-visible-count", data=_ACTIVITY_PAGE_SIZE),
+        dcc.Interval(id="recent-trades-scroll-poll", interval=1200, n_intervals=0),
+        dcc.Store(id="congress-leaderboard-records", data=[]),
+        dcc.Store(id="congress-leaderboard-visible-count", data=_ACTIVITY_PAGE_SIZE),
+        dcc.Interval(id="congress-leaderboard-scroll-poll", interval=1200, n_intervals=0),
         # Set by select_member_from_summary when a row click needs to
         # switch chambers first; update_politician_roster (triggered by
         # that chamber switch) consumes it instead of falling back to that
@@ -4611,25 +4640,111 @@ def _build_leaderboard_row(r, rank):
 
 
 @app.callback(
-    Output("recent-trades-container", "children"),
-    Output("congress-leaderboard-container", "children"),
-    Input("activity-summary-trigger", "n_intervals"),
+    Output("recent-trades-records", "data"),
+    Output("congress-leaderboard-records", "data"),
+    Output("recent-trades-visible-count", "data"),
+    Output("congress-leaderboard-visible-count", "data"),
+    Input("politician-panel", "children"),
     prevent_initial_call=True,
 )
-def load_activity_summary(_n_intervals):
-    # Reads the repo-committed snapshot rather than scraping/parsing PTR
-    # filings live -- that live build was OOM-killing the production
-    # instance even serialized to one at a time. See
+def load_activity_summary(_panel_children):
+    # Fires as soon as the Politicians panel itself exists (build_politician_panel
+    # above) rather than on a fixed delay -- there used to be an 800ms
+    # dcc.Interval here, there to let the page settle before this kicked
+    # off its own fetch during the old eager page-load. That rationale's
+    # gone now that this panel only gets built on first visit in the
+    # first place; a fixed delay on top of that would just be pure added
+    # latency. Reads the repo-committed snapshot rather than scraping/
+    # parsing PTR filings live -- that live build was OOM-killing the
+    # production instance even serialized to one at a time. See
     # congress_trades.load_activity_summary_snapshot and
     # build_congress_snapshot.py for how the snapshot gets refreshed.
+    #
+    # Only stores the raw record lists here -- building all ~230 of them
+    # into actual row components (render_trade_rows/render_leaderboard_rows
+    # below) in one shot was itself the real cost (~20s of Dash-renderer
+    # work confirmed via CPU profiling, not the data load), so that's
+    # deferred to a growing prefix instead. See the scroll-poll clientside
+    # callbacks below for how that prefix grows.
     try:
         summary = load_activity_summary_snapshot()
     except (OSError, json.JSONDecodeError):
-        return [], []
+        return [], [], _ACTIVITY_PAGE_SIZE, _ACTIVITY_PAGE_SIZE
     recent = [_recent_trade_row_to_record(t) for t in summary["recent_trades"][:150]]
     leaderboard = [_leaderboard_row_to_record(e) for e in summary["leaderboard"][:100]]
-    return ([_build_trade_row(r) for r in recent],
-             [_build_leaderboard_row(r, i + 1) for i, r in enumerate(leaderboard)])
+    return recent, leaderboard, _ACTIVITY_PAGE_SIZE, _ACTIVITY_PAGE_SIZE
+
+
+@app.callback(
+    Output("recent-trades-container", "children"),
+    Input("recent-trades-visible-count", "data"),
+    State("recent-trades-records", "data"),
+    prevent_initial_call=True,
+)
+def render_trade_rows(visible_count, records):
+    return [_build_trade_row(r) for r in (records or [])[:visible_count]]
+
+
+@app.callback(
+    Output("congress-leaderboard-container", "children"),
+    Input("congress-leaderboard-visible-count", "data"),
+    State("congress-leaderboard-records", "data"),
+    prevent_initial_call=True,
+)
+def render_leaderboard_rows(visible_count, records):
+    # Rank stays correct as visible_count grows since the slice always
+    # starts at 0 -- enumerate's index is always the true rank.
+    return [_build_leaderboard_row(r, i + 1) for i, r in enumerate((records or [])[:visible_count])]
+
+
+# Infinite scroll for Recent Trades/Leaderboard -- same poll-not-listener
+# reasoning as the All Equity Positions table's scroll-poll-interval
+# (search that id above): a listener attached directly to these cards'
+# contents would go stale once render_trade_rows/render_leaderboard_rows
+# replace them. Simpler selector than that table's version needs, though
+# -- the scrollable element here is just this card's own plain
+# overflowY:auto div (_politician_tracker_children above), not a
+# DataTable's internal, unpredictably-classed wrapper.
+app.clientside_callback(
+    """
+    function(_n_intervals, visibleCount, records) {
+        if (!records || !records.length || visibleCount >= records.length) {
+            return window.dash_clientside.no_update;
+        }
+        var container = document.getElementById("recent-trades-container");
+        if (!container) return window.dash_clientside.no_update;
+        var scroller = container.parentElement;
+        var nearBottom = (scroller.scrollTop + scroller.clientHeight) >= (scroller.scrollHeight - 80);
+        if (nearBottom) return Math.min(visibleCount + %(page_size)d, records.length);
+        return window.dash_clientside.no_update;
+    }
+    """ % {"page_size": _ACTIVITY_PAGE_SIZE},
+    Output("recent-trades-visible-count", "data", allow_duplicate=True),
+    Input("recent-trades-scroll-poll", "n_intervals"),
+    State("recent-trades-visible-count", "data"),
+    State("recent-trades-records", "data"),
+    prevent_initial_call=True,
+)
+app.clientside_callback(
+    """
+    function(_n_intervals, visibleCount, records) {
+        if (!records || !records.length || visibleCount >= records.length) {
+            return window.dash_clientside.no_update;
+        }
+        var container = document.getElementById("congress-leaderboard-container");
+        if (!container) return window.dash_clientside.no_update;
+        var scroller = container.parentElement;
+        var nearBottom = (scroller.scrollTop + scroller.clientHeight) >= (scroller.scrollHeight - 80);
+        if (nearBottom) return Math.min(visibleCount + %(page_size)d, records.length);
+        return window.dash_clientside.no_update;
+    }
+    """ % {"page_size": _ACTIVITY_PAGE_SIZE},
+    Output("congress-leaderboard-visible-count", "data", allow_duplicate=True),
+    Input("congress-leaderboard-scroll-poll", "n_intervals"),
+    State("congress-leaderboard-visible-count", "data"),
+    State("congress-leaderboard-records", "data"),
+    prevent_initial_call=True,
+)
 
 
 @app.callback(

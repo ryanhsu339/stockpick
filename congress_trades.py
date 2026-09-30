@@ -747,13 +747,24 @@ ACTIVITY_CACHE_TTL_HOURS = 24
 _SNAPSHOT_PATH = Path(__file__).parent / "data" / "congress_activity_summary.json"
 
 
+_activity_summary_snapshot_cache = None
+
+
 def load_activity_summary_snapshot():
     """Load the precomputed cross-chamber activity summary (see module
     notes above). Raises OSError/json.JSONDecodeError if the snapshot is
     missing or unreadable -- callers should treat that as "no data yet"
-    rather than falling back to a live rebuild."""
+    rather than falling back to a live rebuild. Cached in-process after
+    the first successful read (same pattern as _roster_cache/
+    _senate_index_cache above) -- this file is ~800KB, re-parsed on
+    every single Politicians-tab visit otherwise, unlike every other
+    snapshot this app loads."""
+    global _activity_summary_snapshot_cache
+    if _activity_summary_snapshot_cache is not None:
+        return _activity_summary_snapshot_cache
     with open(_SNAPSHOT_PATH, encoding="utf-8") as f:
-        return json.load(f)
+        _activity_summary_snapshot_cache = json.load(f)
+    return _activity_summary_snapshot_cache
 
 
 def _cache_db():
