@@ -581,3 +581,20 @@ details summary { cursor: pointer; color: var(--body-text); font-size: 13px; }
 .pol-row:hover {
     background-color: var(--card-bg-2);
 }
+
+/* #panel-switch-spinner's own child (see dash_app.py, the sidebar nav
+   clientside callback) -- a plain rotating-ring loader, CSS animation
+   only (no JS driving the motion), so it stays smooth regardless of
+   whatever else the browser's main thread is busy with right after page
+   load, which is exactly when this shows. */
+.spinner {
+    width: 32px;
+    height: 32px;
+    border: 3px solid var(--border);
+    border-top-color: var(--accent);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+}
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}

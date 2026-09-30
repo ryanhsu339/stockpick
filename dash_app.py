@@ -2465,6 +2465,10 @@ app.layout = html.Div(
         _build_sidebar(),
         html.Div(
             id="main-content",
+            # position:relative anchors #panel-switch-spinner below (no
+            # top/left offset of its own, so this doesn't otherwise change
+            # main-content's own layout).
+            style={"position": "relative"},
             children=[
                 html.Div(id="company-panel", style=_tracker_panel_style("company"),
                           children=html.Div(id="company-content", style=_APP_CONTENT_STYLE,
@@ -2473,6 +2477,40 @@ app.layout = html.Div(
                           children=html.Div(style=_APP_CONTENT_STYLE, children=_manager_tracker_children())),
                 html.Div(id="politician-panel", style=_tracker_panel_style("politician"),
                           children=html.Div(style=_APP_CONTENT_STYLE, children=_politician_tracker_children())),
+                # Hidden by default; shown briefly by the sidebar nav
+                # clientside callback below the first time you switch to
+                # Companies or Politicians in a session -- the very first
+                # navigation there can be genuinely slow-to-respond (the
+                # whole page's initial layout, all three trackers' worth,
+                # is still being constructed in the background right
+                # after page load), so this gives visible "something's
+                # happening" feedback instead of the click just seeming to
+                # do nothing for a moment. Every navigation after the
+                # first is instant, same as Managers always is.
+                html.Div(
+                    id="panel-switch-spinner",
+                    style={"display": "none", "position": "absolute", "inset": "0",
+                           "backgroundColor": "var(--bg)", "zIndex": "50"},
+                    children=html.Div(
+                        # inset:0 alone centers within this box's OWN
+                        # height, which (it covers the full scrollable
+                        # panel, not just one viewport) can be several
+                        # times taller than the screen -- landing the
+                        # spinner itself well below the fold instead of
+                        # visibly on screen. position:fixed centers this
+                        # inner wrapper on the actual browser viewport
+                        # instead, regardless of scroll position or how
+                        # far down the page main-content starts (on
+                        # mobile, below the sidebar's nav/search row).
+                        # inset (not width:100vw/height:100vh) -- vw units
+                        # include the scrollbar's width, which on a page
+                        # without one yet can itself trigger a horizontal
+                        # scrollbar and overflow.
+                        style={"position": "fixed", "inset": "0",
+                               "display": "flex", "alignItems": "center", "justifyContent": "center"},
+                        children=html.Div(className="spinner"),
+                    ),
+                ),
             ],
         ),
     ],
@@ -2492,6 +2530,29 @@ app.clientside_callback(
         }
         const trig = window.dash_clientside.callback_context.triggered_id;
         const view = trig === "nav-managers" ? "manager" : trig === "nav-congress" ? "politician" : "company";
+
+        // Manager starts pre-visited (it's the default view, already
+        // rendered on page load) -- Companies/Politicians only show this
+        // once, the first time you actually switch to each, covering
+        // the panel swap below rather than gating it: the swap itself
+        // still happens immediately, on the same click, same as always;
+        // this is a purely visual overlay for the moment right after
+        // that, while the browser's still finishing the initial page's
+        // background work and the switch can be slow to actually paint.
+        window.__visitedViews = window.__visitedViews || new Set(["manager"]);
+        const spinner = document.getElementById("panel-switch-spinner");
+        if (spinner && !window.__visitedViews.has(view)) {
+            // "block", not "flex" -- the centering flex properties live
+            // on the inner fixed-position wrapper (see dash_app.py
+            // layout), not this outer div; making this one a flex
+            // container too would turn that wrapper into a shrink-to-fit
+            // flex item instead of the full-width block it needs to be
+            // to center correctly.
+            spinner.style.display = "block";
+            setTimeout(function () { spinner.style.display = "none"; }, 400);
+        }
+        window.__visitedViews.add(view);
+
         const rowStyle = (active) => ({
             display: "flex", alignItems: "center", gap: "10px", padding: "9px 10px",
             borderRadius: "7px", cursor: "pointer", fontSize: "14px", fontWeight: "500",
