@@ -280,6 +280,22 @@ a:hover { color: var(--text); }
         flex: 1 1 160px;
         min-width: 160px;
     }
+
+    /* iOS Safari (and some Android browsers) auto-zoom the whole page on
+       focusing any text input rendered below 16px -- every text/number
+       input and dropdown search box here is sized for a mouse-driven
+       desktop context (12-13px), well under that. 16px is the documented
+       threshold that avoids the zoom, so every one of them gets bumped
+       up to it at this breakpoint; desktop's own (unconditional, so it'd
+       otherwise win the cascade regardless of media query) font-size
+       rules are declared later in this file, hence !important here
+       rather than relying on source order. Purely a mobile focus-time
+       fix -- doesn't change how any of these look for a mouse. */
+    input[type="text"],
+    input[type="number"],
+    .dash-dropdown-search {
+        font-size: 16px !important;
+    }
 }
 
 h2 { font-size: 28px; font-weight: 600; letter-spacing: -0.02em; margin: 8px 0 4px; }
