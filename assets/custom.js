@@ -317,18 +317,32 @@ document.addEventListener("focusin", function (e) {
                 ? {x: gd._fullData[pulseIndices[0]].x[0], y: gd._fullData[pulseIndices[0]].y[0]}
                 : null,
         };
+        // Read by the price-pulse-interval clientside callback (see
+        // dash_app.py) so its every-900ms restyle skips this gesture
+        // entirely, rather than relying on "is the hoverlayer non-empty
+        // right now" as a proxy for "mid-scrub" -- Plotly briefly empties
+        // the hoverlayer between successive Fx.hover() calls, and that
+        // gap landing on the same tick as the interval let the pulse
+        // restyle sneak through and flash the latest-price dot back to
+        // visible mid-drag, alongside the scrub-following overlay dot
+        // elsewhere on the chart -- reading as two dots at once.
+        window.__chartScrubbing = true;
         // Hidden for the whole gesture (not re-toggled on every move) so
         // there's only ever one visible dot -- the overlay, drawn in
         // scrubTo below, painting in front of the spike line these
         // native markers would otherwise be stuck behind.
         setPulseOpacity(gd, pulseIndices, 0);
-        if (!scrubTo(gd, clientX)) return;
+        if (!scrubTo(gd, clientX)) {
+            window.__chartScrubbing = false;
+            return;
+        }
         activeGd = gd;
     }
     function move(clientX) {
         if (activeGd) scrubTo(activeGd, clientX);
     }
     function end() {
+        window.__chartScrubbing = false;
         if (activeGd) {
             if (window.Plotly) Plotly.Fx.unhover(activeGd);
             if (restore && restore.pulse) movePulseDot(activeGd, restore.pulse.x, restore.pulse.y);

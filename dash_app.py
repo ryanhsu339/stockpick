@@ -3441,10 +3441,21 @@ app.clientside_callback(
         if (!gd || !gd.data) {
             return window.dash_clientside.no_update;
         }
-        // Skip this tick while a hover/drag-scrub is actively showing --
-        // restyling mid-gesture on mobile visibly interrupted the spike
-        // line/hover label for a frame every ~900ms, reading as the chart
-        // stuttering or the crosshair flickering out while dragging.
+        // Skip this tick during an active mobile scrub (see custom.js,
+        // which sets this flag for the gesture's whole duration and also
+        // hides both pulse traces itself) -- restyling mid-gesture would
+        // undo that hide, flashing the latest-price dot/halo back to
+        // visible for a frame at the far right of the chart while a
+        // second, scrub-following dot is showing elsewhere, reading as
+        // two dots at once. window.__chartScrubbing is the authoritative
+        // signal; the hoverlayer check below is kept as a fallback for
+        // desktop's native hover (no flag involved there) but is too
+        // easily satisfied to rely on alone during a scrub -- Plotly
+        // briefly empties the hoverlayer between successive Fx.hover()
+        // calls, and that gap can land on the same tick as this interval.
+        if (window.__chartScrubbing) {
+            return window.dash_clientside.no_update;
+        }
         var hoverLayer = gd.querySelector('.hoverlayer');
         if (hoverLayer && hoverLayer.childNodes.length > 0) {
             return window.dash_clientside.no_update;
