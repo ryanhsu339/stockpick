@@ -37,6 +37,22 @@ document.addEventListener("mousedown", function (e) {
     }
 });
 
+// The mousedown fix above deliberately keeps the search input focused
+// through a suggestion tap (that's what makes the tap register at all --
+// see above), but that means the input is still focused once the pick is
+// made, so on mobile the on-screen keyboard just sits there over half
+// the page instead of dismissing like it would after a normal selection.
+// Blurring on the following click (selection is already committed to
+// Dash by then) closes it; harmless on desktop, which has no on-screen
+// keyboard to dismiss in the first place.
+document.addEventListener("click", function (e) {
+    if (e.target.closest("#company-suggestions, #company-suggestions-2, #manager-suggestions, #global-search-suggestions")) {
+        if (document.activeElement && document.activeElement.blur) {
+            document.activeElement.blur();
+        }
+    }
+});
+
 // Price chart scrub (mobile only, see fixedrange in dash_app.py's
 // build_price_figure/build_compare_price_figure): a touch-drag across the
 // chart is meant to slide the hover crosshair along and update the big

@@ -356,7 +356,12 @@ def build_price_figure(df, ticker, range_key, theme="dark", mobile=False):
             marker=dict(color=_VOLUME_COLOR),
             yaxis="y2",
             legendrank=2,
-            hovertemplate="Vol %{y:,.0f}<extra></extra>",
+            # Date as its own line above the volume figure -- "x unified"
+            # mode doesn't reliably show its shared-x header when hover is
+            # triggered programmatically (see the scrub listeners in
+            # custom.js), so this bakes the date into the row itself
+            # rather than depending on that.
+            hovertemplate="%{x|%b %d, %Y}<br>Vol %{y:,.0f}<extra></extra>",
         ))
 
     fig.add_trace(go.Scatter(
@@ -1310,8 +1315,11 @@ def _company_tracker_children():
             ],
         ),
         dcc.Store(id="compare-mode", data=False),
+        # id'd (not just styled) so the mobile media query can hide it --
+        # phone-width real estate is tight enough that this descriptive
+        # line isn't worth the vertical space there; desktop keeps it.
         html.P("Sales, earnings, equity, cash, and ROIC growth from SEC 10-K XBRL data.",
-               style={**_PARA_STYLE, "marginTop": "10px"}),
+               id="company-tagline", style={**_PARA_STYLE, "marginTop": "10px"}),
         html.Div(
             id="ticker-search-row",
             style={"display": "flex", "gap": "12px", "alignItems": "flex-end",

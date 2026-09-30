@@ -98,10 +98,31 @@ a:hover { color: var(--text); }
         grid-template-columns: minmax(0, 1fr);
     }
     #app-sidebar {
-        position: static;
+        /* relative, not static: anchors #theme-toggle-btn below, which
+           is absolutely positioned into this row on mobile -- relative
+           with no top/left offset of its own behaves exactly like static
+           for #app-sidebar's own layout, so this doesn't otherwise
+           change anything about how it stacks in the page. */
+        position: relative;
         height: auto;
         border-right: none;
         border-bottom: 1px solid var(--border);
+    }
+
+    /* Dark-mode toggle: sits in its own full-width row (under the
+       sidebar's Trackers list) on desktop, which on a phone screen is a
+       whole row spent on one small button -- moved up into the logo
+       row's top-right corner instead, and shrunk down to match. Several
+       properties need !important since the button's own Python style
+       sets them inline (width/padding/font-size) for its desktop,
+       full-width appearance. */
+    #theme-toggle-btn {
+        position: absolute;
+        top: 16px;
+        right: 14px;
+        width: auto !important;
+        padding: 4px 10px !important;
+        font-size: 11px !important;
     }
 
     /* Sidebar TRACKERS nav: one horizontal row of 3 tabs instead of 3
@@ -231,6 +252,13 @@ a:hover { color: var(--text); }
     }
     #stock-header-name-block {
         order: 0;
+        margin-top: 16px;
+    }
+
+    /* Descriptive tagline under the ticker search -- not worth the
+       vertical space it costs on a phone-width screen. */
+    #company-tagline {
+        display: none;
     }
 }
 
