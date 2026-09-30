@@ -2294,7 +2294,13 @@ def _politician_tracker_children():
 # often as they do here (15s price refresh, scroll-driven pagination,
 # ...) that made the tab flicker between two titles constantly. Static
 # for now, per the user's request.
-app = Dash(__name__, update_title=None)
+# suppress_callback_exceptions=True: the Companies/Politicians panels
+# are built lazily (see build_company_panel/build_politician_panel
+# below) -- their ~80 combined component IDs don't exist in the layout
+# Dash validates at startup, only appearing once each panel is first
+# visited. Without this, Dash refuses to register any callback that
+# references one of those IDs.
+app = Dash(__name__, update_title=None, suppress_callback_exceptions=True)
 app.title = "Stockpick"
 # Plain HTML/CSS overlay, outside Dash's own React tree entirely -- it
 # paints as soon as the browser has parsed this far into the page, not
@@ -2533,13 +2539,17 @@ app.layout = html.Div(
             # main-content's own layout).
             style={"position": "relative"},
             children=[
-                html.Div(id="company-panel", style=_tracker_panel_style("company"),
-                          children=html.Div(id="company-content", style=_APP_CONTENT_STYLE,
-                                             children=_company_tracker_children())),
+                # Company/Politician panels start empty -- see
+                # build_company_panel/build_politician_panel below, which
+                # fill them in the first time each is actually visited,
+                # instead of Dash having to mount and diff their entire
+                # subtree (thousands of DOM nodes between the two) on
+                # every single page load just to keep them ready unseen.
+                # Manager is _DEFAULT_VIEW and stays eager, same as today.
+                html.Div(id="company-panel", style=_tracker_panel_style("company"), children=None),
                 html.Div(id="manager-panel", style=_tracker_panel_style("manager"),
                           children=html.Div(style=_APP_CONTENT_STYLE, children=_manager_tracker_children())),
-                html.Div(id="politician-panel", style=_tracker_panel_style("politician"),
-                          children=html.Div(style=_APP_CONTENT_STYLE, children=_politician_tracker_children())),
+                html.Div(id="politician-panel", style=_tracker_panel_style("politician"), children=None),
                 # Hidden by default; shown briefly by the sidebar nav
                 # clientside callback below the first time you switch to
                 # Companies or Politicians in a session -- the very first
@@ -2579,6 +2589,40 @@ app.layout = html.Div(
     ],
 )
 
+
+# Builds the Company/Politician panels' real content the first time each
+# is actually visited (see app.layout above) -- State on the panel's own
+# current children is the "already built" guard, so this only ever runs
+# once per panel per session and leaves whatever's there (including any
+# ticker/DCF input the user's since changed) alone on every later visit,
+# rather than re-fetching/rebuilding and wiping it out. The panels' own
+# structure/ids are unchanged from before this was lazy -- everything
+# that already reacted to them (price chart, DCF, search) keeps working
+# exactly as it did when they were built eagerly, just later.
+@app.callback(
+    Output("company-panel", "children"),
+    Input("nav-companies", "n_clicks"),
+    State("company-panel", "children"),
+    prevent_initial_call=True,
+)
+def build_company_panel(_n_clicks, existing_children):
+    if existing_children:
+        raise PreventUpdate
+    return html.Div(id="company-content", style=_APP_CONTENT_STYLE, children=_company_tracker_children())
+
+
+@app.callback(
+    Output("politician-panel", "children"),
+    Input("nav-congress", "n_clicks"),
+    State("politician-panel", "children"),
+    prevent_initial_call=True,
+)
+def build_politician_panel(_n_clicks, existing_children):
+    if existing_children:
+        raise PreventUpdate
+    return html.Div(style=_APP_CONTENT_STYLE, children=_politician_tracker_children())
+
+
 # Drives the sidebar nav: which tracker panel is visible and each nav
 # row's active styling. Clientside (not a server round-trip) for the same
 # reason the theme toggle below is -- instant visual feedback on click.
@@ -2600,8 +2644,12 @@ app.clientside_callback(
         // the panel swap below rather than gating it: the swap itself
         // still happens immediately, on the same click, same as always;
         // this is a purely visual overlay for the moment right after
-        // that, while the browser's still finishing the initial page's
-        // background work and the switch can be slow to actually paint.
+        // that, while build_company_panel/build_politician_panel
+        // (dash_app.py) are still building that panel's content for the
+        // first time. Hidden by the panel-content-arrived callback right
+        // below this one, not a fixed timer -- that panel now starts
+        // with no content at all rather than just being slow to paint,
+        // so there's no fixed delay that's reliably "long enough."
         window.__visitedViews = window.__visitedViews || new Set(["manager"]);
         const spinner = document.getElementById("panel-switch-spinner");
         if (spinner && !window.__visitedViews.has(view)) {
@@ -2612,7 +2660,13 @@ app.clientside_callback(
             // flex item instead of the full-width block it needs to be
             // to center correctly.
             spinner.style.display = "block";
-            setTimeout(function () { spinner.style.display = "none"; }, 400);
+            // Safety net only -- if build_company_panel/
+            // build_politician_panel ever errors out server-side, that
+            // panel's children never arrive, and without this the
+            // spinner would otherwise sit there forever.
+            setTimeout(function () {
+                if (spinner.style.display !== "none") spinner.style.display = "none";
+            }, 8000);
         }
         window.__visitedViews.add(view);
 
@@ -2650,6 +2704,26 @@ app.clientside_callback(
     Input("nav-managers", "n_clicks"),
     Input("nav-congress", "n_clicks"),
     Input("nav-companies", "n_clicks"),
+)
+
+# Hides panel-switch-spinner the moment a lazily-built panel's real
+# content actually lands, rather than guessing at a fixed delay (see the
+# nav callback above). Fires at most once per panel per session --
+# build_company_panel/build_politician_panel (dash_app.py) never update
+# "children" again after the first time, since their own State guard
+# skips rebuilding on every later visit.
+app.clientside_callback(
+    """
+    function(companyChildren, politicianChildren) {
+        const spinner = document.getElementById("panel-switch-spinner");
+        if (spinner) spinner.style.display = "none";
+        return window.dash_clientside.no_update;
+    }
+    """,
+    Output("panel-switch-spinner", "title"),
+    Input("company-panel", "children"),
+    Input("politician-panel", "children"),
+    prevent_initial_call=True,
 )
 
 # Keeps viewport-is-mobile in sync with the 768px mobile breakpoint (see
