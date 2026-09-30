@@ -55,6 +55,7 @@ from stock_price import (HoldingsDataError, PriceDataError, RANGE_KEYS, fetch_fu
 from thirteenf import (
     FilingDataError,
     ManagerLookupError,
+    _load_top_managers_snapshot,
     fetch_manager_comparison,
     fetch_manager_comparison_by_cik,
     search_managers,
@@ -71,6 +72,27 @@ from congress_trades import (
 # One shared session across requests/users so the ticker-map cache in
 # company_growth_calc.py is actually reused instead of refetched every time.
 _session = requests.Session()
+
+# Both of these lazily cache themselves in memory on first call (see
+# load_ticker_map/_load_top_managers_snapshot), reading a repo-committed
+# JSON snapshot off disk -- ticker_map.json (~3MB, used by every ticker
+# search suggestion) and thirteenf_top_managers.json (~28MB, used by the
+# Managers tracker, which is the default landing view). Without this,
+# that read+parse cost landed on whichever real request happened to be
+# first after a deploy/restart -- e.g. a visitor's first search
+# suggestion, or their first page load, sitting noticeably slower than
+# every one after it. Called here (module import time, i.e. while
+# gunicorn is booting the worker, before it accepts any traffic) so both
+# caches are already warm by the time anyone's first request arrives.
+# Broadly caught: a failure here (e.g. a missing/corrupt snapshot forcing
+# a live SEC fetch that then fails) must never take down the whole app at
+# startup -- worst case, it just falls back to today's cold-on-first-use
+# behavior for that one cache.
+try:
+    load_ticker_map(_session)
+    _load_top_managers_snapshot()
+except Exception:
+    pass
 
 # Fixed number of fiscal years the Financials tables (Growth Rates, Income
 # Statement, Balance Sheet, Cash Flow Statement) pull — previously a user-set
