@@ -2152,6 +2152,17 @@ def _politician_tracker_children():
         html.P(_ACTIVITY_WINDOW_NOTE, style={**_PARA_STYLE, "fontSize": "13px"}),
         dcc.Loading(
             custom_spinner=html.Div(className="spinner"),
+            # dcc.Loading's default overlay_style hides its children
+            # (visibility:hidden) for as long as any callback outputting
+            # into them is in flight -- fine for a component that only
+            # loads once, but render_trade_rows/render_leaderboard_rows
+            # also fire on every scroll-triggered "load more" increment
+            # (see recent-trades-scroll-poll/congress-leaderboard-scroll-
+            # poll below), so without this override the already-visible
+            # rows would black out (revealing the page's own dark
+            # background underneath) on every such reload, not just the
+            # first one.
+            overlay_style={"visibility": "visible"},
             children=html.Div(
                 style={"display": "flex", "gap": "24px", "flexWrap": "wrap"},
                 children=[
