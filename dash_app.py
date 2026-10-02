@@ -1972,7 +1972,7 @@ def _manager_tracker_children():
             children=[_build_top_buy_card(_top_buy_row_to_record(r))
                       for r in top_buys_across_managers(top_n=50)],
         ),
-        html.H3("Look Up a Manager", style={**_HEADER_STYLE, "marginTop": "40px"}),
+        html.H3("Look Up a Manager", id="lookup-manager-heading", style={**_HEADER_STYLE, "marginTop": "40px"}),
         html.Div(
             style={"display": "flex", "gap": "12px", "alignItems": "flex-end", "flexWrap": "wrap"},
             children=[
@@ -2143,8 +2143,20 @@ def _search_all_members(query, limit=5):
     return candidates[:limit]
 
 
-def _politician_tracker_children():
-    options, default_value = _politician_dropdown_options("house")
+def _politician_tracker_children(initial_pending=None):
+    # initial_pending ("chamber|last|first", from pending-member-selection)
+    # lets build_politician_panel seed the correct chamber/member in this
+    # one synchronous build instead of defaulting to House and relying on
+    # apply_pending_politician_selection to correct it afterward -- on a
+    # first-ever visit (e.g. a cross-chamber pick like McConnell via
+    # global search before Politicians has ever been opened), that
+    # after-the-fact correction raced this panel's own build with no
+    # ordering guarantee, so the hardcoded House default could win and
+    # leave the chamber tab stuck on House even though the member/dropdown
+    # ended up right (confirmed matches the reported symptom).
+    initial_chamber = initial_pending.split("|", 1)[0] if initial_pending else "house"
+    options, default_value = _politician_dropdown_options(initial_chamber)
+    value = initial_pending if initial_pending else default_value
     return [
         html.H2("Politician Tracker", style=_HEADER_STYLE),
         html.P("Buy/sell activity disclosed by members of Congress under the STOCK Act "
@@ -2206,10 +2218,10 @@ def _politician_tracker_children():
         # update_politician_roster (triggered by that chamber switch)
         # consumes it instead of falling back to that chamber's default
         # member, then clears it.
-        html.H3("Look Up a Member", style={**_HEADER_STYLE, "marginTop": "40px"}),
+        html.H3("Look Up a Member", id="lookup-member-heading", style={**_HEADER_STYLE, "marginTop": "40px"}),
         dcc.Tabs(
             id="politician-chamber-tabs",
-            value="house",
+            value=initial_chamber,
             mobile_breakpoint=0,
             style=_NAV_CONTAINER_STYLE,
             children=[
@@ -2229,7 +2241,7 @@ def _politician_tracker_children():
                         dcc.Dropdown(
                             id="politician-input",
                             options=options,
-                            value=default_value,
+                            value=value,
                             clearable=False,
                             searchable=True,
                             style={"width": "320px", "color": "var(--text)"},
@@ -2586,6 +2598,13 @@ app.layout = html.Div(
         # inside an already-open Politicians panel) is unaffected, since
         # the panel necessarily already exists whenever those fire.
         dcc.Store(id="pending-member-selection", data=None),
+        # Set alongside the pending-*-selection stores above, only by
+        # select_global_search_result -- a plain sidebar nav click or an
+        # in-panel row click (select_member_from_summary) never touches
+        # this, so the scroll-to-lookup clientside callback below only
+        # fires for an actual top-search-bar pick, not every navigation.
+        dcc.Store(id="scroll-to-lookup-trigger", data=None),
+        html.Div(id="scroll-to-lookup-sink", style={"display": "none"}),
         _build_sidebar(),
         html.Div(
             id="main-content",
@@ -2679,12 +2698,13 @@ def build_company_panel(active_view, existing_children):
     Output("politician-panel", "children"),
     Input("active-view", "data"),
     State("politician-panel", "children"),
+    State("pending-member-selection", "data"),
     prevent_initial_call=True,
 )
-def build_politician_panel(active_view, existing_children):
+def build_politician_panel(active_view, existing_children, pending):
     if active_view != "politician" or existing_children:
         raise PreventUpdate
-    return html.Div(style=_APP_CONTENT_STYLE, children=_politician_tracker_children())
+    return html.Div(style=_APP_CONTENT_STYLE, children=_politician_tracker_children(pending))
 
 
 # Drives the sidebar nav: which tracker panel is visible and each nav
@@ -2787,6 +2807,41 @@ app.clientside_callback(
     Output("panel-switch-spinner", "title"),
     Input("company-panel", "children"),
     Input("politician-panel", "children"),
+    prevent_initial_call=True,
+)
+
+# Scrolls down to the relevant "Look Up a ..." section after a top-search-
+# bar pick -- mobile only (per feedback: on a phone, landing at the very
+# top of a freshly-switched tab leaves the actual lookup/dropdown several
+# screens down, under the Top Buys/Recent Trades cards above it).
+# scroll-to-lookup-trigger (set only by select_global_search_result, never
+# by a plain sidebar nav click or an in-panel row click) is also an Input
+# here rather than just a State so the two panel-children Inputs' "catch
+# -up" firings -- for a company/politician picked before its panel has
+# ever been built -- see its current value too; no self-reference risk
+# since this callback's Output is a dummy sink, never the trigger store
+# itself (see the "nonexistent object" Output-validation notes above on
+# why that pairing is avoided elsewhere in this file).
+app.clientside_callback(
+    """
+    function(trigger, _companyChildren, _politicianChildren, isMobile) {
+        if (!trigger || !isMobile) return window.dash_clientside.no_update;
+        const targetId = {
+            company: "ticker-search-row",
+            politician: "lookup-member-heading",
+            manager: "lookup-manager-heading",
+        }[trigger];
+        const el = targetId ? document.getElementById(targetId) : null;
+        if (!el) return window.dash_clientside.no_update;
+        el.scrollIntoView({behavior: "smooth", block: "start"});
+        return "";
+    }
+    """,
+    Output("scroll-to-lookup-sink", "children"),
+    Input("scroll-to-lookup-trigger", "data"),
+    Input("company-panel", "children"),
+    Input("politician-panel", "children"),
+    State("viewport-is-mobile", "data"),
     prevent_initial_call=True,
 )
 
@@ -2924,6 +2979,7 @@ def update_global_search_suggestions(query):
     Output("pending-company-selection", "data", allow_duplicate=True),
     Output("global-search-input", "value", allow_duplicate=True),
     Output("global-search-suggestions", "children", allow_duplicate=True),
+    Output("scroll-to-lookup-trigger", "data", allow_duplicate=True),
     Input({"type": "global-search-company", "ticker": ALL}, "n_clicks"),
     Input({"type": "global-search-manager", "name": ALL}, "n_clicks"),
     Input({"type": "global-search-member", "chamber": ALL, "last": ALL, "first": ALL}, "n_clicks"),
@@ -2979,6 +3035,7 @@ def select_global_search_result(company_clicks, manager_clicks, member_clicks, m
         _sidebar_nav_row_style(view == "politician"), _sidebar_nav_dot_style(view == "politician"),
         _sidebar_nav_row_style(view == "company"), _sidebar_nav_dot_style(view == "company"),
         manager_value, manager_submit, pending_selection, pending_company_selection, "", None,
+        view,
     )
 
 
