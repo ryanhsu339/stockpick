@@ -26,13 +26,18 @@ KNOWN LIMITATIONS
 """
 
 import concurrent.futures
+import csv
 import html
+import io
 import json
 import os
 import re
 import sqlite3
+import threading
 import time
 import xml.etree.ElementTree as ET
+import zipfile
+from collections import Counter
 from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 from urllib.parse import quote
@@ -155,7 +160,28 @@ class FilingDataError(Exception):
     quarters on file, an unreadable information table, etc.)."""
 
 
+# Opt-in request throttle for the batch jobs (see build_top_managers):
+# SEC allows ~10 requests/second per client and answers anything faster
+# with 429s for a while afterwards. 0 (the default) leaves the live app's
+# own one-off lookups unthrottled.
+_min_request_interval = 0.0
+_request_throttle_lock = threading.Lock()
+_last_request_at = 0.0
+
+
+def _throttle():
+    global _last_request_at
+    if not _min_request_interval:
+        return
+    with _request_throttle_lock:
+        wait = _last_request_at + _min_request_interval - time.monotonic()
+        if wait > 0:
+            time.sleep(wait)
+        _last_request_at = time.monotonic()
+
+
 def _get(session, url):
+    _throttle()
     resp = session.get(url, headers={"User-Agent": USER_AGENT,
                                       "Accept-Encoding": "gzip, deflate"},
                         timeout=30)
@@ -500,7 +526,7 @@ def _pct_change(cur, prev):
     return (cur - prev) / abs(prev) * 100
 
 
-def build_holdings_comparison(session, cik, top_n=10, skip_snapshot=False):
+def build_holdings_comparison(session, cik, top_n=10, skip_snapshot=False, adjust_splits=True):
     """Compare the two most recent 13F-HR quarters for `cik`. Returns a
     dict: {"latest_period", "previous_period", "manager_name",
     "top_increases", "top_decreases", "all_positions"}.
@@ -548,11 +574,11 @@ def build_holdings_comparison(session, cik, top_n=10, skip_snapshot=False):
     if not skip_snapshot:
         snapshot_hit = _load_top_managers_snapshot().get(str(cik))
         if snapshot_hit is not None:
-            return snapshot_hit
+            return apply_split_adjustments(snapshot_hit, top_n=top_n) if adjust_splits else snapshot_hit
 
     cached = _load_holdings_comparison_from_disk(cik)
     if cached is not None:
-        return cached
+        return apply_split_adjustments(cached, top_n=top_n) if adjust_splits else cached
 
     filings = list_13f_filings(session, cik, count=40)
     if len(filings) < 2:
@@ -642,8 +668,112 @@ def build_holdings_comparison(session, cik, top_n=10, skip_snapshot=False):
         "top_decreases": top_decreases,
         "all_positions": all_positions,
     }
+    # Cached unadjusted, so a later split-factor update applies cleanly.
     _save_holdings_comparison_to_disk(cik, result)
-    return result
+    return apply_split_adjustments(result, top_n=top_n) if adjust_splits else result
+
+
+# ---------------------------------------------------------------------------
+# Stock splits: 13F share counts aren't split-adjusted, so a 25-for-1 split
+# (Booking Holdings, 2026) shows every holder's share count jumping ~25x --
+# which build_holdings_comparison, comparing raw share counts, reports as a
+# giant buy priced at the average of the pre- and post-split prices. One
+# manager's filings alone can't tell a split from a real buy, so splits are
+# detected across all ~1000 managers at once by the weekly job
+# (_detect_splits, see build_top_managers.py) and saved to
+# thirteenf_splits.json; apply_split_adjustments then restates any
+# comparison's previous quarter in post-split terms.
+# ---------------------------------------------------------------------------
+
+_SPLITS_PATH = Path(__file__).parent / "data" / "thirteenf_splits.json"
+_splits_cache = None
+
+
+def load_splits():
+    """{"latest_period", "previous_period", "factors": {cusip: factor}} --
+    see _detect_splits. Empty factors if the file's missing/unreadable."""
+    global _splits_cache
+    if _splits_cache is None:
+        try:
+            with open(_SPLITS_PATH, encoding="utf-8") as f:
+                _splits_cache = json.load(f)
+        except (OSError, json.JSONDecodeError):
+            _splits_cache = {"factors": {}}
+    return _splits_cache
+
+
+def _split_adjusted_position(row, factor):
+    """`row` (an all_positions entry) with its previous quarter restated
+    in post-split shares and prices, and every share-based delta
+    recomputed the same way build_holdings_comparison computes it."""
+    prev_shares = row["prev_shares_m"] * factor
+    prev_price = row["prev_share_price"] / factor if row.get("prev_share_price") else None
+    cur_price = row.get("share_price")
+    if prev_price is not None and cur_price is not None:
+        price_per_share = (prev_price + cur_price) / 2
+    else:
+        price_per_share = prev_price if prev_price is not None else (cur_price or 0.0)
+    return {
+        **row,
+        "prev_shares_m": prev_shares,
+        "prev_share_price": prev_price,
+        "delta_shares_pct": _pct_change(row["shares_m"], prev_shares),
+        "delta_shares_value_m": (row["shares_m"] - prev_shares) * price_per_share,
+    }
+
+
+def _mover_row(position):
+    """A top_increases/top_decreases row from an all_positions entry."""
+    return {
+        "issuer": position["issuer"],
+        "cusip": position["cusip"],
+        "shares_m": position["shares_m"],
+        "prev_shares_m": position["prev_shares_m"],
+        "delta_shares_m": position["shares_m"] - position["prev_shares_m"],
+        "delta_shares_value_m": position["delta_shares_value_m"],
+        "value_m": position["value_m"],
+        "portfolio_pct": position["portfolio_pct"],
+        "delta_pct": position["delta_pct"],
+    }
+
+
+def apply_split_adjustments(comparison, splits=None, top_n=10):
+    """`comparison` with every split security's previous quarter restated
+    in post-split terms (see module notes above) and top_increases/
+    top_decreases re-picked accordingly. Only applies when the comparison
+    covers exactly the two quarters the split factors were detected for;
+    marked "split_adjusted" so it's never applied twice.
+
+    Re-picking draws on all_positions, which for a snapshot entry is
+    capped at _MAX_SNAPSHOT_POSITIONS -- the original top lists are folded
+    back in too, so nothing that was already a top mover gets lost, and a
+    replacement for a removed split artifact is all but certain to sit
+    within the cap (it's ranked by portfolio weight)."""
+    if comparison.get("split_adjusted"):
+        return comparison
+    splits = splits if splits is not None else load_splits()
+    factors = splits.get("factors") or {}
+    if (not factors or comparison.get("latest_period") != splits.get("latest_period")
+            or comparison.get("previous_period") != splits.get("previous_period")):
+        return comparison
+    all_positions = comparison.get("all_positions") or []
+    if not any(p.get("cusip") in factors and p.get("prev_shares_m") for p in all_positions):
+        return {**comparison, "split_adjusted": True}
+
+    adjusted = [_split_adjusted_position(p, factors[p["cusip"]])
+                if p.get("cusip") in factors and p.get("prev_shares_m") else p
+                for p in all_positions]
+    candidates = {p["cusip"]: _mover_row(p) for p in adjusted}
+    for row in comparison.get("top_increases", []) + comparison.get("top_decreases", []):
+        if row["cusip"] not in candidates:
+            candidates[row["cusip"]] = row
+    movers = list(candidates.values())
+    top_increases = sorted((r for r in movers if r["delta_shares_value_m"] > 0),
+                           key=lambda r: r["delta_shares_value_m"], reverse=True)[:top_n]
+    top_decreases = sorted((r for r in movers if r["delta_shares_value_m"] < 0),
+                           key=lambda r: r["delta_shares_value_m"])[:top_n]
+    return {**comparison, "all_positions": adjusted, "top_increases": top_increases,
+            "top_decreases": top_decreases, "split_adjusted": True}
 
 
 # ---------------------------------------------------------------------------
@@ -651,39 +781,33 @@ def build_holdings_comparison(session, cik, top_n=10, skip_snapshot=False):
 # every manager in the directory (thousands of them) would mean fetching
 # and parsing every one's full information table, which for a large fund
 # is itself a large XML document -- far too heavy to do for managers
-# almost nobody looks up. Ranking every filer ourselves from SEC data
-# (even just a lightweight per-filer fetch) is still a fetch per filer in
-# the whole directory just to throw away all but the top few hundred, so
-# this instead reuses aum13f.com's own AUM ranking -- it already tracks
-# this across EDGAR/IAPD/CAFR sources -- and only touches SEC for the
-# comparisons of the firms that ranking says actually matter. See
+# almost nobody looks up. The ranking itself, though, comes cheaply from
+# SEC's own quarterly Form 13F Data Sets: one ~100MB ZIP covering every
+# 13F filing in a three-month window, whose small SUMMARYPAGE table
+# already carries each filing's total reported value. One download ranks
+# every filer, and only the top few hundred then get a full comparison.
+# (This used to scrape aum13f.com's ranking instead, until that site
+# started serving an anti-bot page to automated requests.) See
 # build_top_managers.py.
 # ---------------------------------------------------------------------------
 
-AUM13F_BASE_URL = "https://aum13f.com"
-_AUM13F_PAGE_SIZE = 30
+SEC_13F_DATA_SETS_PAGE = "https://www.sec.gov/data-research/sec-markets-data/form-13f-data-sets"
+_SEC_13F_DATA_SET_LINK_RE = re.compile(r'href="([^"]*form-13f-data-sets/[^"]+_form13f\.zip)"', re.I)
 _MAX_SNAPSHOT_POSITIONS = 500
-_AUM13F_ROW_RE = re.compile(
-    r'<a href="/firm/([^"]+)">([^<]+)</a>.*?align="right">.*?([\d,]+\.\d+)\s*B</td>',
-    re.S,
-)
-# aum13f.com's firm page lists every EDGAR form type it's found for that
-# firm (13F-HR, 13F-NT, Form 3, ...), each with its own CIK -- a firm can
-# have more than one CIK across form types (e.g. an insider-ownership
-# filing under a related entity), so this matches specifically the
-# 13F-HR row rather than the first CIK mentioned anywhere on the page.
-_AUM13F_CIK_ROW_RE = re.compile(
-    r'<td style="text-align:center;">13F-HR</td>\s*'
-    r'<td style="text-align:center;"><a href="https://www\.sec\.gov/cgi-bin/browse-edgar\?CIK=(\d+)'
-)
+_MANAGER_RANKING_PATH = Path(__file__).parent / "data" / "thirteenf_manager_ranking.json"
+
+
+_RATE_LIMITED_BACKOFF_S = 60
 
 
 def _retry(fn, *args, attempts=3, backoff=1.5, **kwargs):
     """Runs fn(*args, **kwargs), retrying on a transient network error --
-    both SEC and aum13f.com occasionally 503 a concurrent batch fetch,
-    which a lone retry clears right up. Used only by the batch jobs
-    below; the live app's single on-demand fetches don't need this, a
-    real failure there should surface immediately."""
+    SEC occasionally 503s a concurrent batch fetch, which a lone retry
+    clears right up. A 429 (rate limited) gets a much longer pause, since
+    SEC keeps refusing a client for a while after it trips the limit.
+    Used only by the batch jobs below; the live app's single on-demand
+    fetches don't need this, a real failure there should surface
+    immediately."""
     last_exc = None
     for attempt in range(attempts):
         try:
@@ -691,86 +815,150 @@ def _retry(fn, *args, attempts=3, backoff=1.5, **kwargs):
         except requests.RequestException as e:
             last_exc = e
             if attempt < attempts - 1:
-                time.sleep(backoff * (attempt + 1))
+                status = getattr(getattr(e, "response", None), "status_code", None)
+                time.sleep(_RATE_LIMITED_BACKOFF_S if status == 429 else backoff * (attempt + 1))
     raise last_exc
 
 
-def fetch_aum13f_ranking(session=None, pages=10):
-    """Scrape aum13f.com's AUM-ranked firm listing, 30 firms/page.
-    Returns [{"slug", "name", "aum_b"}] in aum13f.com's own descending-
-    AUM order."""
+def _tsv_rows(zf, name):
+    with zf.open(name) as f:
+        yield from csv.DictReader(io.TextIOWrapper(f, encoding="utf-8", errors="replace"), delimiter="\t")
+
+
+def fetch_sec_13f_ranking(session=None):
+    """Rank every 13F filer by total reported portfolio value, from the
+    most recent SEC Form 13F Data Set. Returns {"source", "period",
+    "managers"}, where managers is [{"cik", "name", "value_b",
+    "positions"}] in descending value order.
+
+    Only original 13F-HR filings for the data set's dominant report
+    period count (amendments and stray late filings for older quarters
+    are skipped -- an amendment can be a partial restatement whose total
+    isn't the whole portfolio); a filer with more than one original for
+    that period keeps its latest. 13F-NT notices carry no holdings of
+    their own and are skipped too. Values are in dollars (SEC switched
+    13F reporting from thousands to dollars in 2023)."""
     session = session or requests.Session()
-    ranking = []
-    for page in range(1, pages + 1):
-        html_text = _get(session, f"{AUM13F_BASE_URL}/?page={page}").text
-        for slug, name, aum in _AUM13F_ROW_RE.findall(html_text):
-            ranking.append({"slug": slug, "name": html.unescape(name), "aum_b": float(aum.replace(",", ""))})
-    return ranking
+    listing = _get(session, SEC_13F_DATA_SETS_PAGE).text
+    # The page lists data sets newest first.
+    links = _SEC_13F_DATA_SET_LINK_RE.findall(listing)
+    if not links:
+        raise FilingDataError("No Form 13F Data Set links found on SEC's data sets page.")
+    url = links[0] if links[0].startswith("http") else f"https://www.sec.gov{links[0]}"
+    resp = session.get(url, headers={"User-Agent": USER_AGENT}, timeout=600)
+    resp.raise_for_status()
+    zf = zipfile.ZipFile(io.BytesIO(resp.content))
+
+    submissions = {r["ACCESSION_NUMBER"]: r for r in _tsv_rows(zf, "SUBMISSION.tsv")
+                   if r["SUBMISSIONTYPE"] == "13F-HR"}
+    if not submissions:
+        raise FilingDataError(f"No 13F-HR filings found in {url}.")
+    names = {r["ACCESSION_NUMBER"]: r["FILINGMANAGER_NAME"] for r in _tsv_rows(zf, "COVERPAGE.tsv")}
+    summaries = {r["ACCESSION_NUMBER"]: r for r in _tsv_rows(zf, "SUMMARYPAGE.tsv")}
+    period = Counter(r["PERIODOFREPORT"] for r in submissions.values()).most_common(1)[0][0]
+
+    latest = {}  # cik -> (filing date, manager record)
+    for acc, sub in submissions.items():
+        summary = summaries.get(acc)
+        if sub["PERIODOFREPORT"] != period or not summary or not summary["TABLEVALUETOTAL"]:
+            continue
+        filed = datetime.strptime(sub["FILING_DATE"], "%d-%b-%Y")
+        cik = int(sub["CIK"])
+        if cik in latest and latest[cik][0] >= filed:
+            continue
+        latest[cik] = (filed, {
+            "cik": cik,
+            "name": (names.get(acc) or "").strip(),
+            "value_b": round(float(summary["TABLEVALUETOTAL"]) / 1e9, 3),
+            "positions": int(summary["TABLEENTRYTOTAL"] or 0),
+        })
+    managers = sorted((m for _filed, m in latest.values()), key=lambda m: m["value_b"], reverse=True)
+    return {
+        "source": url,
+        "period": datetime.strptime(period, "%d-%b-%Y").date().isoformat(),
+        "managers": managers,
+    }
 
 
-def _aum13f_cik_for_firm(session, slug):
-    """The CIK aum13f.com's own firm page lists for a 13F-HR filing
-    history specifically -- None if this firm doesn't file 13F-HR under
-    its own name (aum13f.com's AUM ranking includes advisers ranked by
-    broader regulatory AUM, not just 13F filers, so this is common)."""
-    html_text = _get(session, f"{AUM13F_BASE_URL}/firm/{slug}").text
-    m = _AUM13F_CIK_ROW_RE.search(html_text)
-    return int(m.group(1)) if m else None
+def _snapshot_comparison(session, cik, comparison_top_n):
+    # skip_snapshot=True: build_holdings_comparison otherwise returns the
+    # manager's entry from the very snapshot being rebuilt, so a refresh
+    # would never actually refresh anyone already in it. adjust_splits=
+    # False: the job detects this quarter's splits from these raw
+    # comparisons itself, then applies them (see build_top_managers.py).
+    comparison = _retry(build_holdings_comparison, session, cik, comparison_top_n, skip_snapshot=True,
+                        adjust_splits=False)
+    # A handful of mega-managers (Morgan Stanley, Citadel, ...) have
+    # thousands of positions -- uncapped, this snapshot would run to
+    # 100+MB and re-bloat git on every refresh. all_positions is already
+    # sorted by portfolio_pct descending, so the cap keeps the positions
+    # that actually matter; positions_truncated tells the live app to
+    # fetch the real, complete list instead (skip_snapshot=True) for the
+    # rare case that needs it, e.g. a full CSV export.
+    all_positions = comparison["all_positions"]
+    truncated = len(all_positions) > _MAX_SNAPSHOT_POSITIONS
+    if truncated:
+        comparison = {**comparison, "all_positions": all_positions[:_MAX_SNAPSHOT_POSITIONS]}
+    comparison["positions_truncated"] = truncated
+    return _round_floats(comparison)
 
 
-def build_top_managers(session=None, top_n_managers=300, comparison_top_n=10, max_workers=15):
-    """Fully precompute build_holdings_comparison for the top
-    `top_n_managers` by AUM, ranked via aum13f.com rather than computing
-    that ranking from SEC data ourselves (see module notes above).
-    CI-only batch job (see build_top_managers.py) -- never run from the
-    live app. Returns a dict keyed by str(cik) -- JSON object keys must
-    be strings -- to that manager's build_holdings_comparison result. A
-    firm aum13f.com doesn't list a 13F-HR CIK for, or whose comparison
-    fetch fails outright, is simply omitted."""
+def _round_floats(obj, places=4):
+    """Rounds every float in a snapshot entry -- full-precision floats
+    (e.g. a portfolio_pct of 3.9032408520942434) made up about a quarter
+    of the snapshot file's size for no visible benefit; 4 places is still
+    $100 precision on the *_m (millions) fields."""
+    if isinstance(obj, float):
+        return round(obj, places)
+    if isinstance(obj, dict):
+        return {k: _round_floats(v, places) for k, v in obj.items()}
+    if isinstance(obj, list):
+        return [_round_floats(v, places) for v in obj]
+    return obj
+
+
+def build_top_managers(ciks, session=None, comparison_top_n=10, max_workers=4):
+    """Fully precompute build_holdings_comparison for each of `ciks`
+    (the top of fetch_sec_13f_ranking, see build_top_managers.py).
+    CI-only batch job -- never run from the live app. Returns
+    (results, failures): results is a dict keyed by str(cik) -- JSON
+    object keys must be strings -- to that manager's comparison;
+    failures maps each cik that couldn't be built to its error message.
+
+    SEC allows ~10 requests/second and answers anything faster with 429s
+    for a while afterwards -- at 15 unthrottled workers, about two thirds
+    of the top 300 failed that way in one run. So every SEC request made
+    during this build goes through a shared throttle (see _throttle),
+    with max_workers just keeping a few requests overlapped. Anything
+    that still fails gets one more, sequential attempt at the end."""
+    global _min_request_interval
     session = session or requests.Session()
-    pages = -(-top_n_managers // _AUM13F_PAGE_SIZE)  # ceiling division
-    ranking = fetch_aum13f_ranking(session=session, pages=pages)[:top_n_managers]
+    results, failures = {}, {}
+    # ~6.7 requests/second, comfortably under SEC's ~10/s limit (even
+    # max_workers alone wasn't enough: 77 of the top 300 still hit 429s).
+    previous_interval, _min_request_interval = _min_request_interval, 0.15
+    try:
+        _build_comparisons(session, ciks, comparison_top_n, max_workers, results, failures)
+    finally:
+        _min_request_interval = previous_interval
+    return results, failures
 
-    ciks = []
-    with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as pool:
-        future_to_firm = {
-            pool.submit(_retry, _aum13f_cik_for_firm, session, firm["slug"]): firm for firm in ranking
-        }
-        for future in concurrent.futures.as_completed(future_to_firm):
-            try:
-                cik = future.result()
-            except requests.RequestException:
-                continue
-            if cik is not None:
-                ciks.append(cik)
 
-    results = {}
+def _build_comparisons(session, ciks, comparison_top_n, max_workers, results, failures):
     with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as pool:
-        future_to_cik = {
-            pool.submit(_retry, build_holdings_comparison, session, cik, comparison_top_n): cik
-            for cik in ciks
-        }
+        future_to_cik = {pool.submit(_snapshot_comparison, session, cik, comparison_top_n): cik for cik in ciks}
         for future in concurrent.futures.as_completed(future_to_cik):
             cik = future_to_cik[future]
             try:
-                comparison = future.result()
-            except (FilingDataError, requests.RequestException):
-                continue
-            # A handful of mega-managers (Morgan Stanley, Citadel, ...)
-            # have thousands of positions -- uncapped, this snapshot
-            # would run to 100+MB and re-bloat git on every refresh.
-            # all_positions is already sorted by portfolio_pct
-            # descending, so the cap keeps the positions that actually
-            # matter; positions_truncated tells the live app to fetch
-            # the real, complete list instead (skip_snapshot=True) for
-            # the rare case that needs it, e.g. a full CSV export.
-            all_positions = comparison["all_positions"]
-            truncated = len(all_positions) > _MAX_SNAPSHOT_POSITIONS
-            if truncated:
-                comparison = {**comparison, "all_positions": all_positions[:_MAX_SNAPSHOT_POSITIONS]}
-            comparison["positions_truncated"] = truncated
-            results[str(cik)] = comparison
-    return results
+                results[str(cik)] = future.result()
+            except (FilingDataError, requests.RequestException) as e:
+                failures[cik] = f"{type(e).__name__}: {e}"
+    for cik in list(failures):
+        try:
+            results[str(cik)] = _snapshot_comparison(session, cik, comparison_top_n)
+            del failures[cik]
+        except (FilingDataError, requests.RequestException) as e:
+            failures[cik] = f"{type(e).__name__}: {e}"
 
 
 _TOP_MANAGERS_SNAPSHOT_PATH = Path(__file__).parent / "data" / "thirteenf_top_managers.json"
@@ -795,7 +983,123 @@ def _load_top_managers_snapshot():
 _MIN_PUBLIC_EQUITY_PORTFOLIO_M = 1000  # $1B -- see min_public_equity_portfolio_m below
 
 
-def top_buys_across_managers(top_n=50, min_public_equity_portfolio_m=_MIN_PUBLIC_EQUITY_PORTFOLIO_M):
+# Split detection (see _detect_splits).
+_SPLIT_MIN_RATIO = 1.8          # 3-for-2 splits are skipped -- see _detect_splits
+_SPLIT_CLUSTER_TOLERANCE = 0.25  # middle half of holders' share-count ratios vs the median
+_SPLIT_MAX_PRICE_MOVE = 3       # how far the price may move on top of the split
+_SPLIT_MIN_HOLDERS = 5
+# A buy can't be worth much more than the whole position it built (only
+# the averaged price can push it past 1x, see build_holdings_comparison) --
+# anything beyond this is a data error in the filing.
+_MAX_BUY_TO_POSITION_RATIO = 2
+
+
+def _median(values):
+    values = sorted(values)
+    return values[len(values) // 2]
+
+
+def _detect_splits(comparisons):
+    """{cusip: factor} for every security that looks like it split (or
+    reverse-split) between the two quarters. 13F share counts aren't
+    split-adjusted, so a 25-for-1 split (Booking Holdings, 2026) shows
+    every holder's share count jumping ~25x -- which
+    build_holdings_comparison counts as a giant buy, priced at the
+    average of the pre- and post-split prices.
+
+    Detected across all holders at once, from their share counts: if the
+    median holder's count rose by at least _SPLIT_MIN_RATIO, with the
+    middle half of holders tightly clustered around it, that's a split --
+    nothing else makes most holders multiply their position by the same
+    factor in one quarter. The price only has to move the matching way by
+    at least 1/_SPLIT_MAX_PRICE_MOVE of that factor, not match it: KLA's
+    2026 10-for-1 split came in a quarter where the stock also roughly
+    doubled, so its price ratio was only 4.9x.
+    The factor is that median share-count ratio itself rather than a
+    rounded "clean" ratio: big managers trade nearly every holding every
+    quarter (almost none show an exactly unchanged count), so the median
+    holder is the best available "didn't really trade" baseline, and each
+    holder's real buying is measured relative to it. Ratios under
+    _SPLIT_MIN_RATIO (i.e. 3-for-2 splits, rare today) are left alone:
+    at ~1.5x, a stock that fell a third while holders added to it looks
+    the same (HubSpot, EPAM and Whirlpool all did in 2026)."""
+    price_ratios, share_ratios = {}, {}
+    for comparison in comparisons.values():
+        for row in comparison.get("all_positions", []):
+            price, prev_price = row.get("share_price"), row.get("prev_share_price")
+            shares, prev_shares = row.get("shares_m"), row.get("prev_shares_m")
+            if not (price and prev_price and shares and prev_shares):
+                continue
+            price_ratios.setdefault(row["cusip"], []).append(prev_price / price)
+            share_ratios.setdefault(row["cusip"], []).append(shares / prev_shares)
+    splits = {}
+    for cusip, ratios in price_ratios.items():
+        if len(ratios) < _SPLIT_MIN_HOLDERS:
+            continue
+        price_ratio = _median(ratios)
+        holder_ratios = sorted(share_ratios[cusip])
+        share_ratio = _median(holder_ratios)
+        # Compare on the >1 side so a 1-for-10 reverse split looks like 10.
+        share_x, price_x = (1 / share_ratio, 1 / price_ratio) if share_ratio < 1 else (share_ratio, price_ratio)
+        lower_q = holder_ratios[len(holder_ratios) // 4]
+        upper_q = holder_ratios[(3 * len(holder_ratios)) // 4]
+        clustered = (abs(lower_q / share_ratio - 1) <= _SPLIT_CLUSTER_TOLERANCE
+                     and abs(upper_q / share_ratio - 1) <= _SPLIT_CLUSTER_TOLERANCE)
+        if share_x >= _SPLIT_MIN_RATIO and clustered and price_x >= share_x / _SPLIT_MAX_PRICE_MOVE:
+            splits[cusip] = share_ratio
+    return splits
+
+
+def detect_split_factors(comparisons):
+    """The {"latest_period", "previous_period", "factors"} record saved to
+    thirteenf_splits.json (see load_splits) -- _detect_splits over every
+    raw comparison covering the most common quarter pair, i.e. the one the
+    vast majority of managers just filed for."""
+    pairs = Counter((c.get("latest_period"), c.get("previous_period")) for c in comparisons.values())
+    if not pairs:
+        return {"factors": {}}
+    (latest, previous), _count = pairs.most_common(1)[0]
+    same_quarters = {cik: c for cik, c in comparisons.items()
+                     if (c.get("latest_period"), c.get("previous_period")) == (latest, previous)}
+    return {"latest_period": latest, "previous_period": previous, "factors": _detect_splits(same_quarters)}
+
+
+def _pooled_buys(comparisons, min_public_equity_portfolio_m):
+    """Every buy (positive ΔShares Value) across `comparisons` ({cik:
+    build_holdings_comparison result}), each tagged with its manager and
+    its size relative to that manager's total public equity portfolio --
+    see top_buys_across_managers for the full reasoning. Expects
+    split-adjusted comparisons (see apply_split_adjustments); a "buy"
+    worth far more than the position it built is dropped as a data
+    error."""
+    pooled = []
+    for cik, comparison in comparisons.items():
+        manager_name = comparison.get("manager_name", "")
+        for row in comparison.get("all_positions", []):
+            value_m = row.get("value_m")
+            portfolio_pct = row.get("portfolio_pct")
+            if row.get("delta_shares_value_m", 0) <= 0 or not value_m or not portfolio_pct:
+                continue
+            if row["delta_shares_value_m"] > value_m * _MAX_BUY_TO_POSITION_RATIO:
+                continue
+            # Same value_m/portfolio_pct relationship as pct_of_portfolio
+            # below, just solved for the total instead of applied to the
+            # buy -- this position is portfolio_pct% of it, so dividing
+            # value_m back out by that recovers the whole thing.
+            total_portfolio_value_m = value_m / (portfolio_pct / 100)
+            if total_portfolio_value_m < min_public_equity_portfolio_m:
+                continue
+            pct_of_portfolio = row["delta_shares_value_m"] * portfolio_pct / value_m
+            pooled.append({
+                **row, "manager_name": manager_name, "cik": cik,
+                "delta_shares_value_pct_of_portfolio": pct_of_portfolio,
+                "total_portfolio_value_m": total_portfolio_value_m,
+            })
+    return pooled
+
+
+def top_buys_across_managers(top_n=50, min_public_equity_portfolio_m=_MIN_PUBLIC_EQUITY_PORTFOLIO_M,
+                             comparisons=None):
     """The largest buys across every precomputed top-AUM manager
     (see build_top_managers), ranked by ~ΔShares Value as a percentage
     of that manager's OWN total *public equity* portfolio value rather
@@ -805,16 +1109,16 @@ def top_buys_across_managers(top_n=50, min_public_equity_portfolio_m=_MIN_PUBLIC
     routine rebalancing over everyone else's actual high-conviction
     moves.
 
-    aum13f.com (see build_top_managers) ranks managers by broad
-    regulatory AUM, which for a private-equity/VC-style firm is mostly
-    private fund stakes a 13F never reports -- Pathway Capital
-    Management, e.g., ranks as a top-300 manager there but its own 13F
-    covers just 6 positions worth $24M total, almost all incidental
-    public shares from portfolio companies' IPOs. Ranking THAT by % of
-    portfolio would make a single small position look like a massive
-    conviction bet, so managers whose own 13F-derived total public
-    equity portfolio falls under min_public_equity_portfolio_m are
-    excluded entirely rather than just ranked low.
+    Managers whose own 13F-derived total public equity portfolio falls
+    under min_public_equity_portfolio_m are excluded entirely rather
+    than just ranked low: for a tiny portfolio, a single small position
+    reads as a massive "% of portfolio" conviction bet. (This mattered
+    most when the top-managers list came from aum13f.com's broad
+    regulatory-AUM ranking, which included private-equity/VC firms whose
+    13F covers only a few incidental IPO shares -- Pathway Capital
+    Management ranked top-300 there on just $24M of 13F holdings. The
+    SEC 13F-value ranking used now can't produce that, but the floor
+    stays as a cheap safeguard.)
 
     Pools from each manager's full all_positions (not the smaller,
     already-capped top_increases) specifically because that ranking-
@@ -833,29 +1137,55 @@ def top_buys_across_managers(top_n=50, min_public_equity_portfolio_m=_MIN_PUBLIC
     show which manager made the buy, how big a bet it was for them
     specifically, and how large that manager's whole public equity
     portfolio is."""
-    pooled = []
-    for cik, comparison in _load_top_managers_snapshot().items():
-        manager_name = comparison.get("manager_name", "")
-        for row in comparison.get("all_positions", []):
-            value_m = row.get("value_m")
-            portfolio_pct = row.get("portfolio_pct")
-            if row.get("delta_shares_value_m", 0) <= 0 or not value_m or not portfolio_pct:
-                continue
-            # Same value_m/portfolio_pct relationship as pct_of_portfolio
-            # below, just solved for the total instead of applied to the
-            # buy -- this position is portfolio_pct% of it, so dividing
-            # value_m back out by that recovers the whole thing.
-            total_portfolio_value_m = value_m / (portfolio_pct / 100)
-            if total_portfolio_value_m < min_public_equity_portfolio_m:
-                continue
-            pct_of_portfolio = row["delta_shares_value_m"] * portfolio_pct / value_m
-            pooled.append({
-                **row, "manager_name": manager_name, "cik": cik,
-                "delta_shares_value_pct_of_portfolio": pct_of_portfolio,
-                "total_portfolio_value_m": total_portfolio_value_m,
-            })
+    if comparisons is None:
+        comparisons = _load_top_managers_snapshot()
+    pooled = _pooled_buys(comparisons, min_public_equity_portfolio_m)
     pooled.sort(key=lambda r: r["delta_shares_value_pct_of_portfolio"], reverse=True)
     return pooled[:top_n]
+
+
+def largest_managers_top_buys(top_n=50, min_public_equity_portfolio_m=_MIN_PUBLIC_EQUITY_PORTFOLIO_M,
+                              comparisons=None):
+    """Each of the `top_n` largest managers' single biggest buy this
+    quarter, largest manager first -- the "Fund Size" counterpart to
+    top_buys_across_managers. "Largest" is by the same derived public
+    equity portfolio total shown on the cards (total_portfolio_value_m),
+    not SEC's reported total, which also counts options and bonds. Within
+    one manager, the biggest buy by dollars and by % of portfolio are the
+    same buy (one shared denominator). A manager with no buys at all this
+    quarter just doesn't appear, so the next largest fills its place."""
+    if comparisons is None:
+        comparisons = _load_top_managers_snapshot()
+    biggest = {}
+    for row in _pooled_buys(comparisons, min_public_equity_portfolio_m):
+        current = biggest.get(row["cik"])
+        if current is None or row["delta_shares_value_m"] > current["delta_shares_value_m"]:
+            biggest[row["cik"]] = row
+    return sorted(biggest.values(), key=lambda r: r["total_portfolio_value_m"], reverse=True)[:top_n]
+
+
+# Both card lists for the Managers tab, precomputed by build_top_managers.py
+# across the top ~1000 managers -- far more than the top-300 snapshot
+# above, which stays small because the live app holds it in memory.
+_TOP_BUYS_PATH = Path(__file__).parent / "data" / "thirteenf_top_buys.json"
+_top_buys_cache = None
+
+
+def load_top_buys():
+    """{"conviction": [...], "fund_size": [...]} -- see
+    top_buys_across_managers/largest_managers_top_buys. Read once per
+    worker process from the repo-committed file; if it's missing or
+    unreadable, falls back to computing both from the top-300 snapshot."""
+    global _top_buys_cache
+    if _top_buys_cache is not None:
+        return _top_buys_cache
+    try:
+        with open(_TOP_BUYS_PATH, encoding="utf-8") as f:
+            data = json.load(f)
+        _top_buys_cache = {"conviction": data["conviction"], "fund_size": data["fund_size"]}
+    except (OSError, json.JSONDecodeError, KeyError):
+        _top_buys_cache = {"conviction": top_buys_across_managers(), "fund_size": largest_managers_top_buys()}
+    return _top_buys_cache
 
 
 def fetch_manager_comparison(query, session=None, user_agent=None, top_n=10):

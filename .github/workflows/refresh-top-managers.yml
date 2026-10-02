@@ -1,4 +1,4 @@
-name: Refresh top managers by AUM
+name: Refresh top managers by 13F value
 
 on:
   schedule:
@@ -26,6 +26,6 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add data/thirteenf_top_managers.json
+          git add data/thirteenf_top_managers.json data/thirteenf_manager_ranking.json data/thirteenf_top_buys.json data/thirteenf_splits.json
           git diff --cached --quiet || git commit -m "Refresh top managers by AUM snapshot"
           git push

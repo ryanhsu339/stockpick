@@ -59,8 +59,8 @@ from thirteenf import (
     _load_top_managers_snapshot,
     fetch_manager_comparison,
     fetch_manager_comparison_by_cik,
+    load_top_buys,
     search_managers,
-    top_buys_across_managers,
 )
 from congress_trades import (
     PoliticianDataError,
@@ -92,6 +92,7 @@ _session = requests.Session()
 try:
     load_ticker_map(_session)
     _load_top_managers_snapshot()
+    load_top_buys()
 except Exception:
     pass
 
@@ -230,6 +231,18 @@ def rows_to_display_records(rows):
             "roic_change": _pct(r.get("roic_change")),
         })
     return records
+
+
+def _fmt_big_dollars(v):
+    if v is None:
+        return None
+    if v >= 1e12:
+        return f"${v / 1e12:.2f}T"
+    if v >= 1e9:
+        return f"${v / 1e9:.1f}B"
+    if v >= 1e6:
+        return f"${v / 1e6:.0f}M"
+    return f"${v:,.0f}"
 
 
 def _money_abbrev(v):
@@ -894,6 +907,11 @@ _HEADER_STYLE = {"color": _HEADER_TEXT_COLOR}
 # ticker/name already shown in the page's own header above the chart.
 _KPI_SECTION_LABEL_STYLE = {"fontSize": "13px", "fontWeight": "700", "color": "var(--text)",
                              "marginBottom": "8px"}
+# Compare mode's per-ticker label above each stacked Valuation panel --
+# same look as the KPI row labels, a bit larger since it heads a much
+# bigger section.
+_DCF_COMPANY_LABEL_STYLE = {**_KPI_SECTION_LABEL_STYLE, "fontSize": "15px", "marginTop": "8px"}
+_DCF_COMPANY_LABEL_HIDDEN_STYLE = {**_DCF_COMPANY_LABEL_STYLE, "display": "none"}
 _PARA_STYLE = {"color": _BODY_TEXT_COLOR}
 # Title of a scrollable summary card (Top Gainers/Losers, Recent Trades/
 # Leaderboard) -- sticky so it stays put while the rows scroll beneath it.
@@ -1022,15 +1040,16 @@ _SUGGESTION_ROW_STYLE = {
 }
 
 
-def _financials_valuation_block(suffix, mirror=False):
-    """One ticker's Financials tabs + Valuation/DCF panel. Built once for
-    the primary ticker (suffix="") and again for the Compare panel
+def _financials_valuation_blocks(suffix):
+    """One ticker's Financials tabs and its Valuation/DCF panel, returned
+    as two separate lists of children: (financials, valuation). Built once
+    for the primary ticker (suffix="") and again for the Compare panel
     (suffix="-2"); every id in here gets that suffix so both copies can
-    live in the DOM at once with independent callbacks. mirror=True (the
-    Compare side) puts the DCF Assumptions panel after the chart instead
-    of before it, so the two side-by-side panels mirror each other
-    (assumptions hug the middle seam on both sides) rather than both
-    having assumptions on the left."""
+    live in the DOM at once with independent callbacks. Split in two
+    because Compare mode lays them out differently -- the two tickers'
+    Financials sit side by side, but each DCF panel (assumptions + chart)
+    needs the full page width, so the two Valuation panels stack instead
+    (see _company_tracker_children)."""
     def _dcf_row(field, label):
         # id'd so the mobile media query can place it into a specific
         # grid cell independently of its sibling fields (see
@@ -1102,7 +1121,7 @@ def _financials_valuation_block(suffix, mirror=False):
         # instead of ever wrapping it below the (fixed-width) assumptions
         # panel -- on a narrow mobile screen that squeezed the chart into
         # an illegible sliver rather than the flexWrap on the parent row
-        # (see _financials_valuation_block's caller) actually kicking in.
+        # (see _financials_valuation_blocks' caller) actually kicking in.
         style={"flex": "1", "minWidth": "280px"},
         children=[
             dcc.Graph(
@@ -1158,8 +1177,7 @@ def _financials_valuation_block(suffix, mirror=False):
             ),
         ],
     )
-    dcf_row_children = ([dcf_chart_column, dcf_assumptions_panel] if mirror
-                         else [dcf_assumptions_panel, dcf_chart_column])
+    dcf_row_children = [dcf_assumptions_panel, dcf_chart_column]
 
     return [
         html.Div(
@@ -1335,6 +1353,9 @@ def _financials_valuation_block(suffix, mirror=False):
                 ),
             ],
         ),
+        dcc.Store(id=f"rows-store{suffix}"),
+        dcc.Store(id=f"suppress-next-suggestions{suffix}", data=False),
+    ], [
         # Wrapped (not just the section's own contents) so a fund/ETF ticker
         # -- no cash flows of its own to project, an operating-company DCF
         # is meaningless for it -- can hide the whole thing in one shot via
@@ -1343,13 +1364,23 @@ def _financials_valuation_block(suffix, mirror=False):
         html.Div(
             id=f"dcf-wrap{suffix}",
             children=[
-                html.H3("Valuation", style={**_HEADER_STYLE, "marginTop": "40px"}),
-                html.P("A simple discounted cash flow model: projects Free Cash Flow forward at the "
-                       "growth rate below, discounts each year back to present value, and adds a "
-                       "discounted terminal value to estimate Enterprise and per-share fair value. "
-                       "Inputs default from the company's own financials (where available) but are "
-                       "yours to adjust — click Calculate to re-run with your changes.",
-                       style={**_PARA_STYLE, "fontSize": "13px"}),
+                # Section heading + description only once, on the primary panel
+                # -- in Compare mode the second panel stacks right below it
+                # (see _company_tracker_children) under the same heading.
+                *([
+                    html.H3("Valuation", style={**_HEADER_STYLE, "marginTop": "40px"}),
+                    html.P("A simple discounted cash flow model: projects Free Cash Flow forward at the "
+                           "growth rate below, discounts each year back to present value, and adds a "
+                           "discounted terminal value to estimate Enterprise and per-share fair value. "
+                           "Inputs default from the company's own financials (where available) but are "
+                           "yours to adjust — click Calculate to re-run with your changes.",
+                           style={**_PARA_STYLE, "fontSize": "13px"}),
+                ] if suffix == "" else []),
+                # "TICKER — Company" label so the two stacked panels are
+                # distinguishable in Compare mode -- filled in by
+                # update_company_overview/_2 (same text as the KPI row
+                # label), shown only in Compare mode (render_compare_mode).
+                html.Div(id=f"dcf-company-label{suffix}", style=_DCF_COMPANY_LABEL_HIDDEN_STYLE),
                 dcc.Interval(id=f"dcf-price-refresh{suffix}", interval=60000, n_intervals=0),
                 # One shared Loading boundary around the banner, the assumptions
                 # panel/chart, AND dcf-defaults-store itself (a non-visual Store,
@@ -1380,8 +1411,6 @@ def _financials_valuation_block(suffix, mirror=False):
                 ),
             ],
         ),
-        dcc.Store(id=f"rows-store{suffix}"),
-        dcc.Store(id=f"suppress-next-suggestions{suffix}", data=False),
     ]
 
 
@@ -1402,6 +1431,8 @@ def _movers_card(title, container_id):
 
 
 def _company_tracker_children():
+    financials_1, valuation_1 = _financials_valuation_blocks("")
+    financials_2, valuation_2 = _financials_valuation_blocks("-2")
     return [
         html.H2("Stock Tracker", id="company-main-heading", style=_HEADER_STYLE),
         html.P(_MOVERS_NOTE, id="company-movers-note", style={**_PARA_STYLE, "fontSize": "13px"}),
@@ -1638,13 +1669,18 @@ def _company_tracker_children():
             style={"display": "flex", "flexWrap": "wrap", "gap": "32px", "alignItems": "flex-start",
                    "marginTop": "24px"},
             children=[
-                html.Div(style={"flex": "1", "minWidth": "0"},
-                         children=_financials_valuation_block("", mirror=False)),
+                html.Div(style={"flex": "1", "minWidth": "0"}, children=financials_1),
                 # Hidden until Compare mode is on (see render_compare_mode).
                 html.Div(id="financials-col-2", style={"flex": "1", "minWidth": "0", "display": "none"},
-                         children=_financials_valuation_block("-2", mirror=True)),
+                         children=financials_2),
             ],
         ),
+        # Valuation panels stack (full width each) rather than sitting side
+        # by side like Financials above -- two DCF assumption panels + charts
+        # squeezed into half-width columns each was unreadably cramped.
+        html.Div(id="valuation-col-1", children=valuation_1),
+        # Hidden until Compare mode is on (see render_compare_mode).
+        html.Div(id="valuation-col-2", style={"marginTop": "40px", "display": "none"}, children=valuation_2),
     ]
 
 
@@ -1796,8 +1832,19 @@ def _build_top_buy_card(r, idx):
                     html.Span(pct_text, style=_CARD_BADGE_STYLE),
                 ],
             ),
-            html.Div(r["manager_name"], style={"fontSize": "13px", "color": "var(--body-text)",
-                                                 "lineHeight": "1.35"}),
+            html.Div(
+                style={"display": "flex", "flexDirection": "column", "gap": "2px"},
+                children=[
+                    html.Div(r["manager_name"], style={"fontSize": "13px", "color": "var(--body-text)",
+                                                         "lineHeight": "1.35"}),
+                    # The manager's total public-equity AUM -- what the
+                    # "Fund Size" sort orders by, so it's visible why the
+                    # cards land in the order they do.
+                    html.Div(f"Equity AUM {_fmt_big_dollars(r['total_portfolio_value_m'] * 1e6)}",
+                             style={"fontSize": "11px", "color": "var(--body-text)",
+                                    "fontFamily": "'IBM Plex Mono', monospace"}),
+                ],
+            ),
             html.Div(
                 style={"display": "flex", "justifyContent": "space-between", "fontSize": "12px",
                        "color": "var(--body-text)", "fontFamily": "'IBM Plex Mono', monospace"},
@@ -1994,6 +2041,15 @@ _MANAGER_NOTE = ("Ranked by ΔShares Value: the change in share count priced at 
 # only covers the managers that snapshot successfully precomputed.
 _TOP_BUYS_NOTE = ("The biggest buys this past quarter, ranked by purchase activity as percentage of "
                    "AUM signaling largest conviction")
+_TOP_BUYS_NOTE_BY_AUM = "The largest buy this past quarter from each of the 50 largest managers, ranked by fund AUM"
+# Sort By options for the Top Buys cards -- value -> (label, note text,
+# which load_top_buys() list it shows). Two separately precomputed lists,
+# not one list re-sorted: see thirteenf.top_buys_across_managers/
+# largest_managers_top_buys.
+_TOP_BUYS_SORTS = {
+    "conviction": ("Highest Conviction", _TOP_BUYS_NOTE, "conviction"),
+    "aum": ("Fund Size", _TOP_BUYS_NOTE_BY_AUM, "fund_size"),
+}
 
 # Politician Tracker: House and Senate members' STOCK Act disclosures
 # (Periodic Transaction Reports). These report individual buy/sell events in a
@@ -2089,16 +2145,54 @@ def _position_chip_style(active):
 
 def _manager_tracker_children():
     top_buy_companies = load_ticker_map(_session)
+    # Both card lists, keyed by Sort By value. idx is prefixed with the
+    # list's own key so the two lists' cards never share a top-buy-link id
+    # (and React key) with each other.
+    top_buys = load_top_buys()
+    top_buy_records = {
+        value: [{**_top_buy_row_to_record(r, top_buy_companies), "idx": f"{value}-{i}"}
+                for i, r in enumerate(top_buys[list_key])]
+        for value, (_label, _note, list_key) in _TOP_BUYS_SORTS.items()
+    }
     return [
         html.H2("Investment Manager Tracker", style=_HEADER_STYLE),
         html.H3("Top Buys From Largest Managers", style=_HEADER_STYLE),
-        html.P(_TOP_BUYS_NOTE, style={**_PARA_STYLE, "fontSize": "13px"}),
+        html.Div(
+            style={"display": "flex", "justifyContent": "space-between", "alignItems": "center",
+                   "gap": "8px 16px", "flexWrap": "wrap", "marginBottom": "12px"},
+            children=[
+                html.P(_TOP_BUYS_NOTE, id="top-buys-note",
+                       style={**_PARA_STYLE, "fontSize": "13px", "margin": "0"}),
+                html.Div(
+                    style={"display": "flex", "alignItems": "center", "gap": "8px"},
+                    children=[
+                        html.Span("Sort by", style={"fontSize": "12px", "color": "var(--body-text)"}),
+                        # Same pill toggle as the Companies tab's Single
+                        # Stock/Compare switch. sort_top_buys (below)
+                        # re-orders the cards from top-buys-records.
+                        dcc.Tabs(
+                            id="top-buys-sort",
+                            value="conviction",
+                            mobile_breakpoint=0,
+                            style={**_NAV_CONTAINER_STYLE, "marginTop": "0"},
+                            children=[dcc.Tab(label=label, value=value,
+                                              style={**_NAV_TAB_STYLE, "padding": "6px 12px", "fontSize": "12px"},
+                                              selected_style={**_NAV_TAB_SELECTED_STYLE, "padding": "6px 12px",
+                                                              "fontSize": "12px"})
+                                      for value, (label, _note, _list) in _TOP_BUYS_SORTS.items()],
+                        ),
+                    ],
+                ),
+            ],
+        ),
         html.Div(
             id="top-buys-table-container",
             style={"display": "flex", "gap": "10px", "overflowX": "auto", "paddingBottom": "6px"},
-            children=[_build_top_buy_card(_top_buy_row_to_record(r, top_buy_companies), i)
-                      for i, r in enumerate(top_buys_across_managers(top_n=50))],
+            children=[_build_top_buy_card(r, r["idx"]) for r in top_buy_records["conviction"]],
         ),
+        # Both lists' records, so sort_top_buys can swap between them
+        # without another round trip for the data.
+        dcc.Store(id="top-buys-records", data=top_buy_records),
         html.Hr(style=_SECTION_DIVIDER_STYLE),
         html.H3("Look Up a Manager", id="lookup-manager-heading", style=_LOOKUP_HEADING_STYLE),
         html.Div(
@@ -3673,6 +3767,9 @@ def sync_compare_mode(tab_value):
     Output("compare-status-wrap", "style"),
     Output("stock-kpi-wrap-2", "style"),
     Output("financials-col-2", "style"),
+    Output("valuation-col-2", "style"),
+    Output("dcf-company-label", "style"),
+    Output("dcf-company-label-2", "style"),
     Input("compare-mode", "data"),
 )
 def render_compare_mode(is_compare):
@@ -3680,7 +3777,11 @@ def render_compare_mode(is_compare):
     status_wrap_style = {} if is_compare else {"display": "none"}
     kpi_wrap_2_style = {"marginTop": "16px"} if is_compare else {"marginTop": "16px", "display": "none"}
     col2_style = {"flex": "1", "minWidth": "0"} if is_compare else {"flex": "1", "minWidth": "0", "display": "none"}
-    return ticker_wrap_style, status_wrap_style, kpi_wrap_2_style, col2_style
+    valuation_2_style = {"marginTop": "40px"} if is_compare else {"marginTop": "40px", "display": "none"}
+    # Per-ticker labels over the stacked Valuation panels only matter once
+    # there are two of them.
+    label_style = _DCF_COMPANY_LABEL_STYLE if is_compare else _DCF_COMPANY_LABEL_HIDDEN_STYLE
+    return ticker_wrap_style, status_wrap_style, kpi_wrap_2_style, col2_style, valuation_2_style,         label_style, label_style
 
 
 @app.callback(
@@ -4157,18 +4258,6 @@ def _kpi_tile(label, value):
     )
 
 
-def _fmt_big_dollars(v):
-    if v is None:
-        return None
-    if v >= 1e12:
-        return f"${v / 1e12:.2f}T"
-    if v >= 1e9:
-        return f"${v / 1e9:.1f}B"
-    if v >= 1e6:
-        return f"${v / 1e6:.0f}M"
-    return f"${v:,.0f}"
-
-
 def _company_overview_data(store):
     """(meta_text, kpi_label, tiles) for a ticker's header meta line, KPI
     section label, and KPI tiles -- shared between update_company_overview
@@ -4214,12 +4303,37 @@ def _company_overview_data(store):
     Output("stock-header-name", "children"),
     Output("stock-kpi-label", "children"),
     Output("stock-kpi-grid", "children"),
+    Output("dcf-company-label", "children"),
     Input("rows-store", "data"),
 )
 def update_company_overview(store):
     meta_text, kpi_label, tiles = _company_overview_data(store)
     title = (store or {}).get("title") or (store or {}).get("ticker") or ""
-    return meta_text, title, kpi_label, tiles
+    return meta_text, title, kpi_label, tiles, kpi_label
+
+
+# Names the company in no-financials-msg rather than a generic "this
+# company" -- in Compare mode the two side-by-side Financials columns
+# aren't labeled, so the generic text didn't say which ticker it meant.
+# Its own callback (not folded into update_company_overview) so the text
+# lands as fast as rows-store does, without waiting on that callback's
+# yfinance overview fetch.
+def _no_financials_text(store):
+    ticker = (store or {}).get("ticker")
+    title = (store or {}).get("title")
+    if not ticker:
+        return "No financials data available for this company."
+    return f"No financials data available for {ticker} ({title})." if title else         f"No financials data available for {ticker}."
+
+
+@app.callback(Output("no-financials-msg", "children"), Input("rows-store", "data"))
+def update_no_financials_msg(store):
+    return _no_financials_text(store)
+
+
+@app.callback(Output("no-financials-msg-2", "children"), Input("rows-store-2", "data"))
+def update_no_financials_msg_2(store):
+    return _no_financials_text(store)
 
 
 # Compare mode's second ticker: same KPI tiles, but no second page header
@@ -4228,11 +4342,12 @@ def update_company_overview(store):
 @app.callback(
     Output("stock-kpi-label-2", "children"),
     Output("stock-kpi-grid-2", "children"),
+    Output("dcf-company-label-2", "children"),
     Input("rows-store-2", "data"),
 )
 def update_company_overview_2(store):
     _meta_text, kpi_label, tiles = _company_overview_data(store)
-    return kpi_label, tiles
+    return kpi_label, tiles, kpi_label
 
 
 # Pulses the live-price dot's halo (see build_price_figure) by directly
@@ -4648,6 +4763,20 @@ def _render_candidates(candidates, query):
         style={"maxWidth": "520px", "marginTop": "8px"},
         children=buttons + note,
     )
+
+
+@app.callback(
+    Output("top-buys-table-container", "children"),
+    Output("top-buys-note", "children"),
+    Input("top-buys-sort", "value"),
+    State("top-buys-records", "data"),
+    prevent_initial_call=True,
+)
+def sort_top_buys(sort_key, records):
+    if sort_key not in _TOP_BUYS_SORTS:
+        sort_key = "conviction"
+    _label, note, _list_key = _TOP_BUYS_SORTS[sort_key]
+    return [_build_top_buy_card(r, r["idx"]) for r in (records or {}).get(sort_key, [])], note
 
 
 _EMPTY_BAR_LIST = _build_delta_bar_list([], True)
