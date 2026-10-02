@@ -2998,22 +2998,27 @@ app.clientside_callback(
 )
 
 
-def _tab_visibility_styles(is_fund):
-    """(growth, income, balance, cashflow, holdings, dcf-wrap) styles --
-    Financials tabs for regular companies, Top Holdings for funds. A fund
-    has no operating cash flows of its own to project, so the DCF
-    valuation panel is hidden outright rather than just left showing
-    meaningless (all-None) inputs."""
-    financials_style = _NAV_TAB_HIDDEN_STYLE if is_fund else _NAV_TAB_STYLE
-    holdings_style = _NAV_TAB_STYLE if is_fund else _NAV_TAB_HIDDEN_STYLE
-    dcf_wrap_style = {"display": "none"} if is_fund else {"display": "block"}
+def _tab_visibility_styles(mode):
+    """(growth, income, balance, cashflow, holdings, dcf-wrap) styles.
+    "operating": financials tabs + DCF, for a normal 10-K filer.
+    "fund": Top Holdings only -- a fund has no operating cash flows of
+    its own to project, so the DCF valuation panel is hidden outright
+    rather than just left showing meaningless (all-None) inputs.
+    "price_only": neither -- a filer with zero us-gaap XBRL facts (e.g.
+    a foreign private issuer on Form 20-F, see NoXbrlFactsError) has
+    nothing to drive the financials tables or the DCF with, but its
+    price history is completely independent of SEC XBRL and still
+    shows (see _run_company_lookup)."""
+    financials_style = _NAV_TAB_STYLE if mode == "operating" else _NAV_TAB_HIDDEN_STYLE
+    holdings_style = _NAV_TAB_STYLE if mode == "fund" else _NAV_TAB_HIDDEN_STYLE
+    dcf_wrap_style = {"display": "block"} if mode == "operating" else {"display": "none"}
     return (financials_style, financials_style, financials_style, financials_style,
             holdings_style, dcf_wrap_style)
 
 
-def _empty_company_outputs(status, view_tab="growth", is_fund=False):
+def _empty_company_outputs(status, view_tab="growth", mode="operating"):
     return ([], status, None, True, [], EMPTY_COLS, [], EMPTY_COLS, [], EMPTY_COLS,
-            [], HOLDINGS_COLUMNS, view_tab, *_tab_visibility_styles(is_fund), None)
+            [], HOLDINGS_COLUMNS, view_tab, *_tab_visibility_styles(mode), None)
 
 
 def _line_value(line_items, label, periods):
@@ -3135,7 +3140,20 @@ def _run_company_lookup(query, years):
     except CompanyLookupError as e:
         return _empty_company_outputs(str(e)), (e.candidates or None)
     except CompanyDataError as e:
-        return _empty_company_outputs(f"{query}: {e}"), None
+        # Whatever the specific reason (no us-gaap facts at all --
+        # NoXbrlFactsError, typically a foreign private issuer filing
+        # Form 20-F under IFRS like TSM/ASML -- or some us-gaap facts
+        # but not enough to build financials from, e.g. a recent IPO
+        # without a full fiscal year filed yet), `company` was already
+        # resolved above, so its ticker/title are good regardless --
+        # price history (stock_price.fetch_price_history) has nothing
+        # to do with SEC XBRL, so it still shows even though the
+        # financials tables and DCF (both XBRL-driven) can't.
+        ticker, title = company["ticker"], company["title"]
+        status = f"Found: {title} ({ticker}) — financials unavailable ({e}); showing price only."
+        store = {"rows": [], "title": title, "ticker": ticker}
+        return ([], status, store, True, [], EMPTY_COLS, [], EMPTY_COLS, [], EMPTY_COLS,
+                [], HOLDINGS_COLUMNS, "growth", *_tab_visibility_styles("price_only"), None), None
     except requests.RequestException as e:
         return _empty_company_outputs(f"Network error talking to SEC EDGAR: {e}"), None
 
@@ -3187,7 +3205,7 @@ def _run_company_lookup(query, years):
     store = {"rows": rows, "title": title, "ticker": ticker}
     outputs = (rows_to_display_records(rows), status, store, False,
                is_data, is_columns, bs_data, bs_columns, cf_data, cf_columns,
-               [], HOLDINGS_COLUMNS, "growth", *_tab_visibility_styles(False), dcf_defaults)
+               [], HOLDINGS_COLUMNS, "growth", *_tab_visibility_styles("operating"), dcf_defaults)
     return outputs, None
 
 
@@ -3197,7 +3215,7 @@ def _run_etf_lookup(ticker):
     try:
         holdings_df = fetch_top_holdings(ticker)
     except HoldingsDataError as e:
-        return _empty_company_outputs(f"{ticker}: {e}", is_fund=True)
+        return _empty_company_outputs(f"{ticker}: {e}", mode="fund")
 
     status = (f"Found: {ticker} — ETF/Fund. Financials and DCF valuation aren't available "
               "for funds (no 10-K/XBRL data); showing top holdings instead.")
@@ -3211,7 +3229,7 @@ def _run_etf_lookup(ticker):
         # for the Excel download (see the download callback below).
         [], status, store, False,
         [], EMPTY_COLS, [], EMPTY_COLS, [], EMPTY_COLS,
-        holdings_data, HOLDINGS_COLUMNS, "holdings", *_tab_visibility_styles(True), None,
+        holdings_data, HOLDINGS_COLUMNS, "holdings", *_tab_visibility_styles("fund"), None,
     )
 
 

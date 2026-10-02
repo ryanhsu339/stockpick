@@ -80,6 +80,19 @@ class CompanyDataError(Exception):
     """Raised when a company's SEC XBRL data isn't usable (missing tags,
     not enough overlapping fiscal years, etc.)."""
 
+
+class NoXbrlFactsError(CompanyDataError):
+    """Raised specifically when a filer has zero us-gaap XBRL facts on
+    record -- typically a foreign private issuer filing Form 20-F under
+    IFRS instead of a domestic 10-K (e.g. TSM, ASML), as opposed to the
+    other CompanyDataError cases (has some us-gaap data, just not enough
+    of it, e.g. a recent IPO without a full fiscal year filed yet).
+    dash_app.py's _run_company_lookup catches both the same way --
+    price-only display, since price history comes from a separate
+    source entirely and has nothing to do with SEC XBRL -- but kept as
+    its own subclass since the two causes are worth distinguishing in
+    the message/logs even though the handling is identical today."""
+
 # ---------------------------------------------------------------------------
 # Configuration
 # ---------------------------------------------------------------------------
@@ -940,7 +953,7 @@ def _resolve_and_fetch_facts(query, session, user_agent):
     facts_data = sec_get(session, FACTS_URL.format(cik=cik))
     facts = facts_data.get("facts", {}).get("us-gaap", {})
     if not facts:
-        raise CompanyDataError("No us-gaap XBRL facts found for this company.")
+        raise NoXbrlFactsError("No us-gaap XBRL facts found for this company.")
     return facts, title, ticker
 
 
