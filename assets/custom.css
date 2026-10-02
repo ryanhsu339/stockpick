@@ -248,7 +248,7 @@ a:hover { color: var(--text); }
         padding-right: 12px;
     }
 
-    /* Company Tracker: reorders to toggle -> search box -> company name on
+    /* Company Tracker: reorders to search box + toggle -> company name on
        mobile, right below the sidebar -- flex order, not a DOM change, so
        desktop (which never gets this flex-column treatment) is untouched.
        (Price+change used to live in this header too and share in this
@@ -265,9 +265,22 @@ a:hover { color: var(--text); }
        root -- display:contents dissolves everything down to that wrapper,
        so the wrapper (not the id'd component itself) is the actual flex
        item that needs the order. */
+    /* Grid rather than a flex column (same flex-style `order` reordering
+       works on grid items too): every item spans both columns except the
+       search row and the Single/Compare toggle, which share one row --
+       search box left, toggle right. Auto-placement does the pairing: the
+       search row (order -2) lands in column 1 of a fresh row, leaving the
+       cursor at column 2 for the toggle (order -1) right after it. */
     #company-content {
-        display: flex;
-        flex-direction: column;
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        column-gap: 10px;
+    }
+    /* #stock-header > *: #stock-header is display:contents (below), so
+       its children are grid items too and need the same full span. */
+    #company-content > *,
+    #stock-header > * {
+        grid-column: 1 / -1;
     }
     /* Page heading, movers cards and the "Look Up a Stock" heading stay
        on top, ahead of the toggle/search/name reorder below. */
@@ -287,12 +300,45 @@ a:hover { color: var(--text); }
     #stock-header {
         display: contents !important;
     }
-    #compare-mode-tabs-parent {
-        order: -2;
-        margin-bottom: 12px;
-    }
     #ticker-search-row {
+        order: -2;
+        grid-column: 1;
+    }
+    #compare-mode-tabs-parent {
         order: -1;
+        grid-column: 2;
+        /* Line up with the ticker input itself, not its label above --
+           matches the label's fixed 20px line-height below. */
+        align-self: start;
+        margin-top: 20px;
+    }
+    /* Ticker input fills whatever column 1 leaves beside the toggle
+       (dcc.Input puts its inline 220px width on this wrapper div, not the
+       <input> itself, hence targeting it with !important; the <input>
+       also needs it, or it keeps its own ~227px intrinsic width). */
+    #ticker-search-row .ticker-search-wrap {
+        flex: 1 1 100%;
+        min-width: 0;
+    }
+    #ticker-search-row .dash-input-container,
+    #ticker-search-row .dash-input-element {
+        width: 100% !important;
+        box-sizing: border-box;
+    }
+    /* One-line label (it wrapped in the narrower column), at a fixed
+       height so the toggle's margin-top above can match it exactly. */
+    #ticker-search-row label {
+        display: block;
+        font-size: 14px;
+        line-height: 20px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+    /* Smaller pills so the toggle fits beside the input on a phone. */
+    #compare-mode-tabs > * {
+        padding: 6px 9px !important;
+        font-size: 11px !important;
     }
     #stock-header-name-block {
         order: 0;
