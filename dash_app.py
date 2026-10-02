@@ -957,6 +957,19 @@ _NAV_TAB_SELECTED_STYLE = {
 # ETFs/funds (no 10-K data); Top Holdings only applies to funds. The
 # Financials view-tabs callback toggles between these two per search.
 _NAV_TAB_HIDDEN_STYLE = {"display": "none"}
+# "price_only" mode (see _tab_visibility_styles): every individual tab
+# above is hidden, but that alone left an empty tab bar (zero visible
+# labels) with the still-selected Growth Rates tab's own empty table
+# showing below it -- a blank table with no explanation. These hide the
+# "Financials" header/Download-button row and the tab bar itself
+# outright, in favor of a plain message in their place.
+_FINANCIALS_HEADER_STYLE = {"display": "flex", "justifyContent": "space-between", "alignItems": "flex-end",
+                             "marginTop": "40px", "flexWrap": "wrap", "gap": "12px"}
+_FINANCIALS_HEADER_HIDDEN_STYLE = {**_FINANCIALS_HEADER_STYLE, "display": "none"}
+_NAV_CONTAINER_HIDDEN_STYLE = {**_NAV_CONTAINER_STYLE, "display": "none"}
+_NO_FINANCIALS_MSG_STYLE = {"color": "var(--body-text)", "fontSize": "14px", "marginTop": "16px",
+                              "display": "none"}
+_NO_FINANCIALS_MSG_VISIBLE_STYLE = {**_NO_FINANCIALS_MSG_STYLE, "display": "block"}
 
 # Live typeahead dropdown, connected visually to the search box it overlays.
 # Positioning lives on the always-present outer container (shown/hidden via
@@ -1136,13 +1149,20 @@ def _financials_valuation_block(suffix, mirror=False):
 
     return [
         html.Div(
-            style={"display": "flex", "justifyContent": "space-between", "alignItems": "flex-end",
-                   "marginTop": "40px", "flexWrap": "wrap", "gap": "12px"},
+            id=f"financials-header{suffix}",
+            style=_FINANCIALS_HEADER_STYLE,
             children=[
                 html.H3("Financials", style=_HEADER_STYLE),
                 html.Button("Download Excel", id=f"download-btn{suffix}", n_clicks=0, disabled=True),
             ],
         ),
+        # Shown instead of the Financials header/tabs above (see
+        # _tab_visibility_styles' "price_only" mode) for a filer with
+        # nothing to drive the financials tables or the DCF with -- a
+        # company/politician-row click used to just leave the Growth
+        # Rates tab's own table empty with no explanation.
+        html.Div("No financials data available for this company.",
+                 id=f"no-financials-msg{suffix}", style=_NO_FINANCIALS_MSG_STYLE),
         dcc.Download(id=f"download-csv{suffix}"),
         dcc.Tabs(
             id=f"view-tabs{suffix}",
@@ -3263,7 +3283,8 @@ app.clientside_callback(
 
 
 def _tab_visibility_styles(mode):
-    """(growth, income, balance, cashflow, holdings, dcf-wrap) styles.
+    """(growth, income, balance, cashflow, holdings, dcf-wrap, financials-
+    header, view-tabs, no-financials-msg) styles.
     "operating": financials tabs + DCF, for a normal 10-K filer.
     "fund": Top Holdings only -- a fund has no operating cash flows of
     its own to project, so the DCF valuation panel is hidden outright
@@ -3272,12 +3293,18 @@ def _tab_visibility_styles(mode):
     a foreign private issuer on Form 20-F, see NoXbrlFactsError) has
     nothing to drive the financials tables or the DCF with, but its
     price history is completely independent of SEC XBRL and still
-    shows (see _run_company_lookup)."""
+    shows (see _run_company_lookup). The Financials header/tab bar are
+    hidden outright here too (not just each individual tab, which alone
+    still left the Growth Rates tab's own empty table on screen with no
+    explanation) in favor of no-financials-msg's plain text."""
     financials_style = _NAV_TAB_STYLE if mode == "operating" else _NAV_TAB_HIDDEN_STYLE
     holdings_style = _NAV_TAB_STYLE if mode == "fund" else _NAV_TAB_HIDDEN_STYLE
     dcf_wrap_style = {"display": "block"} if mode == "operating" else {"display": "none"}
+    header_style = _FINANCIALS_HEADER_HIDDEN_STYLE if mode == "price_only" else _FINANCIALS_HEADER_STYLE
+    tabs_style = _NAV_CONTAINER_HIDDEN_STYLE if mode == "price_only" else _NAV_CONTAINER_STYLE
+    no_financials_style = _NO_FINANCIALS_MSG_VISIBLE_STYLE if mode == "price_only" else _NO_FINANCIALS_MSG_STYLE
     return (financials_style, financials_style, financials_style, financials_style,
-            holdings_style, dcf_wrap_style)
+            holdings_style, dcf_wrap_style, header_style, tabs_style, no_financials_style)
 
 
 def _empty_company_outputs(status, view_tab="growth", mode="operating"):
@@ -3600,6 +3627,9 @@ def render_compare_mode(is_compare):
     Output("cashflow-tab", "style"),
     Output("holdings-tab", "style"),
     Output("dcf-wrap", "style"),
+    Output("financials-header", "style"),
+    Output("view-tabs", "style"),
+    Output("no-financials-msg", "style"),
     Output("company-candidates", "children"),
     Output("company-suggestions", "children"),
     Output("dcf-defaults-store", "data"),
@@ -3632,6 +3662,9 @@ def generate(_n_submit, company):
     Output("cashflow-tab-2", "style"),
     Output("holdings-tab-2", "style"),
     Output("dcf-wrap-2", "style"),
+    Output("financials-header-2", "style"),
+    Output("view-tabs-2", "style"),
+    Output("no-financials-msg-2", "style"),
     Output("company-candidates-2", "children"),
     Output("company-suggestions-2", "children", allow_duplicate=True),
     Output("dcf-defaults-store-2", "data"),
@@ -3668,6 +3701,9 @@ def generate_2(_n_submit, company):
     Output("cashflow-tab", "style", allow_duplicate=True),
     Output("holdings-tab", "style", allow_duplicate=True),
     Output("dcf-wrap", "style", allow_duplicate=True),
+    Output("financials-header", "style", allow_duplicate=True),
+    Output("view-tabs", "style", allow_duplicate=True),
+    Output("no-financials-msg", "style", allow_duplicate=True),
     Output("company-candidates", "children", allow_duplicate=True),
     Output("company-suggestions", "children", allow_duplicate=True),
     Output("company-input", "value", allow_duplicate=True),
@@ -3724,6 +3760,9 @@ def select_company_candidate(candidate_clicks, suggestion_clicks, active_cell, h
     Output("cashflow-tab-2", "style", allow_duplicate=True),
     Output("holdings-tab-2", "style", allow_duplicate=True),
     Output("dcf-wrap-2", "style", allow_duplicate=True),
+    Output("financials-header-2", "style", allow_duplicate=True),
+    Output("view-tabs-2", "style", allow_duplicate=True),
+    Output("no-financials-msg-2", "style", allow_duplicate=True),
     Output("company-candidates-2", "children", allow_duplicate=True),
     Output("company-suggestions-2", "children", allow_duplicate=True),
     Output("company-input-2", "value", allow_duplicate=True),
