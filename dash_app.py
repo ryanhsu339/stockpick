@@ -1762,6 +1762,7 @@ def _manager_row_to_record(r, companies):
 def _top_buy_row_to_record(r, companies):
     return {
         "manager_name": r["manager_name"],
+        "cik": int(r["cik"]),
         "total_portfolio_value_m": r["total_portfolio_value_m"],
         "issuer": r["issuer"],
         "delta_shares_value_pct_of_portfolio": r["delta_shares_value_pct_of_portfolio"],
@@ -1835,8 +1836,12 @@ def _build_top_buy_card(r, idx):
             html.Div(
                 style={"display": "flex", "flexDirection": "column", "gap": "2px"},
                 children=[
-                    html.Div(r["manager_name"], style={"fontSize": "13px", "color": "var(--body-text)",
-                                                         "lineHeight": "1.35"}),
+                    # Loads this manager in the Look Up a Manager section
+                    # below (see select_manager_candidate).
+                    html.Span(r["manager_name"],
+                              id={"type": "top-buy-manager-link", "cik": r["cik"], "idx": idx}, n_clicks=0,
+                              style={"fontSize": "13px", "color": "var(--body-text)", "lineHeight": "1.35",
+                                     "textDecoration": "underline", "cursor": "pointer"}),
                     # The manager's total public-equity AUM -- what the
                     # "Fund Size" sort orders by, so it's visible why the
                     # cards land in the order they do.
@@ -4851,23 +4856,28 @@ def generate_manager(_n_submit, query):
     Output("download-positions-btn", "disabled", allow_duplicate=True),
     Output("manager-positions-meta", "data", allow_duplicate=True),
     Output("manager-summary-tiles", "children", allow_duplicate=True),
+    Output("scroll-to-lookup-trigger", "data", allow_duplicate=True),
     Input({"type": "manager-candidate", "cik": ALL}, "n_clicks"),
     Input({"type": "manager-suggestion", "cik": ALL}, "n_clicks"),
+    Input({"type": "top-buy-manager-link", "cik": ALL, "idx": ALL}, "n_clicks"),
     prevent_initial_call=True,
 )
-def select_manager_candidate(candidate_clicks, suggestion_clicks):
-    if not any(candidate_clicks) and not any(suggestion_clicks):
-        raise PreventUpdate  # fires with all-zero clicks whenever the button list re-renders
+def select_manager_candidate(candidate_clicks, suggestion_clicks, top_buy_manager_clicks):
+    if not any(candidate_clicks) and not any(suggestion_clicks) and not any(top_buy_manager_clicks):
+        raise PreventUpdate  # fires with all-zero clicks whenever a button/card list re-renders
     cik = ctx.triggered_id["cik"]
+    # A Top Buys card's manager name sits above the lookup section, so on
+    # mobile scroll down to where the result lands (same as a top-search pick).
+    scroll = "manager" if ctx.triggered_id["type"] == "top-buy-manager-link" else no_update
 
     try:
         result = fetch_manager_comparison_by_cik(cik, session=_session)
     except FilingDataError as e:
         return (f"CIK {cik}: {e}", _EMPTY_BAR_LIST, _EMPTY_BAR_LIST, [], None, None, no_update, no_update,
-                [], _POSITIONS_PAGE_SIZE, True, None, [])
+                [], _POSITIONS_PAGE_SIZE, True, None, [], scroll)
     except requests.RequestException as e:
         return (f"Network error talking to SEC EDGAR: {e}", _EMPTY_BAR_LIST, _EMPTY_BAR_LIST, [], None, None,
-                no_update, no_update, [], _POSITIONS_PAGE_SIZE, True, None, [])
+                no_update, no_update, [], _POSITIONS_PAGE_SIZE, True, None, [], scroll)
 
     status = (f"Found: {result['resolved_name']} (CIK {result['cik']}) — "
               f"{result['latest_period']} vs {result['previous_period']}")
@@ -4883,7 +4893,7 @@ def select_manager_candidate(candidate_clicks, suggestion_clicks):
             all_positions[:_POSITIONS_PAGE_SIZE], None, None,
             result["resolved_name"], True,
             all_positions, min(_POSITIONS_PAGE_SIZE, len(all_positions)), not all_positions, meta,
-            _manager_summary_tiles(all_positions))
+            _manager_summary_tiles(all_positions), scroll)
 
 
 @app.callback(
