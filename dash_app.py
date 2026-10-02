@@ -2200,11 +2200,12 @@ def _politician_tracker_children():
         dcc.Store(id="congress-leaderboard-records", data=[]),
         dcc.Store(id="congress-leaderboard-visible-count", data=_ACTIVITY_PAGE_SIZE),
         dcc.Interval(id="congress-leaderboard-scroll-poll", interval=1200, n_intervals=0),
-        # Set by select_member_from_summary when a row click needs to
-        # switch chambers first; update_politician_roster (triggered by
-        # that chamber switch) consumes it instead of falling back to that
-        # chamber's default member, then clears it.
-        dcc.Store(id="pending-member-selection", data=None),
+        # pending-member-selection lives in app.layout's global scope now,
+        # not here -- see there for why. Set by select_member_from_summary
+        # when a row click needs to switch chambers first;
+        # update_politician_roster (triggered by that chamber switch)
+        # consumes it instead of falling back to that chamber's default
+        # member, then clears it.
         html.H3("Look Up a Member", style={**_HEADER_STYLE, "marginTop": "40px"}),
         dcc.Tabs(
             id="politician-chamber-tabs",
@@ -2571,6 +2572,20 @@ app.layout = html.Div(
         # callback), and chaining a second clientside callback off a prop
         # another one owns turned out not to fire reliably on initial load.
         dcc.Store(id="page-load-trigger", data=True),
+        # Global (not inside a lazy panel -- see build_company_panel/
+        # build_politician_panel below) so select_global_search_result can
+        # always stash a pending pick regardless of whether its target
+        # panel has been built yet. apply_pending_company_selection/
+        # apply_pending_politician_selection (below) consume these once
+        # the panel actually exists -- see those for why a direct write
+        # from select_global_search_result alone isn't enough.
+        dcc.Store(id="pending-company-selection", data=None),
+        # Relocated here from inside _politician_tracker_children() for
+        # the same reason -- select_member_from_summary/
+        # update_politician_roster's use of this (set by a row click
+        # inside an already-open Politicians panel) is unaffected, since
+        # the panel necessarily already exists whenever those fire.
+        dcc.Store(id="pending-member-selection", data=None),
         _build_sidebar(),
         html.Div(
             id="main-content",
@@ -2639,26 +2654,35 @@ app.layout = html.Div(
 # structure/ids are unchanged from before this was lazy -- everything
 # that already reacted to them (price chart, DCF, search) keeps working
 # exactly as it did when they were built eagerly, just later.
+#
+# Triggered off active-view rather than the sidebar nav button's
+# n_clicks: active-view is the one signal every "switch to this view"
+# path already sets -- the sidebar nav click, and also
+# select_global_search_result jumping here from a global search result
+# without ever clicking the nav button itself. Keying off the nav click
+# specifically meant a global-search jump to a never-yet-visited panel
+# switched the view's visibility but never actually built it, leaving a
+# permanently blank panel.
 @app.callback(
     Output("company-panel", "children"),
-    Input("nav-companies", "n_clicks"),
+    Input("active-view", "data"),
     State("company-panel", "children"),
     prevent_initial_call=True,
 )
-def build_company_panel(_n_clicks, existing_children):
-    if existing_children:
+def build_company_panel(active_view, existing_children):
+    if active_view != "company" or existing_children:
         raise PreventUpdate
     return html.Div(id="company-content", style=_APP_CONTENT_STYLE, children=_company_tracker_children())
 
 
 @app.callback(
     Output("politician-panel", "children"),
-    Input("nav-congress", "n_clicks"),
+    Input("active-view", "data"),
     State("politician-panel", "children"),
     prevent_initial_call=True,
 )
-def build_politician_panel(_n_clicks, existing_children):
-    if existing_children:
+def build_politician_panel(active_view, existing_children):
+    if active_view != "politician" or existing_children:
         raise PreventUpdate
     return html.Div(style=_APP_CONTENT_STYLE, children=_politician_tracker_children())
 
@@ -2894,59 +2918,57 @@ def update_global_search_suggestions(query):
     Output("nav-congress-dot", "style", allow_duplicate=True),
     Output("nav-companies", "style", allow_duplicate=True),
     Output("nav-companies-dot", "style", allow_duplicate=True),
-    Output("company-input", "value", allow_duplicate=True),
-    Output("company-input", "n_submit"),
     Output("manager-input", "value", allow_duplicate=True),
     Output("manager-input", "n_submit"),
-    Output("politician-chamber-tabs", "value", allow_duplicate=True),
-    Output("politician-input", "value", allow_duplicate=True),
     Output("pending-member-selection", "data", allow_duplicate=True),
+    Output("pending-company-selection", "data", allow_duplicate=True),
     Output("global-search-input", "value", allow_duplicate=True),
     Output("global-search-suggestions", "children", allow_duplicate=True),
     Input({"type": "global-search-company", "ticker": ALL}, "n_clicks"),
     Input({"type": "global-search-manager", "name": ALL}, "n_clicks"),
     Input({"type": "global-search-member", "chamber": ALL, "last": ALL, "first": ALL}, "n_clicks"),
-    State("company-input", "n_submit"),
     State("manager-input", "n_submit"),
-    State("politician-chamber-tabs", "value"),
     prevent_initial_call=True,
 )
-def select_global_search_result(company_clicks, manager_clicks, member_clicks,
-                                 company_n_submit, manager_n_submit, current_chamber):
+def select_global_search_result(company_clicks, manager_clicks, member_clicks, manager_n_submit):
+    # IMPORTANT: this callback must never declare company-input,
+    # politician-chamber-tabs, or politician-input as Outputs, even
+    # conditionally returning no_update for them -- all three live
+    # inside a lazily-built panel that may not exist yet (see
+    # build_company_panel/build_politician_panel), and merely
+    # *declaring* an Output to a component that doesn't currently exist
+    # silently discards this callback's ENTIRE response, including
+    # every OTHER Output (confirmed: active-view/company-panel.style
+    # never applied either, every time this was tried, even though
+    # neither of those two is ever actually missing). Company/politician
+    # selections are routed through the pending-* stores exclusively
+    # instead -- apply_pending_company_selection/
+    # apply_pending_politician_selection (below) are separate callbacks
+    # whose own Inputs (the pending store itself, and the panel's
+    # children) mean each of their invocations is evaluated
+    # independently: one firing before the panel exists can fail
+    # harmlessly without blocking the later one that fires once it does.
     if not any(company_clicks or []) and not any(manager_clicks or []) and not any(member_clicks or []):
         raise PreventUpdate  # fires with all-zero clicks whenever the suggestion list re-renders
     triggered = ctx.triggered_id
     kind = triggered["type"]
 
-    company_value = company_submit = no_update
     manager_value = manager_submit = no_update
-    chamber_value = politician_value = pending_selection = no_update
+    pending_selection = pending_company_selection = no_update
 
     if kind == "global-search-company":
         view = "company"
-        company_value = triggered["ticker"]
-        company_submit = (company_n_submit or 0) + 1
+        pending_company_selection = triggered["ticker"]
     elif kind == "global-search-manager":
         view = "manager"
+        # Manager is _DEFAULT_VIEW and always built eagerly, so no
+        # not-built-yet case to guard against -- safe to write directly.
         manager_value = triggered["name"]
         manager_submit = (manager_n_submit or 0) + 1
     else:
         view = "politician"
         chamber = triggered["chamber"]
-        dropdown_key = f"{chamber}|{triggered['last']}|{triggered['first']}"
-        if chamber == current_chamber:
-            # Same chamber already showing -- update_politician_roster (see
-            # below) won't fire, since its chamber-tabs Input wouldn't
-            # change, so the dropdown needs setting directly here.
-            politician_value = dropdown_key
-        else:
-            # Switching chambers: update_politician_roster is about to fire
-            # and would otherwise overwrite the dropdown with that
-            # chamber's default member -- stash the real target in
-            # pending-member-selection for it to pick up instead (same
-            # handoff select_member_from_summary uses).
-            chamber_value = chamber
-            pending_selection = dropdown_key
+        pending_selection = f"{chamber}|{triggered['last']}|{triggered['first']}"
 
     return (
         view,
@@ -2956,9 +2978,88 @@ def select_global_search_result(company_clicks, manager_clicks, member_clicks,
         _sidebar_nav_row_style(view == "manager"), _sidebar_nav_dot_style(view == "manager"),
         _sidebar_nav_row_style(view == "politician"), _sidebar_nav_dot_style(view == "politician"),
         _sidebar_nav_row_style(view == "company"), _sidebar_nav_dot_style(view == "company"),
-        company_value, company_submit, manager_value, manager_submit,
-        chamber_value, politician_value, pending_selection, "", None,
+        manager_value, manager_submit, pending_selection, pending_company_selection, "", None,
     )
+
+
+# Applies a pending company selection (see select_global_search_result
+# above) to company-input. Two Inputs, each independently evaluated by
+# Dash as its own invocation -- not one callback that has to get the
+# timing right:
+#   - pending-company-selection changing covers the "Companies panel
+#     already existed" case: company-input already exists, this applies
+#     immediately.
+#   - company-panel.children changing covers the "panel didn't exist
+#     yet" case: fires once build_company_panel (above) delivers the
+#     panel for the first time, by which point company-input exists too.
+# A firing that lands before company-input exists (pending-company-
+# selection changing while the panel is still unbuilt) fails harmlessly
+# on its own -- it does not block or poison the other, later invocation
+# that succeeds once the panel actually exists.
+@app.callback(
+    Output("company-input", "value", allow_duplicate=True),
+    Output("company-input", "n_submit", allow_duplicate=True),
+    Input("pending-company-selection", "data"),
+    Input("company-panel", "children"),
+    State("company-input", "n_submit"),
+    prevent_initial_call=True,
+)
+def apply_pending_company_selection(pending_ticker, _panel_children, current_n_submit):
+    if not pending_ticker:
+        raise PreventUpdate
+    return pending_ticker, (current_n_submit or 0) + 1
+
+
+# Same two-Input/independent-invocation reasoning as
+# apply_pending_company_selection above, for politician-chamber-tabs/
+# politician-input -- now the sole place that applies a pending
+# politician selection (select_global_search_result no longer writes to
+# either directly at all, for the same reason it no longer does for
+# company-input).
+#
+# Does NOT also clear pending-member-selection itself in the same-chamber
+# branch, unlike an earlier version of this callback -- Output and Input
+# both on pending-member-selection.data, on the very same callback, was
+# itself enough to trigger the "nonexistent object" failure on this
+# callback's OTHER Outputs (politician-chamber-tabs/politician-input),
+# confirmed by removing just that one Output and seeing the error
+# disappear entirely. clear_pending_politician_selection below clears it
+# instead, from a separate callback with no such self-reference.
+@app.callback(
+    Output("politician-chamber-tabs", "value", allow_duplicate=True),
+    Output("politician-input", "value", allow_duplicate=True),
+    Input("pending-member-selection", "data"),
+    Input("politician-panel", "children"),
+    State("politician-chamber-tabs", "value"),
+    prevent_initial_call=True,
+)
+def apply_pending_politician_selection(pending, _panel_children, current_chamber):
+    if not pending:
+        raise PreventUpdate
+    chamber = pending.split("|", 1)[0]
+    if chamber == current_chamber:
+        return no_update, pending
+    return chamber, no_update
+
+
+# Clears pending-member-selection once it's actually been consumed --
+# split out from apply_pending_politician_selection above specifically
+# to avoid that self-reference (see its comment). politician-input only
+# gets set, from anywhere in the app, as a *result* of a pending
+# selection being applied (by this callback's sibling above, or by
+# update_politician_roster, both for the already-open-panel case and
+# this one together covering every path) -- so reacting to it changing
+# is a reliable "a selection was just consumed" signal, not just a
+# proxy for it; a plain, direct user pick from the dropdown re-fires
+# the same lookup regardless of whether this also clears an
+# already-empty store.
+@app.callback(
+    Output("pending-member-selection", "data", allow_duplicate=True),
+    Input("politician-input", "value"),
+    prevent_initial_call=True,
+)
+def clear_pending_politician_selection(_value):
+    return None
 
 
 # Flips theme-store's persisted value on a click. Guarded on n_clicks so
@@ -4777,31 +4878,31 @@ app.clientside_callback(
 
 
 @app.callback(
-    Output("politician-chamber-tabs", "value", allow_duplicate=True),
-    Output("politician-input", "value", allow_duplicate=True),
     Output("pending-member-selection", "data", allow_duplicate=True),
     Input({"type": "trade-row", "chamber": ALL, "last": ALL, "first": ALL}, "n_clicks"),
     Input({"type": "leaderboard-row", "chamber": ALL, "last": ALL, "first": ALL}, "n_clicks"),
-    State("politician-chamber-tabs", "value"),
     prevent_initial_call=True,
 )
-def select_member_from_summary(trade_clicks, leaderboard_clicks, current_chamber):
+def select_member_from_summary(trade_clicks, leaderboard_clicks):
+    # Routes through pending-member-selection unconditionally -- same vs.
+    # cross chamber is entirely apply_pending_politician_selection's call
+    # now (it reads politician-chamber-tabs' current value itself, safely,
+    # since it only acts once the Politicians panel exists). This
+    # callback previously wrote directly to politician-chamber-tabs/
+    # politician-input for the same-chamber case, which was a latent bug
+    # predating today's fixes: trade-row/leaderboard-row (this callback's
+    # own Inputs) live entirely inside the lazily-built Politicians
+    # panel, so the same-chamber branch's direct writes -- reached
+    # whenever this fired at all, including the harmless all-zero-clicks
+    # case the guard below exists for -- would target not-yet-existing
+    # components before the panel's first visit, silently discarding
+    # this callback's entire response (same failure mode documented on
+    # select_global_search_result above).
     if not any(trade_clicks or []) and not any(leaderboard_clicks or []):
         raise PreventUpdate  # fires with all-zero clicks whenever either row list re-renders
     target = ctx.triggered_id
     chamber = target["chamber"]
-    dropdown_key = f"{chamber}|{target['last']}|{target['first']}"
-    if chamber == current_chamber:
-        # Same chamber already showing -- no tab switch, so
-        # update_politician_roster won't fire (its Input wouldn't change).
-        # Set the dropdown directly instead of going through the pending-
-        # selection store.
-        return no_update, dropdown_key, no_update
-    # Switching chambers: update_politician_roster is about to fire
-    # (its chamber-tabs Input is changing) and would otherwise overwrite
-    # the dropdown with that chamber's default member -- stash the real
-    # target here for it to pick up instead.
-    return chamber, no_update, dropdown_key
+    return f"{chamber}|{target['last']}|{target['first']}"
 
 
 # Politician position counts are small enough (tens of tickers, not
