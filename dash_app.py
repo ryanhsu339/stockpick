@@ -2598,11 +2598,12 @@ app.layout = html.Div(
         # inside an already-open Politicians panel) is unaffected, since
         # the panel necessarily already exists whenever those fire.
         dcc.Store(id="pending-member-selection", data=None),
-        # Set alongside the pending-*-selection stores above, only by
-        # select_global_search_result -- a plain sidebar nav click or an
-        # in-panel row click (select_member_from_summary) never touches
-        # this, so the scroll-to-lookup clientside callback below only
-        # fires for an actual top-search-bar pick, not every navigation.
+        # Set by select_global_search_result (a top-search-bar pick) and
+        # by select_member_from_summary (an in-panel Recent Trades/
+        # Leaderboard row click) -- a plain sidebar nav click never
+        # touches this, so the scroll-to-lookup clientside callback below
+        # only fires for an actual member/company/manager pick, not every
+        # navigation.
         dcc.Store(id="scroll-to-lookup-trigger", data=None),
         html.Div(id="scroll-to-lookup-sink", style={"display": "none"}),
         _build_sidebar(),
@@ -2811,17 +2812,18 @@ app.clientside_callback(
 )
 
 # Scrolls down to the relevant "Look Up a ..." section after a top-search-
-# bar pick -- mobile only (per feedback: on a phone, landing at the very
-# top of a freshly-switched tab leaves the actual lookup/dropdown several
-# screens down, under the Top Buys/Recent Trades cards above it).
-# scroll-to-lookup-trigger (set only by select_global_search_result, never
-# by a plain sidebar nav click or an in-panel row click) is also an Input
-# here rather than just a State so the two panel-children Inputs' "catch
-# -up" firings -- for a company/politician picked before its panel has
-# ever been built -- see its current value too; no self-reference risk
-# since this callback's Output is a dummy sink, never the trigger store
-# itself (see the "nonexistent object" Output-validation notes above on
-# why that pairing is avoided elsewhere in this file).
+# bar pick, or an in-panel Recent Trades/Leaderboard row click -- mobile
+# only (per feedback: on a phone, landing at the top of the page/tab
+# leaves the actual lookup/dropdown several screens down, under the Top
+# Buys/Recent Trades cards above it). scroll-to-lookup-trigger (set by
+# select_global_search_result and select_member_from_summary, never by a
+# plain sidebar nav click) is also an Input here rather than just a State
+# so the two panel-children Inputs' "catch-up" firings -- for a company/
+# politician picked before its panel has ever been built -- see its
+# current value too; no self-reference risk since this callback's Output
+# is a dummy sink, never the trigger store itself (see the "nonexistent
+# object" Output-validation notes above on why that pairing is avoided
+# elsewhere in this file).
 app.clientside_callback(
     """
     function(trigger, _companyChildren, _politicianChildren, isMobile) {
@@ -4748,6 +4750,13 @@ def _fmt_amount(v):
     return f"${v:,.0f}"
 
 
+# Shared by _build_trade_row/_build_leaderboard_row's member-name span --
+# an accent-colored underline reads as "this is a link" on its own,
+# unlike the row's hover-only background (.pol-row:hover in custom.css),
+# which a touch device never shows at all.
+_CLICKABLE_NAME_STYLE = {"fontWeight": "500", "color": "var(--accent)", "textDecoration": "underline"}
+
+
 # id carries the (chamber, last, first) selection payload directly, rather
 # than indexing into a separate data Store -- select_member_from_summary
 # below reads it straight off ctx.triggered_id. `idx` is purely a
@@ -4773,7 +4782,12 @@ def _build_trade_row(r, idx):
             html.Div(
                 style={"display": "flex", "flexDirection": "column", "gap": "2px", "minWidth": "0"},
                 children=[
-                    html.Span(r["member"], style={"fontWeight": "500", "color": "var(--text)"}),
+                    # Underlined + accent-colored (not just a hover
+                    # background on the whole row, see .pol-row:hover in
+                    # custom.css) so it reads as a link on its own --
+                    # relying only on hover wasn't discoverable on touch,
+                    # where there's no hover state at all.
+                    html.Span(r["member"], style=_CLICKABLE_NAME_STYLE),
                     html.Span(r["chamber"], style={"fontSize": "12px", "color": "var(--body-text)"}),
                 ],
             ),
@@ -4822,7 +4836,7 @@ def _build_leaderboard_row(r, rank):
             html.Div(
                 style={"display": "flex", "flexDirection": "column", "gap": "2px", "minWidth": "0"},
                 children=[
-                    html.Span(r["member"], style={"fontWeight": "500", "color": "var(--text)"}),
+                    html.Span(r["member"], style=_CLICKABLE_NAME_STYLE),
                     html.Span(r["chamber"], style={"fontSize": "12px", "color": "var(--body-text)"}),
                 ],
             ),
@@ -4953,6 +4967,7 @@ app.clientside_callback(
 
 @app.callback(
     Output("pending-member-selection", "data", allow_duplicate=True),
+    Output("scroll-to-lookup-trigger", "data", allow_duplicate=True),
     Input({"type": "trade-row", "chamber": ALL, "last": ALL, "first": ALL, "idx": ALL}, "n_clicks"),
     Input({"type": "leaderboard-row", "chamber": ALL, "last": ALL, "first": ALL}, "n_clicks"),
     prevent_initial_call=True,
@@ -4976,7 +4991,7 @@ def select_member_from_summary(trade_clicks, leaderboard_clicks):
         raise PreventUpdate  # fires with all-zero clicks whenever either row list re-renders
     target = ctx.triggered_id
     chamber = target["chamber"]
-    return f"{chamber}|{target['last']}|{target['first']}"
+    return f"{chamber}|{target['last']}|{target['first']}", "politician"
 
 
 # Politician position counts are small enough (tens of tickers, not

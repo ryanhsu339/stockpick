@@ -27,6 +27,10 @@
     --up: #4cc38a;
     --down: #e5675a;
     --accent: #4cc38a;
+    /* Mobile-only tap highlight for .pol-row (see the @media block below)
+       -- card-bg-2 is too close to this near-black bg to register as a
+       quick tap flash; a light overlay reads clearly against it. */
+    --tap-highlight: rgba(255, 255, 255, 0.10);
 }
 :root[data-theme="light"] {
     color-scheme: light;
@@ -44,6 +48,9 @@
     --up: #1f8a5a;
     --down: #c2463a;
     --accent: #1f8a5a;
+    /* Light theme's card-bg-2 already contrasts fine against white, but
+       defined here too so the mobile override below isn't dark-only. */
+    --tap-highlight: rgba(0, 0, 0, 0.06);
 }
 
 html, body {
@@ -404,6 +411,16 @@ a:hover { color: var(--text); }
     input[type="number"],
     .dash-dropdown-search {
         font-size: 16px !important;
+    }
+
+    /* .pol-row:hover's card-bg-2 (desktop's own hover affordance, see
+       that rule above) barely shows up as a quick tap flash on a phone --
+       lighter/more visible here instead; :active covers browsers that
+       don't simulate :hover on tap at all. Desktop is untouched since
+       this only applies under the breakpoint. */
+    .pol-row:hover,
+    .pol-row:active {
+        background-color: var(--tap-highlight);
     }
 }
 
