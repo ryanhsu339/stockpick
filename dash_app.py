@@ -4693,13 +4693,19 @@ def _fmt_amount(v):
 
 # id carries the (chamber, last, first) selection payload directly, rather
 # than indexing into a separate data Store -- select_member_from_summary
-# below reads it straight off ctx.triggered_id.
-def _build_trade_row(r):
+# below reads it straight off ctx.triggered_id. `idx` is purely a
+# uniqueness discriminator (a member can have many rows in this list,
+# e.g. several trades in the same window) -- without it, two of that
+# member's rows share one id/React key, which both throws "two children
+# with the same key" and lets React's reconciliation hand a row's DOM
+# node to the wrong record on re-render (confirmed via stress testing).
+def _build_trade_row(r, idx):
     is_buy = r["transaction_type"] == "Purchase"
     pill_color = "var(--up)" if is_buy else "var(--down)"
     left_pct, width_pct = _range_bar_metrics(r["amount_low"], r["amount_high"])
     return html.Div(
-        id={"type": "trade-row", "chamber": r["chamber_raw"], "last": r["last"], "first": r["first"]},
+        id={"type": "trade-row", "chamber": r["chamber_raw"], "last": r["last"], "first": r["first"],
+            "idx": idx},
         n_clicks=0,
         className="pol-row",
         style={"display": "grid",
@@ -4812,7 +4818,7 @@ def load_activity_summary(_panel_children):
     prevent_initial_call=True,
 )
 def render_trade_rows(visible_count, records):
-    return [_build_trade_row(r) for r in (records or [])[:visible_count]]
+    return [_build_trade_row(r, i) for i, r in enumerate((records or [])[:visible_count])]
 
 
 @app.callback(
@@ -4879,7 +4885,7 @@ app.clientside_callback(
 
 @app.callback(
     Output("pending-member-selection", "data", allow_duplicate=True),
-    Input({"type": "trade-row", "chamber": ALL, "last": ALL, "first": ALL}, "n_clicks"),
+    Input({"type": "trade-row", "chamber": ALL, "last": ALL, "first": ALL, "idx": ALL}, "n_clicks"),
     Input({"type": "leaderboard-row", "chamber": ALL, "last": ALL, "first": ALL}, "n_clicks"),
     prevent_initial_call=True,
 )
