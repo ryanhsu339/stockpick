@@ -1636,7 +1636,7 @@ def _manager_row_to_record(r, companies):
     }
 
 
-def _top_buy_row_to_record(r):
+def _top_buy_row_to_record(r, companies):
     return {
         "manager_name": r["manager_name"],
         "total_portfolio_value_m": r["total_portfolio_value_m"],
@@ -1646,6 +1646,8 @@ def _top_buy_row_to_record(r):
         "delta_shares_pct": r["delta_shares_pct"],
         "value_m": r["value_m"],
         "portfolio_pct": r["portfolio_pct"],
+        # See _manager_row_to_record's matching comment.
+        "resolved_ticker": resolve_ticker_for_security(r["issuer"], companies) or "",
     }
 
 
@@ -1674,19 +1676,36 @@ _CARD_BADGE_STYLE = {
 }
 
 
-def _build_top_buy_card(r):
+def _build_top_buy_card(r, idx):
     pct = r.get("delta_shares_value_pct_of_portfolio")
     pct_text = f"+{pct:.1f}%" if pct is not None else "—"
     value_m = r.get("delta_shares_value_m") or 0
+    issuer_style = {"fontFamily": "'IBM Plex Mono', monospace", "fontSize": "15px",
+                    "fontWeight": "500", "color": "var(--security-text)"}
+    ticker = r.get("resolved_ticker")
+    # top-buy-link, not manager-holding-link -- this list is cross-
+    # manager (top_buys_across_managers) and always built eagerly, so the
+    # same ticker could otherwise appear here AND in the currently-
+    # searched manager's own Top Increases at once, giving two
+    # components the identical pattern-matching id (the exact "two
+    # children with the same key" React bug fixed earlier for Recent
+    # Trades' rows -- see _build_trade_row). `idx` is the same fix here:
+    # several different managers can each have their own top-buy row for
+    # the same security (confirmed directly -- one real snapshot had 9
+    # separate Booking Holdings cards), which without it would all share
+    # one id/React key.
+    issuer_span = (
+        html.Span(r["issuer"], id={"type": "top-buy-link", "ticker": ticker, "idx": idx}, n_clicks=0,
+                   style={**issuer_style, "textDecoration": "underline", "cursor": "pointer"})
+        if ticker else html.Span(r["issuer"], style=issuer_style)
+    )
     return html.Div(
         style=_CARD_STYLE,
         children=[
             html.Div(
                 style={"display": "flex", "justifyContent": "space-between", "alignItems": "center"},
                 children=[
-                    html.Span(r["issuer"], style={"fontFamily": "'IBM Plex Mono', monospace",
-                                                    "fontSize": "15px", "fontWeight": "500",
-                                                    "color": "var(--security-text)"}),
+                    issuer_span,
                     html.Span(pct_text, style=_CARD_BADGE_STYLE),
                 ],
             ),
@@ -1982,6 +2001,7 @@ def _position_chip_style(active):
 
 
 def _manager_tracker_children():
+    top_buy_companies = load_ticker_map(_session)
     return [
         html.H2("Investment Manager Tracker", style=_HEADER_STYLE),
         html.H3("Top Buys From Largest Managers", style=_HEADER_STYLE),
@@ -1989,8 +2009,8 @@ def _manager_tracker_children():
         html.Div(
             id="top-buys-table-container",
             style={"display": "flex", "gap": "10px", "overflowX": "auto", "paddingBottom": "6px"},
-            children=[_build_top_buy_card(_top_buy_row_to_record(r))
-                      for r in top_buys_across_managers(top_n=50)],
+            children=[_build_top_buy_card(_top_buy_row_to_record(r, top_buy_companies), i)
+                      for i, r in enumerate(top_buys_across_managers(top_n=50))],
         ),
         html.H3("Look Up a Manager", id="lookup-manager-heading", style={**_HEADER_STYLE, "marginTop": "40px"}),
         html.Div(
@@ -3045,13 +3065,19 @@ def update_global_search_suggestions(query):
     # branch, both entirely inside the always-eager Manager panel so
     # neither needs the pending-store indirection the other two do.
     Input({"type": "manager-holding-link", "ticker": ALL}, "n_clicks"),
+    # Top Buys From Largest Managers' own cards -- a separate pattern
+    # (top-buy-link, not manager-holding-link) since that list is cross-
+    # manager and always built eagerly; see _build_top_buy_card for why
+    # sharing one pattern with the per-manager tables risks a duplicate
+    # id if the same ticker ever appears in both at once.
+    Input({"type": "top-buy-link", "ticker": ALL, "idx": ALL}, "n_clicks"),
     Input("all-positions-table", "active_cell"),
     State("manager-input", "n_submit"),
     State("all-positions-table", "data"),
     prevent_initial_call=True,
 )
 def select_global_search_result(company_clicks, manager_clicks, member_clicks, holding_clicks,
-                                 active_cell, manager_n_submit, all_positions_data):
+                                 top_buy_clicks, active_cell, manager_n_submit, all_positions_data):
     # IMPORTANT: this callback must never declare company-input,
     # politician-chamber-tabs, or politician-input as Outputs, even
     # conditionally returning no_update for them -- all three live
@@ -3082,9 +3108,10 @@ def select_global_search_result(company_clicks, manager_clicks, member_clicks, h
             raise PreventUpdate
         view = "company"
         pending_company_selection = ticker
-    elif isinstance(triggered, dict) and triggered["type"] == "manager-holding-link":
-        if not any(holding_clicks or []):
-            raise PreventUpdate  # fires with all-zero clicks whenever either bar list re-renders
+    elif isinstance(triggered, dict) and triggered["type"] in ("manager-holding-link", "top-buy-link"):
+        clicks = holding_clicks if triggered["type"] == "manager-holding-link" else top_buy_clicks
+        if not any(clicks or []):
+            raise PreventUpdate  # fires with all-zero clicks whenever either list re-renders
         view = "company"
         pending_company_selection = triggered["ticker"]
     else:
