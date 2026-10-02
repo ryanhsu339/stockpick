@@ -5,7 +5,11 @@ services:
     plan: starter
     healthCheckPath: /
     buildCommand: pip install -r requirements.txt
-    startCommand: gunicorn dash_app:server --bind 0.0.0.0:$PORT --worker-class gthread --workers 1 --threads 4
+    # --preload: load dash_app (snapshot parsing, House/Senate roster warm-up)
+    # before gunicorn binds the port, so "port open" means "ready to serve".
+    # Without it the port opens instantly while the worker is still importing,
+    # and a deploy can route traffic to an instance that 502s until it finishes.
+    startCommand: gunicorn dash_app:server --bind 0.0.0.0:$PORT --worker-class gthread --workers 1 --threads 4 --preload
     envVars:
       - key: PYTHON_VERSION
         value: 3.12.10

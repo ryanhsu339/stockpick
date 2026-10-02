@@ -1517,18 +1517,18 @@ def _company_tracker_children():
         ),
         dcc.Loading(
             custom_spinner=html.Div(className="spinner"),
-            children=html.Div(id="status-msg", style={"marginTop": "16px", "whiteSpace": "pre-wrap"}),
+            children=html.Div(id="status-msg", className="collapse-when-empty", style={"marginTop": "16px", "whiteSpace": "pre-wrap"}),
         ),
-        html.Div(id="company-candidates", style={"marginTop": "8px"}),
+        html.Div(id="company-candidates", className="collapse-when-empty", style={"marginTop": "8px"}),
         html.Div(
             id="compare-status-wrap",
             style={"display": "none"},
             children=[
                 dcc.Loading(
                     custom_spinner=html.Div(className="spinner"),
-                    children=html.Div(id="status-msg-2", style={"marginTop": "8px", "whiteSpace": "pre-wrap"}),
+                    children=html.Div(id="status-msg-2", className="collapse-when-empty", style={"marginTop": "8px", "whiteSpace": "pre-wrap"}),
                 ),
-                html.Div(id="company-candidates-2", style={"marginTop": "8px"}),
+                html.Div(id="company-candidates-2", className="collapse-when-empty", style={"marginTop": "8px"}),
             ],
         ),
         # Chart card: High/Low + range picker sit above the (now title-less,

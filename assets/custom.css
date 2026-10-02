@@ -614,6 +614,16 @@ details summary { cursor: pointer; color: var(--body-text); font-size: 13px; }
     background-color: var(--card-bg-2);
 }
 
+/* Company Tracker's status-msg/company-candidates (and their Compare-mode
+   -2 twins): usually empty now that a successful lookup shows no
+   "Found: ..." line, but their inline top margins still stacked up into a
+   visible gap above the price chart. Dropped only while empty, so a debt
+   warning or a candidate list still gets its spacing. !important to beat
+   the inline style. */
+.collapse-when-empty:empty {
+    margin-top: 0 !important;
+}
+
 /* #panel-switch-spinner's own child (see dash_app.py, the sidebar nav
    clientside callback) -- a plain rotating-ring loader, CSS animation
    only (no JS driving the motion), so it stays smooth regardless of
