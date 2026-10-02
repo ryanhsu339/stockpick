@@ -30,7 +30,7 @@
     /* Mobile-only tap highlight for .pol-row (see the @media block below)
        -- card-bg-2 is too close to this near-black bg to register as a
        quick tap flash; a light overlay reads clearly against it. */
-    --tap-highlight: rgba(255, 255, 255, 0.10);
+    --tap-highlight: rgba(255, 255, 255, 0.16);
 }
 :root[data-theme="light"] {
     color-scheme: light;
@@ -50,7 +50,7 @@
     --accent: #1f8a5a;
     /* Light theme's card-bg-2 already contrasts fine against white, but
        defined here too so the mobile override below isn't dark-only. */
-    --tap-highlight: rgba(0, 0, 0, 0.06);
+    --tap-highlight: rgba(0, 0, 0, 0.10);
 }
 
 html, body {

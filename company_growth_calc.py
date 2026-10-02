@@ -53,6 +53,7 @@ KNOWN LIMITATIONS (read before trusting old data blindly)
 
 import argparse
 import json
+import re
 import sys
 import time
 from datetime import date
@@ -295,6 +296,155 @@ def load_ticker_map(session, use_cache=True):
     _ticker_cache["companies"] = companies
     _ticker_cache["loaded_at"] = time.time()
     return companies
+
+
+# Share-class suffixes thirteenf._display_issuer appends to a 13F security
+# name (e.g. "EVERGY INC (NOTE)") that mean the holding isn't the common
+# stock at all -- resolve_ticker_for_security below never even attempts a
+# match for these, rather than linking a bond/preferred/warrant position
+# to the issuer's equity ticker as if they were the same security.
+_NON_EQUITY_CLASS_TOKENS = {
+    "NOTE", "NOTES", "BOND", "BONDS", "DEB", "DEBENTURE", "DEBENTURES",
+    "PFD", "PREFERRED", "PREF", "WARRANT", "WARRANTS", "WT", "WTS", "WS",
+    "RT", "RTS", "RIGHT", "RIGHTS", "UNIT", "UNITS", "CALL", "PUT",
+}
+# A class suffix made up ONLY of these doesn't block
+# resolve_ticker_for_security's shortest-wins heuristic -- see its
+# docstring on ADR/ADS vs an economically distinct share class.
+_ADR_CLASS_TOKENS = {"ADR", "ADRS", "ADS", "SPONSORED", "UNSPONSORED"}
+_PARENTHETICAL_CLASS_RE = re.compile(r"\s*\(([^)]+)\)\s*$")
+_CORP_SUFFIX_RE = re.compile(
+    r"\b(INCORPORATED|INC|CORPORATION|CORP|COMPANY|CO|LIMITED|LTD|HOLDINGS?|GROUP|PLC|LLC|L P|LP|THE)\b"
+)
+# SEC's own ticker-map titles often carry a trailing bracketed
+# disambiguation tag that never appears in a 13F issuer string at all --
+# "BANK OF AMERICA CORP /DE/" (state of incorporation), "LENNAR CORP
+# /NEW/" (a newly re-registered filer entity, as opposed to an older one
+# under the same name) -- so these would otherwise never match on the
+# corporate-suffix-stripped name alone.
+_BRACKET_SUFFIX_RE = re.compile(r"/[A-Z0-9]{1,10}/?\s*$")
+_PUNCT_RE = re.compile(r"[.,&'-]")
+# 13F issuer names are free-text (no standardized abbreviation list) and
+# routinely abbreviate words SEC's own registrant title spells out --
+# "BANK OF AMER CORP" vs "Bank of America Corp". A handful of these
+# account for a disproportionate number of otherwise-clean matches
+# missing by one word (observed directly against real 13F filings), so
+# they're expanded word-for-word before matching.
+_WORD_EXPANSIONS = {
+    "AMER": "AMERICA", "INTL": "INTERNATIONAL", "FINL": "FINANCIAL",
+    "PETE": "PETROLEUM", "PAC": "PACIFIC", "MFG": "MANUFACTURING",
+    "NATL": "NATIONAL", "SYS": "SYSTEMS", "TECHS": "TECHNOLOGIES",
+    # Expanded to the word _CORP_SUFFIX_RE already strips (HOLDINGS,
+    # SERVICE) rather than left standing alone, so e.g. "HLDGS" and
+    # "Holdings" end up dropped from both sides' keys the same way.
+    "HLDG": "HOLDINGS", "HLDGS": "HOLDINGS", "SVC": "SERVICE", "SVCS": "SERVICE",
+}
+
+_ticker_name_index_cache = {"companies_id": None, "index": None, "collapsed_index": None}
+
+
+def _normalize_security_name(name):
+    """Uppercase, drop punctuation/common corporate suffixes, and sort
+    the remaining words -- so "Apple Inc." and "APPLE INC" both normalize
+    to "APPLE", and, since SEC's own registrant title for D.R. Horton is
+    literally "HORTON D R" (surname first), word ORDER doesn't need to
+    match either, just the same set of remaining words."""
+    name = _BRACKET_SUFFIX_RE.sub("", name.upper())
+    name = _PUNCT_RE.sub(" ", name)
+    # Expand abbreviations *before* stripping corporate suffixes -- HLDG/
+    # HLDGS expand to HOLDINGS, which _CORP_SUFFIX_RE then strips same as
+    # a company that spelled it out already; stripping first would leave
+    # the un-expanded abbreviation standing as its own token instead.
+    name = " ".join(_WORD_EXPANSIONS.get(tok, tok) for tok in name.split())
+    name = _CORP_SUFFIX_RE.sub(" ", name)
+    return " ".join(sorted(name.split()))
+
+
+def _ticker_name_index(companies):
+    """({sorted-token key: [tickers]}, {that key with spaces removed:
+    [tickers]}) over the full ticker map, built once per `companies` list
+    (cached by object identity -- load_ticker_map's own TTL cache means
+    this is a new list only once a day) rather than re-normalizing every
+    title on every resolve_ticker_for_security call. The second, space-
+    collapsed index is resolve_ticker_for_security's fallback for a 13F
+    issuer merging words SEC's own title keeps separate, or vice versa --
+    "SIRIUSXM HOLDINGS INC" vs SEC's "SIRIUS XM HOLDINGS INC.", "MACYS
+    INC" vs "Macy's, Inc." (the apostrophe becomes a word-splitting
+    space). Collapsing is a looser match (word boundaries lost entirely),
+    so it's only tried as a fallback, never the primary key."""
+    if _ticker_name_index_cache["companies_id"] != id(companies):
+        index, collapsed_index = {}, {}
+        for c in companies:
+            key = _normalize_security_name(c["title"])
+            if key:
+                index.setdefault(key, []).append(c["ticker"])
+                collapsed_index.setdefault(key.replace(" ", ""), []).append(c["ticker"])
+        _ticker_name_index_cache["companies_id"] = id(companies)
+        _ticker_name_index_cache["index"] = index
+        _ticker_name_index_cache["collapsed_index"] = collapsed_index
+    return _ticker_name_index_cache["index"], _ticker_name_index_cache["collapsed_index"]
+
+
+def resolve_ticker_for_security(display_name, companies):
+    """Best-effort match from a 13F "issuer" display name (see
+    thirteenf._display_issuer -- the plain company name, or "NAME (CLASS)"
+    for a non-common share class) to a ticker, for making Investment
+    Manager Tracker security names clickable through to the Public
+    Company Tracker. Returns None rather than guess wrong:
+      - a non-equity class suffix (NOTE, PFD, WARRANT, ...) is never
+        matched at all, since that holding isn't the common stock the
+        ticker would otherwise point to;
+      - SEC's own ticker map lists a company's preferred share series and
+        occasionally an ETF/ETN sharing its CIK (e.g. GS-PA, GS-PC, GSCE)
+        under the exact same registrant title as the common stock, e.g.
+        "GOLDMAN SACHS GROUP INC" resolves 5 different tickers -- for a
+        PLAIN common-stock holding (no class suffix in the 13F issuer
+        name at all) this picks the shortest ticker among the non-hyphen
+        (i.e. not a preferred series) candidates, but only when that's
+        unique, since the common-stock ticker is conventionally the
+        shortest, plainest symbol a company holds (same heuristic
+        search_companies already ranks by);
+      - a share-class suffix that's economically meaningful (CL A, CL B,
+        ...) skips the shortest-wins heuristic entirely and requires a
+        single exact match -- guessing "GOOG" for a 13F's "ALPHABET INC
+        (CL A)" would be confidently wrong (that's GOOGL), so an
+        ambiguous one of these returns None rather than picking either.
+        An ADR/ADS suffix doesn't block the heuristic, though -- unlike a
+        share class, a foreign issuer's sponsored ADS and its OTC-traded
+        unsponsored counterpart (e.g. BABA vs BABAF/BBAAY, all titled
+        "Alibaba Group Holding Ltd") represent the same underlying claim,
+        just different listing venues, so picking the shortest/most
+        commonly traded one is the same safe bet as the plain-common-
+        stock case above.
+    """
+    m = _PARENTHETICAL_CLASS_RE.search(display_name)
+    base_name = display_name
+    has_class_suffix = False
+    if m:
+        class_tokens = m.group(1).strip().upper().split()
+        if any(tok in _NON_EQUITY_CLASS_TOKENS for tok in class_tokens):
+            return None
+        base_name = display_name[:m.start()]
+        has_class_suffix = not all(tok in _ADR_CLASS_TOKENS for tok in class_tokens)
+
+    key = _normalize_security_name(base_name)
+    if not key:
+        return None
+    index, collapsed_index = _ticker_name_index(companies)
+    matches = index.get(key) or collapsed_index.get(key.replace(" ", ""))
+    if not matches:
+        return None
+    if len(matches) == 1:
+        return matches[0]
+    if has_class_suffix:
+        return None
+
+    plain = [t for t in matches if re.fullmatch(r"[A-Z]{1,5}", t)]
+    if not plain:
+        return None
+    shortest_len = min(len(t) for t in plain)
+    shortest = [t for t in plain if len(t) == shortest_len]
+    return shortest[0] if len(shortest) == 1 else None
 
 
 def resolve_company(query, companies):

@@ -48,6 +48,7 @@ from company_growth_calc import (
     fetch_income_statement_data,
     load_ticker_map,
     resolve_company,
+    resolve_ticker_for_security,
     search_companies,
 )
 from stock_price import (HoldingsDataError, PriceDataError, RANGE_KEYS, fetch_fund_name, fetch_price_history,
@@ -1614,7 +1615,7 @@ _SHARE_PRICE_FORMAT = Format(precision=2, scheme=Scheme.fixed, group=True).nully
 # different trades). See build_holdings_comparison.
 
 
-def _manager_row_to_record(r):
+def _manager_row_to_record(r, companies):
     return {
         "issuer": r["issuer"],
         "shares_m": r["shares_m"],
@@ -1624,6 +1625,14 @@ def _manager_row_to_record(r):
         "value_m": r["value_m"],
         "portfolio_pct": r["portfolio_pct"],
         "delta_pct": r["delta_pct"],
+        # Best-effort 13F-issuer-name -> ticker match (see
+        # resolve_ticker_for_security) -- "" rather than None so the
+        # DataTable's style_data_conditional filter_query below (which
+        # can't test for None/falsy) has a plain string to compare
+        # against. Makes the security name clickable through to the
+        # Public Company Tracker when resolved (_build_delta_bar_row,
+        # all-positions-table's conditional styling).
+        "resolved_ticker": resolve_ticker_for_security(r["issuer"], companies) or "",
     }
 
 
@@ -1700,6 +1709,18 @@ def _build_delta_bar_row(r, max_abs_value, up):
     width_pct = min(100.0, abs(value_m) / max_abs_value * 100) if max_abs_value else 0.0
     color = "var(--up)" if up else "var(--down)"
     sign = "+" if value_m >= 0 else "-"
+    issuer_style = {"color": "var(--security-text)", "overflow": "hidden",
+                    "textOverflow": "ellipsis", "whiteSpace": "nowrap"}
+    ticker = r.get("resolved_ticker")
+    # Clickable through to the Public Company Tracker only when
+    # resolve_ticker_for_security found one -- most bond/preferred/
+    # foreign-ADR holdings won't, and stay plain text rather than a
+    # dead-looking link (see that function's docstring for why).
+    issuer_span = (
+        html.Span(r["issuer"], id={"type": "manager-holding-link", "ticker": ticker}, n_clicks=0,
+                   style={**issuer_style, "textDecoration": "underline", "cursor": "pointer"})
+        if ticker else html.Span(r["issuer"], style=issuer_style)
+    )
     return html.Div(
         # 151px (72 * 1.5, then * 1.4 again): security names still got cut
         # off too early. The bar column is minmax(0,1fr) -- flexible -- so
@@ -1708,8 +1729,7 @@ def _build_delta_bar_row(r, max_abs_value, up):
         style={"display": "grid", "gridTemplateColumns": "151px minmax(0,1fr) 90px", "gap": "12px",
                "alignItems": "center", "fontSize": "13px", "padding": "4px 0"},
         children=[
-            html.Span(r["issuer"], style={"color": "var(--security-text)", "overflow": "hidden",
-                                           "textOverflow": "ellipsis", "whiteSpace": "nowrap"}),
+            issuer_span,
             html.Div(
                 style={"height": "6px", "backgroundColor": "var(--card-bg-2)", "borderRadius": "3px"},
                 children=html.Div(style={"height": "6px", "borderRadius": "3px",
@@ -2051,7 +2071,12 @@ def _manager_tracker_children():
                 id="all-positions-table",
                 columns=ALL_POSITIONS_COLUMNS,
                 data=[],
-                cell_selectable=False,
+                # True so a click on a resolved-ticker "issuer" cell (see
+                # the active_cell handling alongside select_global_search_
+                # result) registers at all -- see the css override below
+                # for why this doesn't bring back DataTable's default
+                # selection-box look.
+                cell_selectable=True,
                 page_action="none",
                 fixed_rows={"headers": True},
                 # "native" sort puts a null ΔShares/ΔValue % ("New"
@@ -2062,9 +2087,35 @@ def _manager_tracker_children():
                 # first when descending, last when ascending.
                 sort_action="custom",
                 sort_by=[],
+                css=[
+                    {"selector": 'td[data-dash-column="issuer"]:hover',
+                     "rule": "color: var(--text) !important;"},
+                    # DataTable's built-in active/selected-cell highlight
+                    # (a hotpink border + reddish fill) is meant for
+                    # selecting/copying data, not a click-to-navigate
+                    # ticker link -- see holdings-table's identical
+                    # override above for why every cell's colors are
+                    # force-reset unconditionally rather than just the
+                    # selected one.
+                    {"selector": "td.dash-cell",
+                     "rule": f"background-color: {_MANAGER_TABLE_BG} !important; "
+                             "border-color: var(--border) !important; "
+                             "outline-color: var(--border) !important;"},
+                    {"selector": 'td[data-dash-column="issuer"]',
+                     "rule": "text-decoration-skip-ink: none !important;"},
+                ],
                 **{**_MANAGER_TABLE_STYLE,
                    "style_table": {**_MANAGER_TABLE_STYLE["style_table"],
-                                    "maxHeight": "600px", "overflowY": "auto"}},
+                                    "maxHeight": "600px", "overflowY": "auto"},
+                   # Only an "issuer" cell with a resolved_ticker (a
+                   # hidden field, not in ALL_POSITIONS_COLUMNS -- see
+                   # _all_positions_row_to_record) reads as a link; most
+                   # bond/preferred/foreign-ADR holdings don't resolve
+                   # one and stay plain, unclickable text.
+                   "style_data_conditional": _MANAGER_TABLE_STYLE["style_data_conditional"] + [
+                       {"if": {"column_id": "issuer", "filter_query": '{resolved_ticker} != ""'},
+                        "textDecoration": "underline", "cursor": "pointer"},
+                   ]},
             ),
         ),
         dcc.Store(id="suppress-next-manager-suggestions", data=False),
@@ -2982,13 +3033,25 @@ def update_global_search_suggestions(query):
     Output("global-search-input", "value", allow_duplicate=True),
     Output("global-search-suggestions", "children", allow_duplicate=True),
     Output("scroll-to-lookup-trigger", "data", allow_duplicate=True),
+    Output("all-positions-table", "active_cell", allow_duplicate=True),
+    Output("all-positions-table", "selected_cells", allow_duplicate=True),
     Input({"type": "global-search-company", "ticker": ALL}, "n_clicks"),
     Input({"type": "global-search-manager", "name": ALL}, "n_clicks"),
     Input({"type": "global-search-member", "chamber": ALL, "last": ALL, "first": ALL}, "n_clicks"),
+    # A clickable security name in Top Increases/Decreases (manager-
+    # holding-link) or All Equity Positions (all-positions-table's
+    # active_cell) also jumps to the Public Company Tracker -- same
+    # "view" dispatch below, just two more ways to reach the "company"
+    # branch, both entirely inside the always-eager Manager panel so
+    # neither needs the pending-store indirection the other two do.
+    Input({"type": "manager-holding-link", "ticker": ALL}, "n_clicks"),
+    Input("all-positions-table", "active_cell"),
     State("manager-input", "n_submit"),
+    State("all-positions-table", "data"),
     prevent_initial_call=True,
 )
-def select_global_search_result(company_clicks, manager_clicks, member_clicks, manager_n_submit):
+def select_global_search_result(company_clicks, manager_clicks, member_clicks, holding_clicks,
+                                 active_cell, manager_n_submit, all_positions_data):
     # IMPORTANT: this callback must never declare company-input,
     # politician-chamber-tabs, or politician-input as Outputs, even
     # conditionally returning no_update for them -- all three live
@@ -3006,27 +3069,41 @@ def select_global_search_result(company_clicks, manager_clicks, member_clicks, m
     # children) mean each of their invocations is evaluated
     # independently: one firing before the panel exists can fail
     # harmlessly without blocking the later one that fires once it does.
-    if not any(company_clicks or []) and not any(manager_clicks or []) and not any(member_clicks or []):
-        raise PreventUpdate  # fires with all-zero clicks whenever the suggestion list re-renders
     triggered = ctx.triggered_id
-    kind = triggered["type"]
-
     manager_value = manager_submit = no_update
     pending_selection = pending_company_selection = no_update
 
-    if kind == "global-search-company":
+    if triggered == "all-positions-table":
+        if not active_cell or active_cell.get("column_id") != "issuer":
+            raise PreventUpdate
+        row = (all_positions_data or [])[active_cell["row"]]
+        ticker = row.get("resolved_ticker")
+        if not ticker:
+            raise PreventUpdate
+        view = "company"
+        pending_company_selection = ticker
+    elif isinstance(triggered, dict) and triggered["type"] == "manager-holding-link":
+        if not any(holding_clicks or []):
+            raise PreventUpdate  # fires with all-zero clicks whenever either bar list re-renders
         view = "company"
         pending_company_selection = triggered["ticker"]
-    elif kind == "global-search-manager":
-        view = "manager"
-        # Manager is _DEFAULT_VIEW and always built eagerly, so no
-        # not-built-yet case to guard against -- safe to write directly.
-        manager_value = triggered["name"]
-        manager_submit = (manager_n_submit or 0) + 1
     else:
-        view = "politician"
-        chamber = triggered["chamber"]
-        pending_selection = f"{chamber}|{triggered['last']}|{triggered['first']}"
+        if not any(company_clicks or []) and not any(manager_clicks or []) and not any(member_clicks or []):
+            raise PreventUpdate  # fires with all-zero clicks whenever the suggestion list re-renders
+        kind = triggered["type"]
+        if kind == "global-search-company":
+            view = "company"
+            pending_company_selection = triggered["ticker"]
+        elif kind == "global-search-manager":
+            view = "manager"
+            # Manager is _DEFAULT_VIEW and always built eagerly, so no
+            # not-built-yet case to guard against -- safe to write directly.
+            manager_value = triggered["name"]
+            manager_submit = (manager_n_submit or 0) + 1
+        else:
+            view = "politician"
+            chamber = triggered["chamber"]
+            pending_selection = f"{chamber}|{triggered['last']}|{triggered['first']}"
 
     return (
         view,
@@ -3037,7 +3114,7 @@ def select_global_search_result(company_clicks, manager_clicks, member_clicks, m
         _sidebar_nav_row_style(view == "politician"), _sidebar_nav_dot_style(view == "politician"),
         _sidebar_nav_row_style(view == "company"), _sidebar_nav_dot_style(view == "company"),
         manager_value, manager_submit, pending_selection, pending_company_selection, "", None,
-        view,
+        view, None, [],
     )
 
 
@@ -4206,7 +4283,7 @@ def update_dcf_2(defaults, _n_clicks, _n_intervals, theme, mobile, *current_valu
     return (*input_outputs, data, columns, summary, banner, chart)
 
 
-def _all_positions_row_to_record(r):
+def _all_positions_row_to_record(r, companies):
     return {
         "issuer": r["issuer"],
         "shares_m": r["shares_m"],
@@ -4221,6 +4298,8 @@ def _all_positions_row_to_record(r):
         "portfolio_pct": r["portfolio_pct"],
         "prev_portfolio_pct": r["prev_portfolio_pct"],
         "delta_pct": r["delta_pct"],
+        # See _manager_row_to_record's matching comment.
+        "resolved_ticker": resolve_ticker_for_security(r["issuer"], companies) or "",
     }
 
 
@@ -4311,9 +4390,10 @@ def generate_manager(_n_submit, query):
 
     status = (f"Found: {result['resolved_name']} (CIK {result['cik']}) — "
               f"{result['latest_period']} vs {result['previous_period']}")
-    increases = [_manager_row_to_record(r) for r in result["top_increases"]]
-    decreases = [_manager_row_to_record(r) for r in result["top_decreases"]]
-    all_positions = [_all_positions_row_to_record(r) for r in result["all_positions"]]
+    companies = load_ticker_map(_session)
+    increases = [_manager_row_to_record(r, companies) for r in result["top_increases"]]
+    decreases = [_manager_row_to_record(r, companies) for r in result["top_decreases"]]
+    all_positions = [_all_positions_row_to_record(r, companies) for r in result["all_positions"]]
     meta = {"cik": result["cik"], "truncated": result.get("positions_truncated", False)}
     return (status, _build_delta_bar_list(increases, True), _build_delta_bar_list(decreases, False),
             all_positions[:_POSITIONS_PAGE_SIZE], None, None,
@@ -4355,9 +4435,10 @@ def select_manager_candidate(candidate_clicks, suggestion_clicks):
 
     status = (f"Found: {result['resolved_name']} (CIK {result['cik']}) — "
               f"{result['latest_period']} vs {result['previous_period']}")
-    increases = [_manager_row_to_record(r) for r in result["top_increases"]]
-    decreases = [_manager_row_to_record(r) for r in result["top_decreases"]]
-    all_positions = [_all_positions_row_to_record(r) for r in result["all_positions"]]
+    companies = load_ticker_map(_session)
+    increases = [_manager_row_to_record(r, companies) for r in result["top_increases"]]
+    decreases = [_manager_row_to_record(r, companies) for r in result["top_decreases"]]
+    all_positions = [_all_positions_row_to_record(r, companies) for r in result["all_positions"]]
     meta = {"cik": result["cik"], "truncated": result.get("positions_truncated", False)}
     # Setting manager-input's value below re-triggers update_manager_suggestions
     # (it watches that same value) — this flag tells that callback to skip
@@ -4396,7 +4477,8 @@ def download_positions(_n_clicks, all_positions, manager_name, positions_meta):
         except (FilingDataError, requests.RequestException):
             pass  # fall back to the capped list below rather than failing the download
         else:
-            all_positions = [_all_positions_row_to_record(r) for r in result["all_positions"]]
+            all_positions = [_all_positions_row_to_record(r, load_ticker_map(_session))
+                              for r in result["all_positions"]]
     if not all_positions:
         return None
     csv_bytes = _table_dataframe(ALL_POSITIONS_COLUMNS, all_positions).to_csv(index=False).encode("utf-8")
@@ -4751,10 +4833,11 @@ def _fmt_amount(v):
 
 
 # Shared by _build_trade_row/_build_leaderboard_row's member-name span --
-# an accent-colored underline reads as "this is a link" on its own,
-# unlike the row's hover-only background (.pol-row:hover in custom.css),
-# which a touch device never shows at all.
-_CLICKABLE_NAME_STYLE = {"fontWeight": "500", "color": "var(--accent)", "textDecoration": "underline"}
+# an underline reads as "this is a link" on its own, unlike the row's
+# hover-only background (.pol-row:hover in custom.css), which a touch
+# device never shows at all. Plain --text (not an accent color) per
+# feedback -- keeps the row's usual look, just underlined.
+_CLICKABLE_NAME_STYLE = {"fontWeight": "500", "color": "var(--text)", "textDecoration": "underline"}
 
 
 # id carries the (chamber, last, first) selection payload directly, rather
