@@ -1401,7 +1401,7 @@ def _company_tracker_children():
                 # scroll-triggered "load more".
                 overlay_style={"visibility": "visible"},
                 children=html.Div(
-                    style={"display": "flex", "gap": "24px", "flexWrap": "wrap"},
+                    style={"display": "flex", "gap": "48px", "flexWrap": "wrap"},
                     children=[
                         _movers_card("Today's Top Gainers", "top-gainers-container"),
                         _movers_card("Today's Top Losers", "top-losers-container"),
@@ -1652,8 +1652,7 @@ _ACTIVITY_PAGE_SIZE = 30
 # mechanism as _ACTIVITY_PAGE_SIZE above, starting at a top-10.
 _MOVERS_PAGE_SIZE = 10
 _MOVERS_FETCH_COUNT = 100
-_MOVERS_NOTE = ("Today's biggest moves among US-listed stocks with a market cap of roughly $2B+, via "
-                "Yahoo Finance. Click a stock to look it up below.")
+_MOVERS_NOTE = "Today's biggest moves among US-listed stocks with a market cap of roughly $2B+"
 
 _FILTER_PANEL_STYLE = {
     "minWidth": "180px", "maxWidth": "180px",
@@ -2320,7 +2319,7 @@ def _politician_tracker_children(initial_pending=None):
             # first one.
             overlay_style={"visibility": "visible"},
             children=html.Div(
-                style={"display": "flex", "gap": "24px", "flexWrap": "wrap"},
+                style={"display": "flex", "gap": "48px", "flexWrap": "wrap"},
                 children=[
                     html.Div(
                         style={"flex": "1 1 420px", "minWidth": "0", "backgroundColor": "var(--card-bg)",
