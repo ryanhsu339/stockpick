@@ -280,6 +280,7 @@ a:hover { color: var(--text); }
     #company-movers-wrap {
         order: -4;
     }
+    #lookup-stock-divider,
     #lookup-stock-heading {
         order: -3;
     }

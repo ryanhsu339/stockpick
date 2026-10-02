@@ -895,6 +895,21 @@ _HEADER_STYLE = {"color": _HEADER_TEXT_COLOR}
 _KPI_SECTION_LABEL_STYLE = {"fontSize": "13px", "fontWeight": "700", "color": "var(--text)",
                              "marginBottom": "8px"}
 _PARA_STYLE = {"color": _BODY_TEXT_COLOR}
+# Title of a scrollable summary card (Top Gainers/Losers, Recent Trades/
+# Leaderboard) -- sticky so it stays put while the rows scroll beneath it.
+# The card's own top padding lives here instead (the card itself has none
+# on top), otherwise rows would show through that padding strip above
+# the pinned title; the opaque background + zIndex keep them hidden
+# underneath it, including a row's hover highlight. The negative side
+# margin (matching the card's 20px side padding) stretches that
+# background edge to edge, so rows scrolling up can't peek out beside it.
+# Thin rule separating each tab's top summary cards from its "Look Up a
+# ..." section below.
+_SECTION_DIVIDER_STYLE = {"border": "none", "borderTop": "1px solid var(--border)", "margin": "48px 0 0"}
+_LOOKUP_HEADING_STYLE = {**_HEADER_STYLE, "marginTop": "40px"}
+_STICKY_CARD_TITLE_STYLE = {**_HEADER_STYLE, "position": "sticky", "top": "0", "zIndex": "1",
+                            "backgroundColor": "var(--card-bg)", "margin": "0 -20px",
+                            "padding": "16px 20px 8px"}
 # DataTables keep their own light "card" background regardless of the dark
 # page behind them, so their cell text needs an explicit dark color rather
 # than inheriting the page's light default (which would wash out unreadable
@@ -966,7 +981,6 @@ _NAV_TAB_HIDDEN_STYLE = {"display": "none"}
 _FINANCIALS_HEADER_STYLE = {"display": "flex", "justifyContent": "space-between", "alignItems": "flex-end",
                              "marginTop": "40px", "flexWrap": "wrap", "gap": "12px"}
 _FINANCIALS_HEADER_HIDDEN_STYLE = {**_FINANCIALS_HEADER_STYLE, "display": "none"}
-_NAV_CONTAINER_HIDDEN_STYLE = {**_NAV_CONTAINER_STYLE, "display": "none"}
 _NO_FINANCIALS_MSG_STYLE = {"color": "var(--body-text)", "fontSize": "14px", "marginTop": "16px",
                               "display": "none"}
 _NO_FINANCIALS_MSG_VISIBLE_STYLE = {**_NO_FINANCIALS_MSG_STYLE, "display": "block"}
@@ -1379,9 +1393,9 @@ def _movers_card(title, container_id):
     return html.Div(
         style={"flex": "1 1 420px", "minWidth": "0", "backgroundColor": "var(--card-bg)",
                "border": "1px solid var(--border)", "borderRadius": "14px",
-               "padding": "16px 20px", "maxHeight": "480px", "overflowY": "auto"},
+               "padding": "0 20px 16px", "maxHeight": "480px", "overflowY": "auto"},
         children=[
-            html.H3(title, style={**_HEADER_STYLE, "marginTop": "0"}),
+            html.H3(title, style=_STICKY_CARD_TITLE_STYLE),
             html.Div(id=container_id),
         ],
     )
@@ -1418,7 +1432,8 @@ def _company_tracker_children():
         dcc.Store(id="top-losers-records", data=[]),
         dcc.Store(id="top-losers-visible-count", data=_MOVERS_PAGE_SIZE),
         dcc.Interval(id="top-losers-scroll-poll", interval=1200, n_intervals=0),
-        html.H3("Look Up a Stock", id="lookup-stock-heading", style={**_HEADER_STYLE, "marginTop": "40px"}),
+        html.Hr(id="lookup-stock-divider", style=_SECTION_DIVIDER_STYLE),
+        html.H3("Look Up a Stock", id="lookup-stock-heading", style=_LOOKUP_HEADING_STYLE),
         # stock-header-{meta,name,price,change} start as placeholder/blank
         # text and are filled in by update_price_chart/update_company_overview
         # once a ticker's loaded (see those callbacks) -- price/change used
@@ -2084,7 +2099,8 @@ def _manager_tracker_children():
             children=[_build_top_buy_card(_top_buy_row_to_record(r, top_buy_companies), i)
                       for i, r in enumerate(top_buys_across_managers(top_n=50))],
         ),
-        html.H3("Look Up a Manager", id="lookup-manager-heading", style={**_HEADER_STYLE, "marginTop": "40px"}),
+        html.Hr(style=_SECTION_DIVIDER_STYLE),
+        html.H3("Look Up a Manager", id="lookup-manager-heading", style=_LOOKUP_HEADING_STYLE),
         html.Div(
             style={"display": "flex", "gap": "12px", "alignItems": "flex-end", "flexWrap": "wrap"},
             children=[
@@ -2324,18 +2340,18 @@ def _politician_tracker_children(initial_pending=None):
                     html.Div(
                         style={"flex": "1 1 420px", "minWidth": "0", "backgroundColor": "var(--card-bg)",
                                "border": "1px solid var(--border)", "borderRadius": "14px",
-                               "padding": "16px 20px", "maxHeight": "480px", "overflowY": "auto"},
+                               "padding": "0 20px 16px", "maxHeight": "480px", "overflowY": "auto"},
                         children=[
-                            html.H3("Most Recent Trades (All Members)", style=_HEADER_STYLE),
+                            html.H3("Most Recent Trades (All Members)", style=_STICKY_CARD_TITLE_STYLE),
                             html.Div(id="recent-trades-container"),
                         ],
                     ),
                     html.Div(
                         style={"flex": "1 1 420px", "minWidth": "0", "backgroundColor": "var(--card-bg)",
                                "border": "1px solid var(--border)", "borderRadius": "14px",
-                               "padding": "16px 20px", "maxHeight": "480px", "overflowY": "auto"},
+                               "padding": "0 20px 16px", "maxHeight": "480px", "overflowY": "auto"},
                         children=[
-                            html.H3("Largest Est. Portfolio Value (All Members)", style=_HEADER_STYLE),
+                            html.H3("Largest Est. Portfolio Value (All Members)", style=_STICKY_CARD_TITLE_STYLE),
                             html.Div(id="congress-leaderboard-container"),
                         ],
                     ),
@@ -2361,7 +2377,8 @@ def _politician_tracker_children(initial_pending=None):
         # update_politician_roster (triggered by that chamber switch)
         # consumes it instead of falling back to that chamber's default
         # member, then clears it.
-        html.H3("Look Up a Member", id="lookup-member-heading", style={**_HEADER_STYLE, "marginTop": "40px"}),
+        html.Hr(style=_SECTION_DIVIDER_STYLE),
+        html.H3("Look Up a Member", id="lookup-member-heading", style=_LOOKUP_HEADING_STYLE),
         dcc.Tabs(
             id="politician-chamber-tabs",
             value=initial_chamber,
@@ -3336,7 +3353,7 @@ app.clientside_callback(
 
 def _tab_visibility_styles(mode):
     """(growth, income, balance, cashflow, holdings, dcf-wrap, financials-
-    header, view-tabs, no-financials-msg) styles.
+    header, view-tabs parent, no-financials-msg) styles.
     "operating": financials tabs + DCF, for a normal 10-K filer.
     "fund": Top Holdings only -- a fund has no operating cash flows of
     its own to project, so the DCF valuation panel is hidden outright
@@ -3353,7 +3370,11 @@ def _tab_visibility_styles(mode):
     holdings_style = _NAV_TAB_STYLE if mode == "fund" else _NAV_TAB_HIDDEN_STYLE
     dcf_wrap_style = {"display": "block"} if mode == "operating" else {"display": "none"}
     header_style = _FINANCIALS_HEADER_HIDDEN_STYLE if mode == "price_only" else _FINANCIALS_HEADER_STYLE
-    tabs_style = _NAV_CONTAINER_HIDDEN_STYLE if mode == "price_only" else _NAV_CONTAINER_STYLE
+    # parent_style, not style: dcc.Tabs' own style only covers the tab bar,
+    # while the selected tab's content (the Growth Rates table) renders in
+    # a separate wrapper -- hiding just the bar left that empty table on
+    # screen. parent_style wraps both.
+    tabs_style = {"display": "none"} if mode == "price_only" else {}
     no_financials_style = _NO_FINANCIALS_MSG_VISIBLE_STYLE if mode == "price_only" else _NO_FINANCIALS_MSG_STYLE
     return (financials_style, financials_style, financials_style, financials_style,
             holdings_style, dcf_wrap_style, header_style, tabs_style, no_financials_style)
@@ -3493,16 +3514,19 @@ def _run_company_lookup(query, years):
         # to do with SEC XBRL, so it still shows even though the
         # financials tables and DCF (both XBRL-driven) can't.
         ticker, title = company["ticker"], company["title"]
-        status = f"Found: {title} ({ticker}) — financials unavailable ({e}); showing price only."
+        # No status text -- the page header already names the company,
+        # and no-financials-msg (see _tab_visibility_styles' "price_only"
+        # mode) already explains the missing financials.
+        status = ""
         store = {"rows": [], "title": title, "ticker": ticker}
         return ([], status, store, True, [], EMPTY_COLS, [], EMPTY_COLS, [], EMPTY_COLS,
                 [], HOLDINGS_COLUMNS, "growth", *_tab_visibility_styles("price_only"), None), None
     except requests.RequestException as e:
         return _empty_company_outputs(f"Network error talking to SEC EDGAR: {e}"), None
 
-    status = f"Found: {title} ({ticker})"
-    if debt_warning:
-        status += f"\n{debt_warning}"
+    # No "Found: ..." line -- the page header already names the company,
+    # so status-msg only carries the debt warning (if any).
+    status = debt_warning or ""
 
     # Resolved to a single exact ticker above, so reuse it here (skips
     # re-doing name resolution and guarantees all three statements match
@@ -3560,8 +3584,8 @@ def _run_etf_lookup(ticker):
     except HoldingsDataError as e:
         return _empty_company_outputs(f"{ticker}: {e}", mode="fund")
 
-    status = (f"Found: {ticker} — ETF/Fund. Financials and DCF valuation aren't available "
-              "for funds (no 10-K/XBRL data); showing top holdings instead.")
+    status = ("ETF/Fund: financials and DCF valuation aren't available for funds (no 10-K/XBRL data); "
+              "showing top holdings instead.")
     holdings_data = [
         {"symbol": r.symbol, "name": r.name, "holding_pct": round(r.holding_pct, 2)}
         for r in holdings_df.itertuples()
@@ -3680,7 +3704,7 @@ def render_compare_mode(is_compare):
     Output("holdings-tab", "style"),
     Output("dcf-wrap", "style"),
     Output("financials-header", "style"),
-    Output("view-tabs", "style"),
+    Output("view-tabs", "parent_style"),
     Output("no-financials-msg", "style"),
     Output("company-candidates", "children"),
     Output("company-suggestions", "children"),
@@ -3715,7 +3739,7 @@ def generate(_n_submit, company):
     Output("holdings-tab-2", "style"),
     Output("dcf-wrap-2", "style"),
     Output("financials-header-2", "style"),
-    Output("view-tabs-2", "style"),
+    Output("view-tabs-2", "parent_style"),
     Output("no-financials-msg-2", "style"),
     Output("company-candidates-2", "children"),
     Output("company-suggestions-2", "children", allow_duplicate=True),
@@ -3754,7 +3778,7 @@ def generate_2(_n_submit, company):
     Output("holdings-tab", "style", allow_duplicate=True),
     Output("dcf-wrap", "style", allow_duplicate=True),
     Output("financials-header", "style", allow_duplicate=True),
-    Output("view-tabs", "style", allow_duplicate=True),
+    Output("view-tabs", "parent_style", allow_duplicate=True),
     Output("no-financials-msg", "style", allow_duplicate=True),
     Output("company-candidates", "children", allow_duplicate=True),
     Output("company-suggestions", "children", allow_duplicate=True),
@@ -3813,7 +3837,7 @@ def select_company_candidate(candidate_clicks, suggestion_clicks, active_cell, h
     Output("holdings-tab-2", "style", allow_duplicate=True),
     Output("dcf-wrap-2", "style", allow_duplicate=True),
     Output("financials-header-2", "style", allow_duplicate=True),
-    Output("view-tabs-2", "style", allow_duplicate=True),
+    Output("view-tabs-2", "parent_style", allow_duplicate=True),
     Output("no-financials-msg-2", "style", allow_duplicate=True),
     Output("company-candidates-2", "children", allow_duplicate=True),
     Output("company-suggestions-2", "children", allow_duplicate=True),
@@ -3952,8 +3976,8 @@ _MOVERS_EMPTY_MSG_STYLE = {"color": "var(--body-text)", "fontSize": "13px", "mar
 @app.callback(
     Output("top-gainers-records", "data"),
     Output("top-losers-records", "data"),
-    Output("top-gainers-visible-count", "data"),
-    Output("top-losers-visible-count", "data"),
+    Output("top-gainers-container", "children"),
+    Output("top-losers-container", "children"),
     Input("company-panel", "children"),
     prevent_initial_call=True,
 )
@@ -3961,8 +3985,16 @@ def load_day_movers(_panel_children):
     # Fires once the Companies panel itself exists (build_company_panel),
     # same as load_activity_summary does for the Politicians panel. Both
     # screens are fetched in parallel; either failing just leaves that
-    # card showing an empty-state message (see render_mover_rows) rather
+    # card showing an empty-state message (see _render_mover_rows) rather
     # than taking the other down with it.
+    #
+    # Returns both cards' first page of rows directly, rather than just
+    # the records and leaving render_gainer_rows/render_loser_rows to
+    # build them (they only handle scroll-triggered "load more" now).
+    # Every callback response costs the Dash renderer ~0.15-0.2s of
+    # main-thread work on this (large) panel regardless of payload size,
+    # and those two extra round trips landed right as the price chart's
+    # own response did -- measured delaying the chart by ~0.6s on open.
     def fetch(kind):
         try:
             return fetch_day_movers(kind, count=_MOVERS_FETCH_COUNT)
@@ -3971,7 +4003,8 @@ def load_day_movers(_panel_children):
 
     with concurrent.futures.ThreadPoolExecutor(max_workers=2) as pool:
         gainers, losers = pool.map(fetch, ["gainers", "losers"])
-    return gainers, losers, _MOVERS_PAGE_SIZE, _MOVERS_PAGE_SIZE
+    return (gainers, losers, _render_mover_rows(_MOVERS_PAGE_SIZE, gainers, "gainers"),
+            _render_mover_rows(_MOVERS_PAGE_SIZE, losers, "losers"))
 
 
 def _render_mover_rows(visible_count, records, kind):
@@ -3981,7 +4014,7 @@ def _render_mover_rows(visible_count, records, kind):
 
 
 @app.callback(
-    Output("top-gainers-container", "children"),
+    Output("top-gainers-container", "children", allow_duplicate=True),
     Input("top-gainers-visible-count", "data"),
     State("top-gainers-records", "data"),
     prevent_initial_call=True,
@@ -3991,7 +4024,7 @@ def render_gainer_rows(visible_count, records):
 
 
 @app.callback(
-    Output("top-losers-container", "children"),
+    Output("top-losers-container", "children", allow_duplicate=True),
     Input("top-losers-visible-count", "data"),
     State("top-losers-records", "data"),
     prevent_initial_call=True,
