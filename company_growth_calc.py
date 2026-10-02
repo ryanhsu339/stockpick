@@ -333,7 +333,8 @@ _PUNCT_RE = re.compile(r"[.,&'-]")
 _WORD_EXPANSIONS = {
     "AMER": "AMERICA", "INTL": "INTERNATIONAL", "FINL": "FINANCIAL",
     "PETE": "PETROLEUM", "PAC": "PACIFIC", "MFG": "MANUFACTURING",
-    "NATL": "NATIONAL", "SYS": "SYSTEMS", "TECHS": "TECHNOLOGIES",
+    "NATL": "NATIONAL", "SYS": "SYSTEMS", "TECHS": "TECHNOLOGIES", "TECHN": "TECHNOLOGIES",
+    "TECH": "TECHNOLOGY",
     # Expanded to the word _CORP_SUFFIX_RE already strips (HOLDINGS,
     # SERVICE) rather than left standing alone, so e.g. "HLDGS" and
     # "Holdings" end up dropped from both sides' keys the same way.
