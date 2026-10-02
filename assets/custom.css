@@ -269,6 +269,20 @@ a:hover { color: var(--text); }
         display: flex;
         flex-direction: column;
     }
+    /* Page heading, movers cards and the "Look Up a Stock" heading stay
+       on top, ahead of the toggle/search/name reorder below. */
+    #company-main-heading {
+        order: -6;
+    }
+    #company-movers-note {
+        order: -5;
+    }
+    #company-movers-wrap {
+        order: -4;
+    }
+    #lookup-stock-heading {
+        order: -3;
+    }
     #stock-header {
         display: contents !important;
     }

@@ -8,6 +8,7 @@ since it's a different data source with its own failure modes (Yahoo
 symbols can differ slightly from SEC tickers, e.g. share classes).
 """
 
+import time
 from datetime import date, timedelta
 
 import yfinance as yf
@@ -160,3 +161,44 @@ def fetch_top_holdings(ticker, limit=10):
 
     df["holding_pct"] = df["holding_pct"].astype(float) * 100
     return df[["symbol", "name", "holding_pct"]].head(limit)
+
+
+# Yahoo's predefined "day_gainers"/"day_losers" screens -- already filtered
+# to US-listed stocks with real size/liquidity (roughly $2B+ market cap,
+# $5+ price), so a penny stock's 300% pop doesn't crowd out everything
+# else. Cached briefly since every visit to the Companies tab would
+# otherwise re-hit Yahoo for what's effectively the same list.
+_MOVERS_SCREENS = {"gainers": "day_gainers", "losers": "day_losers"}
+_MOVERS_CACHE_TTL = 300
+_movers_cache = {}
+
+
+def fetch_day_movers(kind, count=100):
+    """Return today's top `count` gainers or losers (`kind` is "gainers"
+    or "losers") as a list of dicts (symbol, name, price, change,
+    change_pct, market_cap, volume), biggest move first. Raises
+    PriceDataError if Yahoo's screener can't be reached."""
+    screen = _MOVERS_SCREENS[kind]
+    cached = _movers_cache.get(kind)
+    if cached and time.time() - cached[0] < _MOVERS_CACHE_TTL:
+        return cached[1]
+    try:
+        quotes = (yf.screen(screen, count=count) or {}).get("quotes") or []
+    except Exception as e:
+        raise PriceDataError(f"Could not fetch day {kind}: {e}") from e
+    movers = [
+        {
+            "symbol": q["symbol"],
+            "name": q.get("shortName") or q.get("longName") or q["symbol"],
+            "price": q.get("regularMarketPrice"),
+            "change": q.get("regularMarketChange"),
+            "change_pct": q.get("regularMarketChangePercent"),
+            "market_cap": q.get("marketCap"),
+            "volume": q.get("regularMarketVolume"),
+        }
+        for q in quotes
+        if q.get("symbol") and q.get("regularMarketChangePercent") is not None
+    ]
+    movers.sort(key=lambda m: m["change_pct"], reverse=(kind == "gainers"))
+    _movers_cache[kind] = (time.time(), movers)
+    return movers

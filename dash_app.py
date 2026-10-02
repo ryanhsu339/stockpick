@@ -51,8 +51,8 @@ from company_growth_calc import (
     resolve_ticker_for_security,
     search_companies,
 )
-from stock_price import (HoldingsDataError, PriceDataError, RANGE_KEYS, fetch_fund_name, fetch_price_history,
-                          fetch_ticker_overview, fetch_top_holdings)
+from stock_price import (HoldingsDataError, PriceDataError, RANGE_KEYS, fetch_day_movers, fetch_fund_name,
+                          fetch_price_history, fetch_ticker_overview, fetch_top_holdings)
 from thirteenf import (
     FilingDataError,
     ManagerLookupError,
@@ -1371,8 +1371,54 @@ def _financials_valuation_block(suffix, mirror=False):
     ]
 
 
+def _movers_card(title, container_id):
+    # Same scrollable-card shell as the Politicians tab's Recent Trades/
+    # Leaderboard (see _politician_tracker_children) -- the
+    # movers-scroll-poll clientside callbacks below rely on the container's
+    # parentElement being this card's own overflowY:auto div.
+    return html.Div(
+        style={"flex": "1 1 420px", "minWidth": "0", "backgroundColor": "var(--card-bg)",
+               "border": "1px solid var(--border)", "borderRadius": "14px",
+               "padding": "16px 20px", "maxHeight": "480px", "overflowY": "auto"},
+        children=[
+            html.H3(title, style={**_HEADER_STYLE, "marginTop": "0"}),
+            html.Div(id=container_id),
+        ],
+    )
+
+
 def _company_tracker_children():
     return [
+        html.H2("Stock Tracker", id="company-main-heading", style=_HEADER_STYLE),
+        html.P(_MOVERS_NOTE, id="company-movers-note", style={**_PARA_STYLE, "fontSize": "13px"}),
+        html.Div(
+            id="company-movers-wrap",
+            children=dcc.Loading(
+                custom_spinner=html.Div(className="spinner"),
+                # Same overlay_style override (and reasoning) as the
+                # Politicians tab's Recent Trades/Leaderboard -- keeps
+                # already-visible rows from blacking out on every
+                # scroll-triggered "load more".
+                overlay_style={"visibility": "visible"},
+                children=html.Div(
+                    style={"display": "flex", "gap": "24px", "flexWrap": "wrap"},
+                    children=[
+                        _movers_card("Today's Top Gainers", "top-gainers-container"),
+                        _movers_card("Today's Top Losers", "top-losers-container"),
+                    ],
+                ),
+            ),
+        ),
+        # Full, already-sorted lists live in the *-records stores; only a
+        # growing prefix gets built into rows -- see load_day_movers/
+        # render_mover_rows and the movers scroll-poll callbacks below.
+        dcc.Store(id="top-gainers-records", data=[]),
+        dcc.Store(id="top-gainers-visible-count", data=_MOVERS_PAGE_SIZE),
+        dcc.Interval(id="top-gainers-scroll-poll", interval=1200, n_intervals=0),
+        dcc.Store(id="top-losers-records", data=[]),
+        dcc.Store(id="top-losers-visible-count", data=_MOVERS_PAGE_SIZE),
+        dcc.Interval(id="top-losers-scroll-poll", interval=1200, n_intervals=0),
+        html.H3("Look Up a Stock", id="lookup-stock-heading", style={**_HEADER_STYLE, "marginTop": "40px"}),
         # stock-header-{meta,name,price,change} start as placeholder/blank
         # text and are filled in by update_price_chart/update_company_overview
         # once a ticker's loaded (see those callbacks) -- price/change used
@@ -1390,7 +1436,7 @@ def _company_tracker_children():
                     children=[
                         html.Div(id="stock-header-meta", style={"fontSize": "12px", "color": "var(--body-text)",
                                                                   "fontFamily": "'IBM Plex Mono', monospace"}),
-                        html.Div("Public Company Tracker", id="stock-header-name",
+                        html.Div(id="stock-header-name",
                                  style={"fontSize": "28px", "fontWeight": "600", "letterSpacing": "-0.02em",
                                         "color": "var(--text)"}),
                     ],
@@ -1601,6 +1647,13 @@ _POSITIONS_PAGE_SIZE = 100
 # DataTable row, so a smaller page than _POSITIONS_PAGE_SIZE keeps the
 # first render snappy.
 _ACTIVITY_PAGE_SIZE = 30
+
+# Companies tab's Top Gainers/Losers cards -- same incremental-load
+# mechanism as _ACTIVITY_PAGE_SIZE above, starting at a top-10.
+_MOVERS_PAGE_SIZE = 10
+_MOVERS_FETCH_COUNT = 100
+_MOVERS_NOTE = ("Today's biggest moves among US-listed stocks with a market cap of roughly $2B+, via "
+                "Yahoo Finance. Click a stock to look it up below.")
 
 _FILTER_PANEL_STYLE = {
     "minWidth": "180px", "maxWidth": "180px",
@@ -3850,6 +3903,162 @@ def update_company_suggestions_2(query, suppress):
     if not matches:
         return None, False
     return _build_suggestions_dropdown(matches, "company-suggestion-2"), False
+
+
+def _build_mover_row(r, rank, kind):
+    # Clickable the same way as the Politicians tab's Recent Trades rows
+    # (.pol-row hover/tap highlight, underlined name) -- select_mover below
+    # reads the ticker straight off the clicked row's id.
+    up = (r.get("change_pct") or 0) >= 0
+    color = "var(--up)" if up else "var(--down)"
+    price = r.get("price")
+    return html.Div(
+        id={"type": "mover-row", "kind": kind, "ticker": r["symbol"]},
+        n_clicks=0,
+        className="pol-row",
+        style={"display": "grid", "gridTemplateColumns": "22px minmax(0,1fr) auto 78px", "gap": "12px",
+               "alignItems": "center", "padding": "11px 0", "borderBottom": "1px solid var(--border)",
+               "fontSize": "13px", "cursor": "pointer"},
+        children=[
+            html.Span(str(rank), style={"fontFamily": "'IBM Plex Mono', monospace", "fontSize": "12px",
+                                          "color": "var(--body-text)"}),
+            html.Div(
+                style={"display": "flex", "flexDirection": "column", "gap": "2px", "minWidth": "0"},
+                children=[
+                    html.Span(r["symbol"], style={**_CLICKABLE_NAME_STYLE,
+                                                   "fontFamily": "'IBM Plex Mono', monospace",
+                                                   "color": "var(--security-text)"}),
+                    html.Span(r["name"], style={"fontSize": "12px", "color": "var(--body-text)",
+                                                "whiteSpace": "nowrap", "overflow": "hidden",
+                                                "textOverflow": "ellipsis"}),
+                ],
+            ),
+            html.Span(f"${price:,.2f}" if price is not None else "—",
+                      style={"fontFamily": "'IBM Plex Mono', monospace", "color": "var(--text)",
+                             "textAlign": "right"}),
+            html.Span(
+                f"{r['change_pct']:+.2f}%",
+                style={"fontFamily": "'IBM Plex Mono', monospace", "fontSize": "12px", "fontWeight": "600",
+                       "textAlign": "center", "padding": "3px 0", "borderRadius": "4px",
+                       "backgroundColor": "rgba(76,195,138,0.14)" if up else "rgba(229,103,90,0.14)",
+                       "color": color},
+            ),
+        ],
+    )
+
+
+_MOVERS_EMPTY_MSG_STYLE = {"color": "var(--body-text)", "fontSize": "13px", "margin": "8px 0"}
+
+
+@app.callback(
+    Output("top-gainers-records", "data"),
+    Output("top-losers-records", "data"),
+    Output("top-gainers-visible-count", "data"),
+    Output("top-losers-visible-count", "data"),
+    Input("company-panel", "children"),
+    prevent_initial_call=True,
+)
+def load_day_movers(_panel_children):
+    # Fires once the Companies panel itself exists (build_company_panel),
+    # same as load_activity_summary does for the Politicians panel. Both
+    # screens are fetched in parallel; either failing just leaves that
+    # card showing an empty-state message (see render_mover_rows) rather
+    # than taking the other down with it.
+    def fetch(kind):
+        try:
+            return fetch_day_movers(kind, count=_MOVERS_FETCH_COUNT)
+        except PriceDataError:
+            return []
+
+    with concurrent.futures.ThreadPoolExecutor(max_workers=2) as pool:
+        gainers, losers = pool.map(fetch, ["gainers", "losers"])
+    return gainers, losers, _MOVERS_PAGE_SIZE, _MOVERS_PAGE_SIZE
+
+
+def _render_mover_rows(visible_count, records, kind):
+    if not records:
+        return html.P("Couldn't load today's movers right now -- try again shortly.", style=_MOVERS_EMPTY_MSG_STYLE)
+    return [_build_mover_row(r, i + 1, kind) for i, r in enumerate(records[:visible_count])]
+
+
+@app.callback(
+    Output("top-gainers-container", "children"),
+    Input("top-gainers-visible-count", "data"),
+    State("top-gainers-records", "data"),
+    prevent_initial_call=True,
+)
+def render_gainer_rows(visible_count, records):
+    return _render_mover_rows(visible_count, records, "gainers")
+
+
+@app.callback(
+    Output("top-losers-container", "children"),
+    Input("top-losers-visible-count", "data"),
+    State("top-losers-records", "data"),
+    prevent_initial_call=True,
+)
+def render_loser_rows(visible_count, records):
+    return _render_mover_rows(visible_count, records, "losers")
+
+
+# Infinite scroll for the movers cards -- identical to the Politicians
+# tab's recent-trades-scroll-poll (see there for the poll-not-listener
+# and hidden-tab clientHeight guard reasoning).
+for _movers_kind in ("top-gainers", "top-losers"):
+    app.clientside_callback(
+        """
+        function(_n_intervals, visibleCount, records) {
+            if (!records || !records.length || visibleCount >= records.length) {
+                return window.dash_clientside.no_update;
+            }
+            var container = document.getElementById("%(container)s");
+            // Rows not rendered up to visibleCount yet (records just
+            // arrived, render_*_rows still in flight) -- the near-empty
+            // card would otherwise read as "scrolled to the bottom" and
+            // grow the list before anyone's scrolled at all.
+            if (!container || container.children.length < visibleCount) {
+                return window.dash_clientside.no_update;
+            }
+            var scroller = container.parentElement;
+            if (scroller.clientHeight === 0) return window.dash_clientside.no_update;
+            var nearBottom = (scroller.scrollTop + scroller.clientHeight) >= (scroller.scrollHeight - 80);
+            if (nearBottom) return Math.min(visibleCount + %(page_size)d, records.length);
+            return window.dash_clientside.no_update;
+        }
+        """ % {"container": f"{_movers_kind}-container", "page_size": _MOVERS_PAGE_SIZE},
+        Output(f"{_movers_kind}-visible-count", "data", allow_duplicate=True),
+        Input(f"{_movers_kind}-scroll-poll", "n_intervals"),
+        State(f"{_movers_kind}-visible-count", "data"),
+        State(f"{_movers_kind}-records", "data"),
+        prevent_initial_call=True,
+    )
+
+
+# A mover row click loads that ticker the same way typing it and pressing
+# Enter would. Safe to write to company-input directly (unlike
+# select_global_search_result) since these rows only exist inside the
+# already-built Companies panel. suppress-next-suggestions keeps the
+# programmatic value change from popping the suggestions dropdown open
+# (see update_company_suggestions); scroll-to-lookup-trigger brings the
+# chart into view on mobile, where it sits below both movers cards.
+@app.callback(
+    Output("company-input", "value", allow_duplicate=True),
+    Output("company-input", "n_submit", allow_duplicate=True),
+    Output("suppress-next-suggestions", "data", allow_duplicate=True),
+    Output("scroll-to-lookup-trigger", "data", allow_duplicate=True),
+    Input({"type": "mover-row", "kind": ALL, "ticker": ALL}, "n_clicks"),
+    State("company-input", "n_submit"),
+    State("company-input", "value"),
+    prevent_initial_call=True,
+)
+def select_mover(clicks, current_n_submit, current_value):
+    if not any(clicks or []):
+        raise PreventUpdate  # fires with all-zero clicks whenever either list re-renders
+    ticker = ctx.triggered_id["ticker"]
+    # Only suppress when the value actually changes -- re-clicking the
+    # already-loaded ticker never fires update_company_suggestions, so a
+    # leftover True would swallow the user's next real keystroke instead.
+    return ticker, (current_n_submit or 0) + 1, ticker != current_value, "company"
 
 
 _EMPTY_PRICE_HEADER = ("", "", {}, "", "")
