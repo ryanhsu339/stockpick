@@ -4907,6 +4907,14 @@ app.clientside_callback(
         var container = document.getElementById("recent-trades-container");
         if (!container) return window.dash_clientside.no_update;
         var scroller = container.parentElement;
+        // A hidden ancestor (switched away to another tab) collapses
+        // scrollTop/clientHeight/scrollHeight all to 0, which satisfies
+        // the nearBottom inequality trivially (0 >= -80) -- without this
+        // guard the poll silently grows to the full row count every time
+        // the tab is hidden, defeating the whole point of windowed
+        // rendering for whoever switches away and back (confirmed via
+        // CPU/row-count investigation: 30 -> 150 rows in ~7.5s unseen).
+        if (scroller.clientHeight === 0) return window.dash_clientside.no_update;
         var nearBottom = (scroller.scrollTop + scroller.clientHeight) >= (scroller.scrollHeight - 80);
         if (nearBottom) return Math.min(visibleCount + %(page_size)d, records.length);
         return window.dash_clientside.no_update;
@@ -4927,6 +4935,9 @@ app.clientside_callback(
         var container = document.getElementById("congress-leaderboard-container");
         if (!container) return window.dash_clientside.no_update;
         var scroller = container.parentElement;
+        // See the matching guard in the recent-trades-scroll-poll callback
+        // above -- same hidden-tab false positive.
+        if (scroller.clientHeight === 0) return window.dash_clientside.no_update;
         var nearBottom = (scroller.scrollTop + scroller.clientHeight) >= (scroller.scrollHeight - 80);
         if (nearBottom) return Math.min(visibleCount + %(page_size)d, records.length);
         return window.dash_clientside.no_update;
