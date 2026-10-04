@@ -459,6 +459,12 @@ def list_all_senators(session=None, years_back=4, force_refresh=False):
     return roster
 
 
+# Some Senate PTR rows leave the ticker column as "--" and put the ticker
+# in the asset name instead, as "EA - Electronic Arts Inc" (seen on Angus
+# King's 2026-09-14 filing).
+_SENATE_ASSET_TICKER_RE = re.compile(r"^([A-Z][A-Z0-9.]{0,5})\s+-\s+\S")
+
+
 def _parse_senate_ptr_html(html):
     soup = BeautifulSoup(html, "html.parser")
     table = soup.find("table")
@@ -477,6 +483,9 @@ def _parse_senate_ptr_html(html):
         ticker_links = cells[3].find_all("a")
         ticker = ticker_links[-1].get_text(strip=True) if ticker_links else None
         asset_type = cells[5].get_text(strip=True)
+        if not ticker and asset_type == "Stock":
+            m_ticker = _SENATE_ASSET_TICKER_RE.match(cells[4].get_text(" ", strip=True))
+            ticker = m_ticker.group(1) if m_ticker else None
         ttype_raw = cells[6].get_text(strip=True)
         amount_text = cells[7].get_text(strip=True)
         m_amount = _AMOUNT_RE.search(amount_text)
