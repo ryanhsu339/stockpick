@@ -444,16 +444,16 @@ a:hover { color: var(--text); }
        is the same as its outer edge, so it ignores _FILTER_PANEL_STYLE's
        own 12px padding entirely unless added back by hand here; without
        it Base FCF sits 12px higher than DCF Assumptions' header instead
-       of level with it. The 77px step (each field is 52px tall, so a
-       25px gap) makes this column's total span match the left column's
-       own height (measured: DCF Assumptions header to Calculate's own
-       top is 359px) -- Projection Years' bottom edge lands right at
-       Calculate's top instead of well above it. */
+       of level with it. The 84.5px step (each field is 52px tall, so a
+       32.5px gap) makes this column's total span match the left column's
+       own height (measured: DCF Assumptions header to Calculate's bottom
+       is 390px) -- Projection Years' input box bottoms out level with
+       Calculate's bottom edge, so the two columns end together. */
     [id^="dcf-row-base_fcf"] { top: 12px; }
-    [id^="dcf-row-net_debt"] { top: 89px; }
-    [id^="dcf-row-shares_out"] { top: 166px; }
-    [id^="dcf-row-current_price"] { top: 243px; }
-    [id^="dcf-row-years"] { top: 320px; }
+    [id^="dcf-row-net_debt"] { top: 96.5px; }
+    [id^="dcf-row-shares_out"] { top: 181px; }
+    [id^="dcf-row-current_price"] { top: 265.5px; }
+    [id^="dcf-row-years"] { top: 350px; }
     [id^="dcf-header-market-data"] {
         display: none;
     }

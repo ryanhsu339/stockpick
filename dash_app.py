@@ -4424,9 +4424,10 @@ def build_earnings_figure(events, fy_end_month, theme="dark", mobile=False):
     edge. Beat/Miss and the $ surprise sit under each quarter's label."""
     colors = _chart_colors(theme)
     if mobile:
-        # Just the last four reported quarters -- no upcoming estimate --
-        # to keep the chart compact on a phone.
-        events = [e for e in events if e["actual"] is not None][-4:]
+        # Last four reported quarters plus the upcoming report (when
+        # scheduled), to keep the chart compact on a phone.
+        reported = [e for e in events if e["actual"] is not None][-4:]
+        events = reported + [e for e in events if e["actual"] is None]
     labels, ticktext = [], []
     est_y, act_y, act_colors, est_hover, act_hover = [], [], [], [], []
     for e in events:
