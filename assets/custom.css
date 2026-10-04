@@ -22,6 +22,9 @@
     --card-bg: #161615;
     --card-bg-2: #1c1c1a;
     --border: #262624;
+    /* Table row/column lines on mobile (see #all-positions-table in the
+       @media block) -- DataTable otherwise draws its own lightgrey. */
+    --table-line: #3a3a37;
     --table-header-bg: #161615;
     --pill-active: #2a2a27;
     --up: #4cc38a;
@@ -43,6 +46,7 @@
     --card-bg: #ffffff;
     --card-bg-2: #f1f0ec;
     --border: #e2e1db;
+    --table-line: #d6d5cf;
     --table-header-bg: #ffffff;
     --pill-active: #ffffff;
     --up: #1f8a5a;
@@ -518,7 +522,20 @@ a:hover { color: var(--text); }
         max-width: calc(50vw - 20px) !important;
         overflow: hidden;
         /* Edge line so scrolled-under columns read as passing behind it. */
-        box-shadow: inset -1px 0 0 var(--border);
+        border-right: 0.5px solid var(--table-line) !important;
+    }
+    /* DataTable's own lines are 1px lightgrey (it sets --border to
+       lightgrey on its container, and every cell border -- inline styles
+       and all-positions-table's css prop alike -- reads var(--border)),
+       which read as heavy white rules on a phone. Redefining --border on
+       the inner tables recolors all of them at once; darker grey
+       hairlines instead. */
+    #all-positions-table table {
+        --border: var(--table-line);
+    }
+    #all-positions-table td.dash-cell {
+        border-top: 0.5px solid var(--table-line) !important;
+        border-bottom: 0.5px solid var(--table-line) !important;
     }
     /* The frozen column's header is its own table fragment, sized to
        "SECURITY"'s single line (32px) while the scrolling headers wrap to
