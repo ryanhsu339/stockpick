@@ -521,6 +521,18 @@ p  { line-height: 1.55; text-wrap: pretty; }
 }
 .dash-spreadsheet td.dash-cell.column-0 { font-weight: 500; }
 .dash-spreadsheet tr:hover td.dash-cell { background-color: var(--card-bg-2) !important; }
+/* Sortable headers: DataTable only listens for clicks on its ~7px-wide
+   sort arrow, so tapping the column name on a phone did nothing. An
+   invisible ::after stretched over the whole header cell makes the
+   entire cell a click/tap target for that arrow. */
+.dash-spreadsheet th.dash-header {
+    position: relative;
+}
+.dash-spreadsheet th.dash-header .column-header--sort::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+}
 .dash-table-container {
     border: 1px solid var(--border);
     border-radius: 10px;

@@ -1701,8 +1701,10 @@ EMPTY_COLS = [{"name": "Breakdown", "id": "line"}]
 
 # All Equity Positions loads incrementally (see the scroll-poll-interval
 # clientside callbacks below) rather than sending every holding to the
-# table at once, since some managers file thousands of positions.
-_POSITIONS_PAGE_SIZE = 100
+# table at once, since some managers file thousands of positions. 50
+# rather than 100: every sort re-renders the whole visible slice, and
+# at 100 rows a sort took ~0.7s on a phone-speed CPU (~0.45s at 50).
+_POSITIONS_PAGE_SIZE = 50
 
 # Same reasoning, for the Politicians tab's Recent Trades/Leaderboard
 # cards (see recent-trades-scroll-poll/congress-leaderboard-scroll-poll
