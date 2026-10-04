@@ -503,6 +503,37 @@ a:hover { color: var(--text); }
     .kpi-analyst-count {
         display: none;
     }
+
+    /* All Equity Positions: the Security column (nowrap, 200px min) grew
+       to fit the longest name -- wider than the whole phone screen. Cap
+       it at about half the screen with an ellipsis. It's frozen in place
+       by the table's own fixed_columns (see all-positions-table), not
+       position:sticky here -- DataTable re-aligns its fixed header by
+       measuring the first body cell, which a sticky cell throws off by
+       the scroll distance. !important beats DataTable's inline widths. */
+    #all-positions-table th.column-0,
+    #all-positions-table td.column-0 {
+        width: calc(50vw - 20px) !important;
+        min-width: calc(50vw - 20px) !important;
+        max-width: calc(50vw - 20px) !important;
+        overflow: hidden;
+        /* Edge line so scrolled-under columns read as passing behind it. */
+        box-shadow: inset -1px 0 0 var(--border);
+    }
+    /* The frozen column's header is its own table fragment, sized to
+       "SECURITY"'s single line (32px) while the scrolling headers wrap to
+       three (61px) -- the scrolling titles showed through the gap below
+       it. One fixed height keeps both header fragments level. */
+    #all-positions-table th.dash-header {
+        height: 64px !important;
+    }
+    #all-positions-table td.column-0 .dash-cell-value {
+        display: block;
+        width: 100%;
+        overflow: hidden;
+        white-space: nowrap;
+        text-overflow: ellipsis;
+    }
 }
 
 h2 { font-size: 28px; font-weight: 600; letter-spacing: -0.02em; margin: 8px 0 4px; }

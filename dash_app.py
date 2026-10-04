@@ -2301,6 +2301,8 @@ def _manager_tracker_children():
                 cell_selectable=True,
                 page_action="none",
                 fixed_rows={"headers": True},
+                # fixed_columns (freezing Security) is switched on for
+                # mobile only -- see its viewport-is-mobile callback.
                 # "native" sort puts a null ΔShares/ΔValue % ("New"
                 # position) last regardless of ascending/descending
                 # — "custom" hands sorting to the clientside
@@ -5272,6 +5274,22 @@ app.clientside_callback(
     Input("chip-big", "n_clicks"),
     prevent_initial_call=True,
 )
+
+# Mobile only: freeze the Security column so names stay in view while
+# swiping across the numbers (custom.css also narrows it to half the
+# screen there). Not on desktop -- every column already fits, and
+# DataTable's fixed_columns squeezes the table into a 500px box unless
+# its widths are all pinned.
+app.clientside_callback(
+    """
+    function(isMobile) {
+        return isMobile ? {headers: true, data: 1} : {headers: false, data: 0};
+    }
+    """,
+    Output("all-positions-table", "fixed_columns"),
+    Input("viewport-is-mobile", "data"),
+)
+
 
 # Filters by the active chip, sorts (custom — see below), and slices the
 # full result down to the currently-visible prefix, in that order. Chip and
