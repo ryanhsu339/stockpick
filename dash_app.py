@@ -1189,8 +1189,11 @@ def _financials_valuation_blocks(suffix):
             children=[
                 html.H3("Earnings", style={**_HEADER_STYLE, "marginBottom": "4px"}),
                 html.Div(id=f"earnings-summary{suffix}", style={**_PARA_STYLE, "fontSize": "13px"}),
-                dcc.Graph(id=f"earnings-chart{suffix}", figure=empty_price_figure(""),
-                          config={"displayModeBar": False}),
+                # The dcc.Graph itself is only created once there's data
+                # (see _earnings_outputs) -- an empty Plotly graph still
+                # costs a full Plotly render, which adds up on a phone,
+                # and Compare mode's copy is usually never shown at all.
+                html.Div(id=f"earnings-chart-holder{suffix}"),
             ],
         ),
         html.Div(
@@ -1366,8 +1369,6 @@ def _financials_valuation_blocks(suffix):
                 ),
             ],
         ),
-        dcc.Store(id=f"rows-store{suffix}"),
-        dcc.Store(id=f"suppress-next-suggestions{suffix}", data=False),
     ], [
         # Wrapped (not just the section's own contents) so a fund/ETF ticker
         # -- no cash flows of its own to project, an operating-company DCF
@@ -1393,7 +1394,10 @@ def _financials_valuation_blocks(suffix):
                 # distinguishable in Compare mode -- filled in by
                 # update_company_overview/_2 (same text as the KPI row
                 # label), shown only in Compare mode (render_compare_mode).
-                html.Div(id=f"dcf-company-label{suffix}", style=_DCF_COMPANY_LABEL_HIDDEN_STYLE),
+                # The "-2" copy is only ever built once Compare mode is on
+                # (see build_compare_panels), so it starts out visible.
+                html.Div(id=f"dcf-company-label{suffix}",
+                         style=_DCF_COMPANY_LABEL_STYLE if suffix else _DCF_COMPANY_LABEL_HIDDEN_STYLE),
                 dcc.Interval(id=f"dcf-price-refresh{suffix}", interval=60000, n_intervals=0),
                 # One shared Loading boundary around the banner, the assumptions
                 # panel/chart, AND dcf-defaults-store itself (a non-visual Store,
@@ -1445,8 +1449,16 @@ def _movers_card(title, container_id):
 
 def _company_tracker_children():
     financials_1, valuation_1 = _financials_valuation_blocks("")
-    financials_2, valuation_2 = _financials_valuation_blocks("-2")
     return [
+        # Kept here (not inside the per-ticker blocks) because callbacks
+        # that are always on the page read them -- e.g. update_price_chart
+        # takes rows-store-2 as an Input even outside Compare mode -- and
+        # Compare mode's own blocks are only built on demand (see
+        # build_compare_panels).
+        dcc.Store(id="rows-store"),
+        dcc.Store(id="suppress-next-suggestions", data=False),
+        dcc.Store(id="rows-store-2"),
+        dcc.Store(id="suppress-next-suggestions-2", data=False),
         html.H2("Stock Tracker", id="company-main-heading", style=_HEADER_STYLE),
         html.P(_MOVERS_NOTE, id="company-movers-note", style={**_PARA_STYLE, "fontSize": "13px"}),
         html.Div(
@@ -1685,7 +1697,7 @@ def _company_tracker_children():
                 html.Div(style={"flex": "1", "minWidth": "0"}, children=financials_1),
                 # Hidden until Compare mode is on (see render_compare_mode).
                 html.Div(id="financials-col-2", style={"flex": "1", "minWidth": "0", "display": "none"},
-                         children=financials_2),
+                         children=[]),
             ],
         ),
         # Valuation panels stack (full width each) rather than sitting side
@@ -1693,7 +1705,12 @@ def _company_tracker_children():
         # squeezed into half-width columns each was unreadably cramped.
         html.Div(id="valuation-col-1", children=valuation_1),
         # Hidden until Compare mode is on (see render_compare_mode).
-        html.Div(id="valuation-col-2", style={"marginTop": "40px", "display": "none"}, children=valuation_2),
+        # financials-col-2 and valuation-col-2 start empty and are filled
+        # the first time Compare mode turns on (build_compare_panels) --
+        # building both full copies up front (tables, tabs, DCF inputs,
+        # charts) cost seconds of main-thread time on a phone for a panel
+        # most visits never open.
+        html.Div(id="valuation-col-2", style={"marginTop": "40px", "display": "none"}, children=[]),
     ]
 
 
@@ -3781,6 +3798,11 @@ def _render_company_candidates(candidates, query, candidate_type="company-candid
     Input("compare-mode-tabs", "value"),
 )
 def sync_compare_mode(tab_value):
+    # Skips the no-op initial call when the Companies panel mounts (store
+    # already False) -- every callback response costs a full dash-renderer
+    # pass over the page, which on a phone CPU is a few hundred ms each.
+    if ctx.triggered_id is None and tab_value != "compare":
+        raise PreventUpdate
     return tab_value == "compare"
 
 
@@ -3791,10 +3813,11 @@ def sync_compare_mode(tab_value):
     Output("financials-col-2", "style"),
     Output("valuation-col-2", "style"),
     Output("dcf-company-label", "style"),
-    Output("dcf-company-label-2", "style"),
     Input("compare-mode", "data"),
 )
 def render_compare_mode(is_compare):
+    if ctx.triggered_id is None and not is_compare:
+        raise PreventUpdate  # layout already starts with every compare piece hidden
     ticker_wrap_style = {"position": "relative"} if is_compare else {"position": "relative", "display": "none"}
     status_wrap_style = {} if is_compare else {"display": "none"}
     kpi_wrap_2_style = {"marginTop": "16px"} if is_compare else {"marginTop": "16px", "display": "none"}
@@ -3803,7 +3826,23 @@ def render_compare_mode(is_compare):
     # Per-ticker labels over the stacked Valuation panels only matter once
     # there are two of them.
     label_style = _DCF_COMPANY_LABEL_STYLE if is_compare else _DCF_COMPANY_LABEL_HIDDEN_STYLE
-    return ticker_wrap_style, status_wrap_style, kpi_wrap_2_style, col2_style, valuation_2_style,         label_style, label_style
+    return ticker_wrap_style, status_wrap_style, kpi_wrap_2_style, col2_style, valuation_2_style, label_style
+
+
+# Builds Compare mode's second Financials column and Valuation panel the
+# first time Compare mode turns on, then leaves them in place (hidden by
+# render_compare_mode when it's off) so a second ticker's data survives
+# toggling back and forth.
+@app.callback(
+    Output("financials-col-2", "children"),
+    Output("valuation-col-2", "children"),
+    Input("compare-mode", "data"),
+    State("financials-col-2", "children"),
+)
+def build_compare_panels(is_compare, existing_children):
+    if not is_compare or existing_children:
+        raise PreventUpdate
+    return _financials_valuation_blocks("-2")
 
 
 @app.callback(
@@ -4389,6 +4428,8 @@ def update_no_financials_msg(store):
 
 @app.callback(Output("no-financials-msg-2", "children"), Input("rows-store-2", "data"))
 def update_no_financials_msg_2(store):
+    if ctx.triggered_id is None and not store:
+        raise PreventUpdate  # layout default already says the same thing
     return _no_financials_text(store)
 
 
@@ -4500,21 +4541,22 @@ def _earnings_summary(events, fy_end_month):
     return parts
 
 
-def _earnings_outputs(store, theme, mobile):
+def _earnings_outputs(store, theme, mobile, suffix=""):
     hidden = {"display": "none"}
     if not store:
-        return empty_price_figure("", theme=theme), "", hidden
+        return None, "", hidden
     try:
         events = fetch_earnings_history(store["ticker"])
     except PriceDataError:
-        return empty_price_figure("", theme=theme), "", hidden
+        return None, "", hidden
     fy_end = _fy_end_month(store)
-    return (build_earnings_figure(events, fy_end, theme=theme, mobile=mobile),
-            _earnings_summary(events, fy_end), {"marginBottom": "24px"})
+    graph = dcc.Graph(id=f"earnings-chart{suffix}", config={"displayModeBar": False},
+                      figure=build_earnings_figure(events, fy_end, theme=theme, mobile=mobile))
+    return graph, _earnings_summary(events, fy_end), {"marginBottom": "24px"}
 
 
 @app.callback(
-    Output("earnings-chart", "figure"),
+    Output("earnings-chart-holder", "children"),
     Output("earnings-summary", "children"),
     Output("earnings-wrap", "style"),
     Input("rows-store", "data"),
@@ -4526,7 +4568,7 @@ def update_earnings_chart(store, theme, mobile):
 
 
 @app.callback(
-    Output("earnings-chart-2", "figure"),
+    Output("earnings-chart-holder-2", "children"),
     Output("earnings-summary-2", "children"),
     Output("earnings-wrap-2", "style"),
     Input("rows-store-2", "data"),
@@ -4534,7 +4576,10 @@ def update_earnings_chart(store, theme, mobile):
     Input("viewport-is-mobile", "data"),
 )
 def update_earnings_chart_2(store, theme, mobile):
-    return _earnings_outputs(store, theme, mobile)
+    # Nothing to show (or re-theme) until Compare mode has a second ticker.
+    if not store and ctx.triggered_id != "rows-store-2":
+        raise PreventUpdate
+    return _earnings_outputs(store, theme, mobile, suffix="-2")
 
 
 # Compare mode's second ticker: same KPI tiles, but no second page header
@@ -4543,12 +4588,23 @@ def update_earnings_chart_2(store, theme, mobile):
 @app.callback(
     Output("stock-kpi-label-2", "children"),
     Output("stock-kpi-grid-2", "children"),
-    Output("dcf-company-label-2", "children"),
     Input("rows-store-2", "data"),
 )
 def update_company_overview_2(store):
+    if ctx.triggered_id is None and not store:
+        raise PreventUpdate  # empty KPI row, already empty in the layout
     _meta_text, kpi_label, tiles = _company_overview_data(store)
-    return kpi_label, tiles, kpi_label
+    return kpi_label, tiles
+
+
+# Its own callback (not another Output of update_company_overview_2):
+# dcf-company-label-2 only exists once build_compare_panels has run, and
+# Dash rejects a callback whose Outputs are only partly on the page.
+@app.callback(Output("dcf-company-label-2", "children"), Input("rows-store-2", "data"))
+def update_dcf_company_label_2(store):
+    if not store:
+        raise PreventUpdate
+    return f"{store['ticker']} — {store.get('title') or store['ticker']}"
 
 
 # Pulses the live-price dot's halo (see build_price_figure) by directly
@@ -4860,9 +4916,12 @@ def update_dcf(defaults, _n_clicks, _n_intervals, theme, mobile, *current_values
     prevent_initial_call=True,
 )
 def update_dcf_2(defaults, _n_clicks, _n_intervals, theme, mobile, *current_values):
+    # No second ticker loaded: nothing to value. This also fired on the
+    # Companies panel's first render despite prevent_initial_call (theme/
+    # viewport stores), building a hidden DCF chart from empty inputs.
+    if not defaults:
+        raise PreventUpdate
     if ctx.triggered_id == "dcf-defaults-store-2":
-        if not defaults:
-            raise PreventUpdate
         values = tuple(defaults.get(field) for field in _DCF_FIELD_NAMES)
         input_outputs = values
     else:
