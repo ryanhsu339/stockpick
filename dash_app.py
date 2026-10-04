@@ -29,7 +29,7 @@ import io
 import json
 import math
 import re
-from datetime import date
+from datetime import date, timedelta
 
 import pandas as pd
 import plotly.graph_objects as go
@@ -52,7 +52,8 @@ from company_growth_calc import (
     search_companies,
 )
 from stock_price import (HoldingsDataError, PriceDataError, RANGE_KEYS, fetch_day_movers, fetch_fund_name,
-                          fetch_price_history, fetch_ticker_overview, fetch_top_holdings)
+                          fetch_earnings_history, fetch_price_history, fetch_ticker_overview,
+                          fetch_top_holdings)
 from thirteenf import (
     FilingDataError,
     ManagerLookupError,
@@ -1180,6 +1181,18 @@ def _financials_valuation_blocks(suffix):
     dcf_row_children = [dcf_assumptions_panel, dcf_chart_column]
 
     return [
+        # Hidden until update_earnings_chart finds earnings history for the
+        # loaded ticker (funds and recent IPOs have none).
+        html.Div(
+            id=f"earnings-wrap{suffix}",
+            style={"display": "none"},
+            children=[
+                html.H3("Earnings", style={**_HEADER_STYLE, "marginBottom": "4px"}),
+                html.Div(id=f"earnings-summary{suffix}", style={**_PARA_STYLE, "fontSize": "13px"}),
+                dcc.Graph(id=f"earnings-chart{suffix}", figure=empty_price_figure(""),
+                          config={"displayModeBar": False}),
+            ],
+        ),
         html.Div(
             id=f"financials-header{suffix}",
             style=_FINANCIALS_HEADER_STYLE,
@@ -4372,6 +4385,148 @@ def update_no_financials_msg(store):
 @app.callback(Output("no-financials-msg-2", "children"), Input("rows-store-2", "data"))
 def update_no_financials_msg_2(store):
     return _no_financials_text(store)
+
+
+def _fiscal_quarter_label(report_date, fy_end_month):
+    """"Q3 FY26"-style label for the fiscal quarter an earnings report on
+    `report_date` covers: the latest fiscal-quarter-end month before the
+    report, given the company's fiscal year-end month (12 for calendar)."""
+    year, month = report_date.year, report_date.month - 1  # a quarter ends before it's reported
+    while (month - fy_end_month) % 3:
+        month -= 1
+    if month < 1:
+        year, month = year - 1, month + 12
+    quarter = (month - fy_end_month - 1) % 12 // 3 + 1
+    fiscal_year = year if month <= fy_end_month else year + 1
+    return f"Q{quarter} FY{fiscal_year % 100:02d}"
+
+
+def _fy_end_month(store):
+    """Fiscal year-end month from the SEC rows' period-end dates (see
+    company_growth_calc's "end"), falling back to December. A 52/53-week
+    year ending in a month's first week (a retailer's "Feb 1") counts as
+    the prior month's year-end."""
+    rows = (store or {}).get("rows") or []
+    try:
+        end = date.fromisoformat(rows[-1]["end"][:10])
+    except (KeyError, TypeError, ValueError, IndexError):
+        return 12
+    return (end - timedelta(days=7)).month
+
+
+_EARNINGS_CHART_HEIGHT = 300
+
+
+def build_earnings_figure(events, fy_end_month, theme="dark", mobile=False):
+    """Estimate (hollow) vs. actual (filled, green beat / red miss) EPS per
+    quarter, with the next scheduled report's estimate alone at the right
+    edge. Beat/Miss and the $ surprise sit under each quarter's label."""
+    colors = _chart_colors(theme)
+    if mobile:
+        events = events[-5:]  # four reported + upcoming fits a phone's width
+    labels, ticktext = [], []
+    est_y, act_y, act_colors, est_hover, act_hover = [], [], [], [], []
+    for e in events:
+        label = _fiscal_quarter_label(e["date"], fy_end_month)
+        labels.append(label)
+        est, act = e["estimate"], e["actual"]
+        if act is None:
+            ticktext.append(f"{label}<br><span style='color:{colors['muted_text']}'>Reports</span>"
+                            f"<br>{e['date']:%b} {e['date'].day}")
+        elif est is None:
+            ticktext.append(label)
+        else:
+            diff = act - est
+            if abs(diff) < 0.005:  # rounds to $0.00 -- neither a beat nor a miss
+                ticktext.append(f"{label}<br><span style='color:{colors['muted_text']}'>Met<br>$0.00</span>")
+            else:
+                color = _PRICE_UP_COLOR if diff > 0 else _PRICE_DOWN_COLOR
+                ticktext.append(f"{label}<br><span style='color:{color}'>{'Beat' if diff > 0 else 'Miss'}<br>"
+                                f"{'+' if diff > 0 else '−'}${abs(diff):.2f}</span>")
+        est_y.append(est)
+        act_y.append(act)
+        act_colors.append(_PRICE_UP_COLOR if act is None or est is None or act >= est else _PRICE_DOWN_COLOR)
+        est_hover.append(f"{label}<br>Estimate: ${est:.2f}" if est is not None else "")
+        act_hover.append(f"{label}<br>Actual: ${act:.2f}" if act is not None else "")
+
+    fig = go.Figure()
+    fig.add_trace(go.Scatter(
+        x=labels, y=est_y, name="Estimate", mode="markers",
+        marker=dict(size=16, color="rgba(0,0,0,0)", line=dict(color=colors["muted_text"], width=2)),
+        hovertext=est_hover, hovertemplate="%{hovertext}<extra></extra>",
+    ))
+    fig.add_trace(go.Scatter(
+        x=labels, y=act_y, name="Actual", mode="markers",
+        marker=dict(size=16, color=act_colors),
+        hovertext=act_hover, hovertemplate="%{hovertext}<extra></extra>",
+    ))
+    fig.update_layout(
+        height=_EARNINGS_CHART_HEIGHT,
+        paper_bgcolor=colors["surface"], plot_bgcolor=colors["surface"],
+        margin=dict(l=10, r=10, t=10, b=10),
+        showlegend=False,
+        hoverlabel=dict(bgcolor=colors["hover_bg"], bordercolor=colors["axis_line"],
+                         font=dict(color=colors["primary_text"], size=12)),
+        # Same mobile reasoning as build_dcf_figure's dragmode/fixedrange.
+        dragmode=False if mobile else "zoom",
+        xaxis=dict(showgrid=False, showline=True, linecolor=colors["axis_line"],
+                   tickmode="array", tickvals=labels, ticktext=ticktext,
+                   tickfont=dict(color=colors["primary_text"], size=11), fixedrange=True),
+        yaxis=dict(showgrid=True, gridcolor=colors["gridline"], griddash="dash", zeroline=False,
+                   tickprefix="$", tickformat=".2f",
+                   tickfont=dict(color=colors["muted_text"], size=11), fixedrange=mobile),
+    )
+    return fig
+
+
+def _earnings_summary(events, fy_end_month):
+    """Latest reported quarter's estimate vs. actual, above the chart."""
+    last = next((e for e in reversed(events) if e["actual"] is not None), None)
+    if not last:
+        return ""
+    parts = [html.B(_fiscal_quarter_label(last["date"], fy_end_month)), "  ○ Estimate "]
+    parts.append(f"${last['estimate']:.2f}" if last["estimate"] is not None else "—")
+    beat = last["estimate"] is None or last["actual"] >= last["estimate"]
+    parts += ["  ", html.Span("●", style={"color": "var(--up)" if beat else "var(--down)"}), " Actual ",
+              html.Span(f"${last['actual']:.2f}", style={"color": "var(--up)" if beat else "var(--down)"})]
+    return parts
+
+
+def _earnings_outputs(store, theme, mobile):
+    hidden = {"display": "none"}
+    if not store:
+        return empty_price_figure("", theme=theme), "", hidden
+    try:
+        events = fetch_earnings_history(store["ticker"])
+    except PriceDataError:
+        return empty_price_figure("", theme=theme), "", hidden
+    fy_end = _fy_end_month(store)
+    return (build_earnings_figure(events, fy_end, theme=theme, mobile=mobile),
+            _earnings_summary(events, fy_end), {"marginBottom": "24px"})
+
+
+@app.callback(
+    Output("earnings-chart", "figure"),
+    Output("earnings-summary", "children"),
+    Output("earnings-wrap", "style"),
+    Input("rows-store", "data"),
+    Input("theme-store", "data"),
+    Input("viewport-is-mobile", "data"),
+)
+def update_earnings_chart(store, theme, mobile):
+    return _earnings_outputs(store, theme, mobile)
+
+
+@app.callback(
+    Output("earnings-chart-2", "figure"),
+    Output("earnings-summary-2", "children"),
+    Output("earnings-wrap-2", "style"),
+    Input("rows-store-2", "data"),
+    Input("theme-store", "data"),
+    Input("viewport-is-mobile", "data"),
+)
+def update_earnings_chart_2(store, theme, mobile):
+    return _earnings_outputs(store, theme, mobile)
 
 
 # Compare mode's second ticker: same KPI tiles, but no second page header

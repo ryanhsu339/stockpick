@@ -136,6 +136,37 @@ def _fetch_analyst_split(ticker_obj):
             "rating_count": int(total)}
 
 
+def fetch_earnings_history(ticker, quarters=8):
+    """Return a list of {"date", "estimate", "actual"} dicts, oldest first,
+    for `ticker`'s last `quarters` reported quarters plus the next upcoming
+    report (actual None) when Yahoo has one scheduled. "date" is the
+    report's calendar date; EPS figures are Yahoo's adjusted (non-GAAP)
+    numbers, the same basis analysts' consensus estimates use. Raises
+    PriceDataError if Yahoo has no earnings history (funds, recent IPOs)."""
+    try:
+        # limit counts upcoming rows too, so ask for a few spare.
+        df = yf.Ticker(ticker).get_earnings_dates(limit=quarters + 4)
+    except Exception as e:
+        raise PriceDataError(f"Could not fetch earnings history for {ticker}: {e}") from e
+    if df is None or df.empty or "EPS Estimate" not in df.columns:
+        raise PriceDataError(f"No earnings history available for {ticker}.")
+
+    def num(v):
+        return None if v is None or v != v else float(v)  # v != v: NaN
+
+    events = [
+        {"date": ts.date(), "estimate": num(row.get("EPS Estimate")), "actual": num(row.get("Reported EPS"))}
+        for ts, row in df.sort_index().iterrows()
+    ]
+    today = date.today()
+    reported = [e for e in events if e["actual"] is not None]
+    upcoming = [e for e in events if e["actual"] is None and e["date"] >= today and e["estimate"] is not None]
+    result = reported[-quarters:] + upcoming[:1]
+    if not reported:
+        raise PriceDataError(f"No earnings history available for {ticker}.")
+    return result
+
+
 def fetch_fund_name(ticker):
     """Best-effort real name for an ETF/mutual fund ticker. SEC's own fund
     ticker map (see load_ticker_map in company_growth_calc.py) only carries
