@@ -4253,14 +4253,46 @@ _KPI_TILE_LABEL_STYLE = {"fontSize": "11px", "letterSpacing": "0.06em", "textTra
 _KPI_TILE_VALUE_STYLE = {"fontFamily": "'IBM Plex Mono', monospace", "fontSize": "19px", "color": "var(--text)"}
 
 
-def _kpi_tile(label, value):
-    return html.Div(
-        style=_KPI_TILE_STYLE,
-        children=[
-            html.Span(label, style=_KPI_TILE_LABEL_STYLE),
-            html.Span(value if value is not None else "—", style=_KPI_TILE_VALUE_STYLE),
-        ],
-    )
+_KPI_TILE_SUB_STYLE = {"fontSize": "12px", "color": "var(--body-text)"}
+
+
+def _kpi_tile(label, value, sub=None):
+    children = [
+        html.Span(label, style=_KPI_TILE_LABEL_STYLE),
+        html.Span(value if value is not None else "—", style=_KPI_TILE_VALUE_STYLE),
+    ]
+    if sub is not None:
+        children.append(html.Span(sub, style=_KPI_TILE_SUB_STYLE))
+    return html.Div(style=_KPI_TILE_STYLE, children=children)
+
+
+def _analyst_tiles(overview):
+    """Analyst Rating (% buy, with hold/sell underneath) and Avg Price
+    Target (with upside vs. the current price) tiles for the KPI grid."""
+    pct_buy, pct_hold, pct_sell = (overview.get(k) for k in ("pct_buy", "pct_hold", "pct_sell"))
+    count = overview.get("rating_count")
+    rating_value = rating_sub = None
+    if pct_buy is not None:
+        rating_value = f"{pct_buy * 100:.0f}% Buy"
+        rating_sub = f"{pct_hold * 100:.0f}% Hold · {pct_sell * 100:.0f}% Sell"
+        if count:
+            rating_sub += f" · {count} analysts"
+
+    target = overview.get("target_mean_price")
+    price = overview.get("current_price")
+    target_value = target_sub = None
+    if target is not None:
+        target_value = f"${target:,.2f}"
+        if price:
+            upside = target / price - 1
+            target_sub = html.Span(
+                f"{upside * 100:+.1f}% vs. price",
+                style={"color": "var(--up)" if upside >= 0 else "var(--down)"},
+            )
+    return [
+        _kpi_tile("Analyst Rating", rating_value, rating_sub),
+        _kpi_tile("Avg Price Target", target_value, target_sub),
+    ]
 
 
 def _company_overview_data(store):
@@ -4294,6 +4326,7 @@ def _company_overview_data(store):
         _kpi_tile("Revenue TTM", _fmt_big_dollars(overview.get("revenue_ttm"))),
         _kpi_tile("Net Margin", f"{net_margin * 100:.1f}%" if net_margin is not None else None),
         _kpi_tile("ROIC", f"{roic * 100:.1f}%" if roic is not None else None),
+        *_analyst_tiles(overview),
     ]
     return meta_text, f"{ticker} — {title}", tiles
 

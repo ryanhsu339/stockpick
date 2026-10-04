@@ -85,11 +85,13 @@ def fetch_price_history(ticker, range_key):
 def fetch_ticker_overview(ticker):
     """Return a dict of yfinance's own overview stats for `ticker` (market
     cap, trailing P/E, trailing-twelve-month revenue, net margin, exchange,
-    sector) for the Company Tracker's KPI tiles. Individual fields come back
-    None when yfinance doesn't have them for this ticker (e.g. ETFs have no
-    P/E) -- only raises if the ticker itself can't be resolved at all."""
+    sector, analyst price target and buy/hold/sell split) for the Company
+    Tracker's KPI tiles. Individual fields come back None when yfinance
+    doesn't have them for this ticker (e.g. ETFs have no P/E or analyst
+    coverage) -- only raises if the ticker itself can't be resolved at all."""
     try:
-        info = yf.Ticker(ticker).info
+        ticker_obj = yf.Ticker(ticker)
+        info = ticker_obj.info
     except Exception as e:
         raise PriceDataError(f"Could not fetch overview data for {ticker}: {e}") from e
     if not info:
@@ -101,7 +103,37 @@ def fetch_ticker_overview(ticker):
         "net_margin": info.get("profitMargins"),
         "exchange": info.get("fullExchangeName") or info.get("exchange"),
         "sector": info.get("sector"),
+        "current_price": info.get("currentPrice") or info.get("regularMarketPrice"),
+        "target_mean_price": info.get("targetMeanPrice"),
+        **_fetch_analyst_split(ticker_obj),
     }
+
+
+def _fetch_analyst_split(ticker_obj):
+    """{"pct_buy", "pct_hold", "pct_sell"} (0-1 fractions) plus
+    "rating_count" from Yahoo's current-month recommendation counts, with
+    strong buy/sell folded into buy/sell. A separate Yahoo request from
+    .info, so it's best-effort on its own -- everything comes back None
+    rather than failing the overview."""
+    empty = {"pct_buy": None, "pct_hold": None, "pct_sell": None, "rating_count": None}
+    try:
+        recs = ticker_obj.recommendations
+    except Exception:
+        return empty
+    if recs is None or recs.empty:
+        return empty
+    # Row "0m" is the current month; fall back to the first row if Yahoo
+    # ever stops labeling periods.
+    current = recs[recs["period"] == "0m"] if "period" in recs.columns else recs
+    row = (current if not current.empty else recs).iloc[0]
+    buy = row.get("strongBuy", 0) + row.get("buy", 0)
+    hold = row.get("hold", 0)
+    sell = row.get("sell", 0) + row.get("strongSell", 0)
+    total = buy + hold + sell
+    if not total:
+        return empty
+    return {"pct_buy": buy / total, "pct_hold": hold / total, "pct_sell": sell / total,
+            "rating_count": int(total)}
 
 
 def fetch_fund_name(ticker):
