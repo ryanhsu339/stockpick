@@ -4287,9 +4287,10 @@ def _analyst_tiles(overview):
     rating_value = rating_sub = None
     if pct_buy is not None:
         rating_value = f"{pct_buy * 100:.0f}% Buy"
-        rating_sub = f"{pct_hold * 100:.0f}% Hold · {pct_sell * 100:.0f}% Sell"
+        rating_sub = [f"{pct_hold * 100:.0f}% Hold · {pct_sell * 100:.0f}% Sell"]
         if count:
-            rating_sub += f" · {count} analysts"
+            # Hidden on mobile (see .kpi-analyst-count in custom.css).
+            rating_sub.append(html.Span(f" · {count} analysts", className="kpi-analyst-count"))
 
     target = overview.get("target_mean_price")
     price = overview.get("current_price")
@@ -4423,7 +4424,9 @@ def build_earnings_figure(events, fy_end_month, theme="dark", mobile=False):
     edge. Beat/Miss and the $ surprise sit under each quarter's label."""
     colors = _chart_colors(theme)
     if mobile:
-        events = events[-5:]  # four reported + upcoming fits a phone's width
+        # Just the last four reported quarters -- no upcoming estimate --
+        # to keep the chart compact on a phone.
+        events = [e for e in events if e["actual"] is not None][-4:]
     labels, ticktext = [], []
     est_y, act_y, act_colors, est_hover, act_hover = [], [], [], [], []
     for e in events:

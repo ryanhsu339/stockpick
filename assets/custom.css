@@ -483,6 +483,26 @@ a:hover { color: var(--text); }
     .pol-row:active {
         background-color: var(--tap-highlight);
     }
+
+    /* Earnings section: desktop's stacked margins (financials-columns'
+       24px + the h3's 28px above it; financials-header's 40px + its own
+       h3's 28px below) left ~50-70px gaps around the chart on a phone.
+       !important where dash_app.py sets the margin inline. */
+    [id^="earnings-wrap"] {
+        margin-bottom: 0 !important;
+    }
+    [id^="earnings-wrap"] h3 {
+        margin-top: 4px;
+    }
+    [id^="earnings-wrap"] ~ [id^="financials-header"] {
+        margin-top: 8px !important;
+    }
+
+    /* Analyst Rating tile's "· N analysts" pushed its sub-line onto a
+       second row in the half-width mobile tile. */
+    .kpi-analyst-count {
+        display: none;
+    }
 }
 
 h2 { font-size: 28px; font-weight: 600; letter-spacing: -0.02em; margin: 8px 0 4px; }
