@@ -8,10 +8,12 @@ since it's a different data source with its own failure modes (Yahoo
 symbols can differ slightly from SEC tickers, e.g. share classes).
 """
 
+import threading
 import time
 from datetime import date, timedelta
 
 import yfinance as yf
+from yfinance.data import YfData
 
 
 class PriceDataError(Exception):
@@ -136,6 +138,27 @@ def _fetch_analyst_split(ticker_obj):
             "rating_count": int(total)}
 
 
+# Parsed earnings results per ticker -- a few small dicts each, instead of
+# the ~1MB Yahoo calendar page they're scraped from. Short-lived enough to
+# pick up a fresh report the same day; capped so it can't grow unbounded.
+_EARNINGS_CACHE_TTL = 6 * 3600
+_EARNINGS_CACHE_MAX = 500
+_earnings_cache = {}  # (ticker, quarters) -> (fetched_at, result list or error message)
+_earnings_cache_lock = threading.Lock()
+
+
+def _drop_yfinance_response_cache():
+    """get_earnings_dates scrapes Yahoo's earnings-calendar HTML page
+    (~1MB) through yfinance's process-wide response cache (an lru_cache of
+    up to 64 whole HTTP responses, never expired) -- so every new ticker
+    viewed left another page in memory for good, a staircase on the
+    server's memory graph, and a cached page also never picked up a newly
+    reported quarter. Only the parsed result is kept (_earnings_cache)."""
+    clear = getattr(getattr(YfData, "cache_get", None), "cache_clear", None)
+    if clear:
+        clear()
+
+
 def fetch_earnings_history(ticker, quarters=8):
     """Return a list of {"date", "estimate", "actual"} dicts, oldest first,
     for `ticker`'s last `quarters` reported quarters plus the next upcoming
@@ -143,11 +166,41 @@ def fetch_earnings_history(ticker, quarters=8):
     report's calendar date; EPS figures are Yahoo's adjusted (non-GAAP)
     numbers, the same basis analysts' consensus estimates use. Raises
     PriceDataError if Yahoo has no earnings history (funds, recent IPOs)."""
+    key = (ticker.upper(), quarters)
+    cached = _earnings_cache.get(key)
+    if cached and time.time() - cached[0] < _EARNINGS_CACHE_TTL:
+        if isinstance(cached[1], str):
+            raise PriceDataError(cached[1])
+        return cached[1]
+    try:
+        result = _fetch_earnings_history_uncached(ticker, quarters)
+    except PriceDataError as e:
+        # Remember "no history" (funds, recent IPOs) so those don't refetch
+        # the page on every view -- but not a failed fetch, which may just
+        # be a transient Yahoo/network error worth retrying next time.
+        if str(e).startswith("No earnings history"):
+            _store_earnings(key, str(e))
+        raise
+    _store_earnings(key, result)
+    return result
+
+
+def _store_earnings(key, value):
+    with _earnings_cache_lock:
+        _earnings_cache[key] = (time.time(), value)
+        if len(_earnings_cache) > _EARNINGS_CACHE_MAX:
+            oldest = min(_earnings_cache, key=lambda k: _earnings_cache[k][0])
+            del _earnings_cache[oldest]
+
+
+def _fetch_earnings_history_uncached(ticker, quarters):
     try:
         # limit counts upcoming rows too, so ask for a few spare.
         df = yf.Ticker(ticker).get_earnings_dates(limit=quarters + 4)
     except Exception as e:
         raise PriceDataError(f"Could not fetch earnings history for {ticker}: {e}") from e
+    finally:
+        _drop_yfinance_response_cache()
     if df is None or df.empty or "EPS Estimate" not in df.columns:
         raise PriceDataError(f"No earnings history available for {ticker}.")
 
