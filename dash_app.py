@@ -2006,6 +2006,15 @@ def _best_returns_note(rows):
             "portfolios with 10+ positions only.")
 
 
+_BEST_RETURNS_PAGE_SIZE = 10
+
+
+def _render_best_return_rows(visible_count, records):
+    if not records:
+        return html.P("No data yet.", style={"color": "var(--body-text)", "fontSize": "13px"})
+    return [_build_best_return_row(r, i + 1) for i, r in enumerate(records[:visible_count])]
+
+
 def _build_best_return_row(r, rank):
     ret = r["est_return_pct"]
     up = ret >= 0
@@ -2386,13 +2395,24 @@ def _manager_tracker_children():
         html.H3("Best Performing Funds Previous Quarter", style={**_HEADER_STYLE, "marginTop": "32px"}),
         html.P(_best_returns_note(top_buys.get("best_returns")),
                style={**_PARA_STYLE, "fontSize": "13px", "marginTop": "0", "maxWidth": "760px"}),
+        # Scrolls like the Companies tab's Top Gainers/Losers cards: the first
+        # _BEST_RETURNS_PAGE_SIZE rows, then another page each time the card
+        # is scrolled near its bottom (best-returns-scroll-poll below), up to
+        # the 50 precomputed. maxHeight is a bit under ten rows so the first
+        # page always overflows -- otherwise there'd be nothing to scroll.
         html.Div(
             id="best-returns-card",
             style={"backgroundColor": "var(--card-bg)", "border": "1px solid var(--border)",
-                   "borderRadius": "14px", "padding": "4px 20px 8px", "maxWidth": "760px"},
-            children=[_build_best_return_row(r, i + 1) for i, r in enumerate(top_buys.get("best_returns") or [])]
-            or html.P("No data yet.", style={"color": "var(--body-text)", "fontSize": "13px"}),
+                   "borderRadius": "14px", "padding": "0 20px", "maxWidth": "760px",
+                   "maxHeight": "340px", "overflowY": "auto"},
+            children=html.Div(
+                id="best-returns-container",
+                children=_render_best_return_rows(_BEST_RETURNS_PAGE_SIZE, top_buys.get("best_returns")),
+            ),
         ),
+        dcc.Store(id="best-returns-records", data=top_buys.get("best_returns") or []),
+        dcc.Store(id="best-returns-visible-count", data=_BEST_RETURNS_PAGE_SIZE),
+        dcc.Interval(id="best-returns-scroll-poll", interval=1200, n_intervals=0),
         html.Hr(style=_SECTION_DIVIDER_STYLE),
         html.H3("Look Up a Manager", id="lookup-manager-heading", style=_LOOKUP_HEADING_STYLE),
         html.Div(
@@ -4596,6 +4616,46 @@ def render_gainer_rows(visible_count, records):
 )
 def render_loser_rows(visible_count, records):
     return _render_mover_rows(visible_count, records, "losers")
+
+
+@app.callback(
+    Output("best-returns-container", "children"),
+    Input("best-returns-visible-count", "data"),
+    State("best-returns-records", "data"),
+    prevent_initial_call=True,
+)
+def render_best_return_rows(visible_count, records):
+    return _render_best_return_rows(visible_count, records)
+
+
+# Infinite scroll for the Managers tab's Best Performing Funds card -- same
+# poll as the movers cards below (container's parent is the scroller).
+app.clientside_callback(
+    """
+    function(_n_intervals, visibleCount, records) {
+        if (!records || !records.length || visibleCount >= records.length) {
+            return window.dash_clientside.no_update;
+        }
+        var container = document.getElementById("best-returns-container");
+        if (!container || container.children.length < visibleCount) {
+            return window.dash_clientside.no_update;
+        }
+        var scroller = container.parentElement;
+        // scrollTop > 0: only once the card has actually been scrolled --
+        // the first page only just overflows, so "near the bottom" would
+        // otherwise already be true before anyone scrolls at all.
+        if (scroller.clientHeight === 0 || scroller.scrollTop === 0) return window.dash_clientside.no_update;
+        var nearBottom = (scroller.scrollTop + scroller.clientHeight) >= (scroller.scrollHeight - 60);
+        if (nearBottom) return Math.min(visibleCount + %(page_size)d, records.length);
+        return window.dash_clientside.no_update;
+    }
+    """ % {"page_size": _BEST_RETURNS_PAGE_SIZE},
+    Output("best-returns-visible-count", "data", allow_duplicate=True),
+    Input("best-returns-scroll-poll", "n_intervals"),
+    State("best-returns-visible-count", "data"),
+    State("best-returns-records", "data"),
+    prevent_initial_call=True,
+)
 
 
 # Infinite scroll for the movers cards -- identical to the Politicians

@@ -1263,7 +1263,11 @@ _RETURN_MAX_PRICE_RATIO = 10
 _RETURN_MIN_PRICE_QUOTES = 3
 
 
-def best_estimated_returns(comparisons, top_n=10, min_public_equity_portfolio_m=_MIN_PUBLIC_EQUITY_PORTFOLIO_M):
+BEST_RETURNS_N = 50  # how many the Managers tab's Best Performing Funds card can scroll through
+
+
+def best_estimated_returns(comparisons, top_n=BEST_RETURNS_N,
+                           min_public_equity_portfolio_m=_MIN_PUBLIC_EQUITY_PORTFOLIO_M):
     """The `top_n` managers by estimated quarterly return on their
     previous-quarter 13F portfolio: every position held at the previous
     quarter-end, priced at both quarter-ends, as if it were held unchanged

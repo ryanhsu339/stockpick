@@ -160,7 +160,7 @@ def main():
         "period": ranking["period"],
         "conviction": top_buys_across_managers(top_n=_TOP_BUYS_N, comparisons=results),
         "fund_size": largest_managers_top_buys(top_n=_TOP_BUYS_N, comparisons=results),
-        # Top 10 managers by estimated return on last quarter's portfolio,
+        # Top 50 managers by estimated return on last quarter's portfolio,
         # priced from the whole pool's reported quarter-end prices.
         "best_returns": best_estimated_returns(results),
     }
