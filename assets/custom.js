@@ -400,3 +400,38 @@ document.addEventListener("focusin", function (e) {
     }, {passive: true});
     document.addEventListener("touchend", end);
 })();
+
+// Plotly basic bundle: see _PLOTLY_BASIC_VERSION in dash_app.py. dcc.Graph
+// only downloads window._dashPlotlyJSURL (normally the full 4.7MB
+// plotly.min.js) when window.Plotly isn't already defined -- so this
+// fetches the 1.2MB basic build in the background once the page is idle,
+// and points that fallback URL at the same file in case a chart mounts
+// before the background load has finished (e.g. a deep link straight to
+// Companies). Keep the version in this URL in sync with the vendored file.
+(function () {
+    var PLOTLY_BASIC_URL = "/assets/vendor/plotly-basic-4.1.1.min.js";
+    try {
+        Object.defineProperty(window, "_dashPlotlyJSURL", {
+            configurable: true,
+            get: function () { return PLOTLY_BASIC_URL; },
+            set: function () {},  // ignore dash-renderer's full-bundle URL
+        });
+    } catch (e) {}
+    function preload() {
+        if (window.Plotly || document.getElementById("plotly-basic-preload")) {
+            return;
+        }
+        var script = document.createElement("script");
+        script.id = "plotly-basic-preload";
+        script.src = PLOTLY_BASIC_URL;
+        script.async = true;
+        document.head.appendChild(script);
+    }
+    window.addEventListener("load", function () {
+        if ("requestIdleCallback" in window) {
+            requestIdleCallback(preload, {timeout: 3000});
+        } else {
+            setTimeout(preload, 1500);
+        }
+    });
+})();

@@ -1126,11 +1126,19 @@ def _financials_valuation_blocks(suffix):
         # (see _financials_valuation_blocks' caller) actually kicking in.
         style={"flex": "1", "minWidth": "280px"},
         children=[
-            dcc.Graph(
-                id=f"dcf-chart{suffix}",
-                figure=empty_price_figure("Enter a ticker and click Generate to load a DCF."),
-                config={"displayModeBar": False},
-            ),
+            # The chart itself is only built where it's shown (see
+            # _dcf_chart_view): always on desktop, but on mobile only
+            # after this toggle is tapped -- a Plotly chart costs real
+            # main-thread time on a phone even while hidden, and the
+            # banner above already gives the headline fair value.
+            # update_dcf writes the figure into dcf-chart-store rather
+            # than straight into the Graph, so it never has to target a
+            # component that may not exist yet. Hidden on desktop by
+            # custom.css (.dcf-chart-toggle).
+            html.Button("+ Show chart", id=f"dcf-chart-toggle{suffix}", n_clicks=0,
+                        className="dcf-chart-toggle"),
+            dcc.Store(id=f"dcf-chart-store{suffix}"),
+            html.Div(id=f"dcf-chart-holder{suffix}"),
             html.Details(
                 style={"marginTop": "20px"},
                 children=[
@@ -2647,7 +2655,25 @@ def _politician_tracker_children(initial_pending=None):
 # Dash validates at startup, only appearing once each panel is first
 # visited. Without this, Dash refuses to register any callback that
 # references one of those IDs.
-app = Dash(__name__, update_title=None, suppress_callback_exceptions=True)
+# assets_ignore: assets/vendor/plotly-basic-*.min.js is Plotly's own
+# "basic" build (scatter/bar/pie -- every trace type this app draws), a
+# quarter the size of the full 4.7MB plotly.min.js dcc.Graph would
+# otherwise download and evaluate the first time a chart appears (the
+# Companies tab) -- several seconds of frozen page on a phone. It's kept
+# out of the page's auto-loaded scripts and instead fetched in the
+# background once the page is idle (see the end of assets/custom.js),
+# so it's usually ready before Companies is ever opened.
+_PLOTLY_BASIC_VERSION = "4.1.1"
+app = Dash(__name__, update_title=None, suppress_callback_exceptions=True,
+           assets_ignore=r"^plotly-basic-.*\.min\.js$")
+try:
+    from plotly.offline import get_plotlyjs_version
+    if get_plotlyjs_version() != _PLOTLY_BASIC_VERSION:
+        print(f"WARNING: assets/vendor/plotly-basic-{_PLOTLY_BASIC_VERSION}.min.js doesn't match the installed "
+              f"plotly.js {get_plotlyjs_version()} -- replace it with the matching basic bundle "
+              f"(https://cdn.plot.ly/plotly-basic-<version>.min.js) and update custom.js's URL.")
+except Exception:
+    pass
 app.title = "Stockpick"
 # Plain HTML/CSS overlay, outside Dash's own React tree entirely -- it
 # paints as soon as the browser has parsed this far into the page, not
@@ -4844,7 +4870,7 @@ _DCF_FIELD_NAMES = [field for field, _label in _DCF_INPUT_FIELDS]
 @app.callback(
     [Output(f"dcf-{field}", "value") for field in _DCF_FIELD_NAMES]
     + [Output("dcf-table", "data"), Output("dcf-table", "columns"), Output("dcf-summary-table", "data"),
-       Output("dcf-banner", "children"), Output("dcf-chart", "figure")],
+       Output("dcf-banner", "children"), Output("dcf-chart-store", "data")],
     Input("dcf-defaults-store", "data"),
     Input("calculate-dcf-btn", "n_clicks"),
     Input("dcf-price-refresh", "n_intervals"),
@@ -4907,7 +4933,7 @@ def update_dcf(defaults, _n_clicks, _n_intervals, theme, mobile, *current_values
 @app.callback(
     [Output(f"dcf-{field}-2", "value") for field in _DCF_FIELD_NAMES]
     + [Output("dcf-table-2", "data"), Output("dcf-table-2", "columns"), Output("dcf-summary-table-2", "data"),
-       Output("dcf-banner-2", "children"), Output("dcf-chart-2", "figure")],
+       Output("dcf-banner-2", "children"), Output("dcf-chart-store-2", "data")],
     Input("dcf-defaults-store-2", "data"),
     Input("calculate-dcf-btn-2", "n_clicks"),
     Input("dcf-price-refresh-2", "n_intervals"),
@@ -4964,6 +4990,38 @@ def update_dcf_2(defaults, _n_clicks, _n_intervals, theme, mobile, *current_valu
     )
 
     return (*input_outputs, data, columns, summary, banner, chart)
+
+
+def _dcf_chart_view(figure, n_clicks, mobile, suffix):
+    """(chart holder children, toggle label) -- see dcf_chart_column in
+    _financials_valuation_blocks for why mobile starts collapsed."""
+    show = not mobile or (n_clicks or 0) % 2 == 1
+    label = "− Hide chart" if show else "+ Show chart"
+    if not show or not figure:
+        return None, label
+    return dcc.Graph(id=f"dcf-chart{suffix}", figure=figure, config={"displayModeBar": False}), label
+
+
+@app.callback(
+    Output("dcf-chart-holder", "children"),
+    Output("dcf-chart-toggle", "children"),
+    Input("dcf-chart-store", "data"),
+    Input("dcf-chart-toggle", "n_clicks"),
+    Input("viewport-is-mobile", "data"),
+)
+def update_dcf_chart_view(figure, n_clicks, mobile):
+    return _dcf_chart_view(figure, n_clicks, mobile, "")
+
+
+@app.callback(
+    Output("dcf-chart-holder-2", "children"),
+    Output("dcf-chart-toggle-2", "children"),
+    Input("dcf-chart-store-2", "data"),
+    Input("dcf-chart-toggle-2", "n_clicks"),
+    Input("viewport-is-mobile", "data"),
+)
+def update_dcf_chart_view_2(figure, n_clicks, mobile):
+    return _dcf_chart_view(figure, n_clicks, mobile, "-2")
 
 
 def _all_positions_row_to_record(r, companies):

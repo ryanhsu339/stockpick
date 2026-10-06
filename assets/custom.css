@@ -502,6 +502,13 @@ a:hover { color: var(--text); }
         margin-top: 8px !important;
     }
 
+    /* DCF chart starts collapsed on mobile behind this toggle -- see
+       dcf_chart_column in dash_app.py. "button." for specificity over
+       the base display:none rule, which comes later in this file. */
+    button.dcf-chart-toggle {
+        display: inline-block;
+    }
+
     /* Analyst Rating tile's "· N analysts" pushed its sub-line onto a
        second row in the half-width mobile tile. */
     .kpi-analyst-count {
@@ -585,6 +592,13 @@ p  { line-height: 1.55; text-wrap: pretty; }
     border: 1px solid var(--border);
     border-radius: 10px;
     overflow: hidden;
+}
+
+/* DCF chart toggle: mobile-only (shown by the @media block above). */
+.dcf-chart-toggle {
+    display: none;
+    font-size: 12px;
+    margin-bottom: 8px;
 }
 
 /* Buttons */
