@@ -10,6 +10,28 @@ services:
     # worker can approach 2x that on a 512MB starter instance as the worker's
     # copy-on-write pages get touched.
     startCommand: gunicorn dash_app:server --bind 0.0.0.0:$PORT --worker-class gthread --workers 1 --threads 4
+    # User accounts and watchlists (accounts.py) live in a SQLite file on
+    # this disk -- everything else on the instance's filesystem is wiped on
+    # each deploy. Note a service with a disk can't do zero-downtime
+    # deploys: Render stops the old instance before starting the new one.
+    disk:
+      name: stockpick-data
+      mountPath: /var/data
+      sizeGB: 1
     envVars:
       - key: PYTHON_VERSION
         value: 3.12.10
+      - key: USER_DB_PATH
+        value: /var/data/users.db
+      # Signs session/login cookies. Generated once by Render and kept --
+      # changing it logs everyone out.
+      - key: SECRET_KEY
+        generateValue: true
+      # Sends "Forgot password?" emails (accounts.py). sync: false -- the
+      # value is entered in Render's dashboard, never committed here.
+      - key: RESEND_API_KEY
+        sync: false
+      # Base of the link in reset emails -- never taken from the request's
+      # Host header (see accounts._public_base_url).
+      - key: PUBLIC_BASE_URL
+        value: https://stockpick.io

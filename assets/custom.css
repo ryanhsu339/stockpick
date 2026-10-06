@@ -100,6 +100,44 @@ a:hover { color: var(--text); }
     background-color: var(--bg);
 }
 
+/* Sidebar watchlist rows (see _render_watchlist_rows in dash_app.py) --
+   hover lives here rather than inline since inline styles can't express
+   :hover; the remove "x" stays faint until its row is hovered. */
+.watchlist-row:hover {
+    background-color: var(--pill-active);
+}
+.watchlist-remove-btn {
+    opacity: 0.4;
+}
+.watchlist-row:hover .watchlist-remove-btn {
+    opacity: 1;
+}
+
+/* Log in / Sign up (or email + Log out) in the main column's top-right
+   corner -- see _render_top_account_bar in dash_app.py. Absolutely
+   positioned so it doesn't push the page down; on narrower desktop
+   widths, where it could collide with a panel's heading, it drops into
+   its own right-aligned row instead. Hidden on mobile below. */
+#top-account-bar {
+    position: absolute;
+    top: 26px;
+    right: 24px;
+    z-index: 25;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+#top-account-bar:empty {
+    display: none;
+}
+@media (max-width: 1100px) {
+    #top-account-bar {
+        position: static;
+        justify-content: flex-end;
+        padding: 20px 16px 0;
+    }
+}
+
 /* Mobile: stack the sidebar above the content instead of beside it --
    below this width the fixed 232px sidebar was eating well over half the
    viewport, squeezing every table/card/chart into a sliver. Only these
@@ -367,6 +405,15 @@ a:hover { color: var(--text); }
        bit more of the sidebar's tight vertical space on mobile. */
     #sidebar-data-source {
         display: none;
+    }
+
+    /* Watchlist is desktop-only for now: the mobile sidebar is already a
+       compact strip above the content, with no room for a growing list.
+       The Add buttons go with it, so nothing adds to a list you can't see. */
+    #sidebar-watchlist-section,
+    .watchlist-add-btn,
+    #top-account-bar {
+        display: none !important;
     }
 
     /* No physical keyboard on a phone to advertise a Cmd+K shortcut for. */

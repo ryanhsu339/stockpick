@@ -46,6 +46,7 @@ from dash import ALL, Dash, Input, Output, State, ctx, dash_table, dcc, html, no
 from dash.dash_table.Format import Format, Scheme, Sign
 from dash.exceptions import PreventUpdate
 
+import accounts
 from company_growth_calc import (
     CompanyDataError,
     CompanyLookupError,
@@ -1653,6 +1654,7 @@ def _company_tracker_children():
                         html.Div(id="company-suggestions-2", style=_SUGGESTIONS_CONTAINER_STYLE),
                     ],
                 ),
+                _watchlist_add_button("watchlist-add-company"),
             ],
         ),
         dcc.Loading(
@@ -2430,6 +2432,7 @@ def _manager_tracker_children():
                         html.Div(id="manager-suggestions", style=_SUGGESTIONS_CONTAINER_STYLE),
                     ],
                 ),
+                _watchlist_add_button("watchlist-add-manager"),
             ],
         ),
         dcc.Loading(
@@ -2724,6 +2727,7 @@ def _politician_tracker_children(initial_pending=None):
                         ),
                     ],
                 ),
+                _watchlist_add_button("watchlist-add-politician"),
             ],
         ),
         dcc.Loading(
@@ -2899,6 +2903,8 @@ app.index_string = """<!DOCTYPE html>
 # below, so debug mode (and the dev-tools UI it enables) only ever exist
 # for local `python dash_app.py` runs, not the hosted deployment.
 server = app.server
+# Sessions, /login, /signup, /logout and the users database -- see accounts.py.
+accounts.init_accounts(server)
 
 # Request timing, to see where production time goes (stockpick.io sits
 # behind Cloudflare, which blocks automated browsers from measuring it):
@@ -2992,6 +2998,169 @@ def _sidebar_nav_dot_style(active):
     }
 
 
+# Watchlist: saved in the browser's own localStorage (watchlist-store,
+# storage_type="local", same as theme-store) as a list of
+# {"kind", "key", "label"} dicts -- no accounts yet, so it's per-browser.
+# key is whatever that tracker needs to reload the item: the ticker for
+# "company", the CIK for "manager" (loaded the same way a candidate
+# click is, via select_manager_candidate -- re-resolving by name could
+# come back ambiguous), and "chamber|last|first" for "politician" (the
+# same key politician-input's dropdown uses).
+_WATCHLIST_BADGES = {"manager": "13F", "politician": "PTR"}
+
+
+def _watchlist_add_btn_style(on_list):
+    return {
+        "backgroundColor": "var(--card-bg)",
+        "color": "var(--accent)" if on_list else "var(--text)",
+        "border": f"1px solid {'var(--accent)' if on_list else 'var(--border)'}",
+        "borderRadius": "8px", "padding": "8px 12px", "fontSize": "13px", "fontWeight": "600",
+        "cursor": "pointer", "whiteSpace": "nowrap",
+    }
+
+
+def _watchlist_add_button(btn_id):
+    # className lets the mobile media query hide it alongside the sidebar
+    # list itself (see .watchlist-add-btn in custom.css).
+    return html.Button("☆ Add to Watchlist", id=btn_id, n_clicks=0, className="watchlist-add-btn",
+                       style=_watchlist_add_btn_style(False))
+
+
+def _watchlist_add_button_state(items, kind, key):
+    on_list = bool(key) and any(i["kind"] == kind and i["key"] == key for i in items or [])
+    return ("★ On Watchlist" if on_list else "☆ Add to Watchlist"), _watchlist_add_btn_style(on_list)
+
+
+def _toggle_watchlist_item(items, kind, key, label):
+    items = list(items or [])
+    remaining = [i for i in items if not (i["kind"] == kind and i["key"] == key)]
+    if len(remaining) != len(items):
+        return remaining
+    return items + [{"kind": kind, "key": key, "label": label}]
+
+
+def _render_watchlist_rows(items):
+    if not items:
+        return html.Div("Nothing saved yet. Use ☆ Add to Watchlist on any lookup.",
+                        style={"fontSize": "12px", "color": "var(--body-text)", "padding": "0 10px",
+                               "lineHeight": "1.5"})
+    rows = []
+    for item in items:
+        kind, key = item["kind"], item["key"]
+        badge = key if kind == "company" else _WATCHLIST_BADGES.get(kind, "")
+        rows.append(html.Div(
+            className="watchlist-row",
+            style={"display": "flex", "alignItems": "center", "borderRadius": "7px"},
+            children=[
+                html.Button(
+                    id={"type": "watchlist-item", "kind": kind, "key": key},
+                    n_clicks=0,
+                    title=item["label"],
+                    style={"display": "flex", "alignItems": "center", "gap": "10px", "flex": "1",
+                           "minWidth": "0", "padding": "7px 4px 7px 10px", "border": "none",
+                           "backgroundColor": "transparent", "color": "var(--text)", "cursor": "pointer",
+                           "fontSize": "13px", "textAlign": "left", "fontFamily": "inherit"},
+                    children=[
+                        html.Span(item["label"], style={"flex": "1", "minWidth": "0", "overflow": "hidden",
+                                                         "textOverflow": "ellipsis", "whiteSpace": "nowrap"}),
+                        html.Span(badge, style={"fontFamily": "'IBM Plex Mono', monospace", "fontSize": "11px",
+                                                "color": "var(--body-text)", "flex": "0 0 auto"}),
+                    ],
+                ),
+                html.Button(
+                    "×",
+                    id={"type": "watchlist-remove", "kind": kind, "key": key},
+                    n_clicks=0,
+                    title="Remove from watchlist",
+                    className="watchlist-remove-btn",
+                    style={"border": "none", "backgroundColor": "transparent", "color": "var(--body-text)",
+                           "cursor": "pointer", "fontSize": "15px", "lineHeight": "1", "padding": "4px 8px"},
+                ),
+            ],
+        ))
+    return rows
+
+
+_ACCOUNT_TEXT_STYLE = {"fontSize": "12px", "color": "var(--body-text)", "lineHeight": "1.5"}
+
+
+def _render_account_area():
+    if not accounts.current_user.is_authenticated:
+        return html.Div(style=_ACCOUNT_TEXT_STYLE, children=[
+            "Saved in this browser only. ",
+            html.A("Log in", href="/login"), " or ", html.A("sign up", href="/signup"),
+            " for free to save it!",
+        ])
+    # A real <form> POST (not a link) -- see accounts.py's logout route.
+    return html.Form(
+        action="/logout", method="POST",
+        style={**_ACCOUNT_TEXT_STYLE, "display": "flex", "alignItems": "center", "gap": "6px",
+               "flexWrap": "wrap"},
+        children=[
+            # Long addresses would otherwise widen the 232px sidebar --
+            # truncated, with the full address on hover.
+            html.Span(["Signed in as ", html.B(accounts.current_user.email, style={"color": "var(--text)"})],
+                      title=accounts.current_user.email,
+                      style={"minWidth": "0", "maxWidth": "100%", "overflow": "hidden",
+                             "textOverflow": "ellipsis", "whiteSpace": "nowrap"}),
+            # The CSRF token rides on the submit button itself (a clicked
+            # button's name/value are sent with the form) -- Dash has no
+            # html.Input for a hidden field.
+            html.Button("Log out", type="submit", name="csrf_token", value=accounts.generate_csrf(),
+                        style={"border": "none", "background": "none", "padding": "0", "cursor": "pointer",
+                               "color": "var(--accent)", "fontSize": "12px", "fontFamily": "inherit"}),
+        ],
+    )
+
+
+_TOP_BAR_BTN_STYLE = {
+    "display": "inline-block", "padding": "7px 14px", "borderRadius": "8px", "fontSize": "13px",
+    "fontWeight": "600", "fontFamily": "inherit", "textDecoration": "none", "cursor": "pointer",
+    "lineHeight": "1.2", "border": "1px solid var(--border)", "backgroundColor": "var(--card-bg)",
+    "color": "var(--text)",
+}
+_TOP_BAR_PRIMARY_BTN_STYLE = {**_TOP_BAR_BTN_STYLE, "border": "1px solid var(--accent)",
+                              "backgroundColor": "var(--accent)", "color": "#0f0f0e"}
+
+
+def _render_top_account_bar():
+    """Top-right corner of the main column (desktop only -- see
+    #top-account-bar in custom.css): Log in / Sign up, or the signed-in
+    email and Log out."""
+    if not accounts.current_user.is_authenticated:
+        return [html.A("Log in", href="/login", style=_TOP_BAR_BTN_STYLE),
+                html.A("Sign up", href="/signup", style=_TOP_BAR_PRIMARY_BTN_STYLE)]
+    # Same CSRF-token-on-the-button logout form as _render_account_area.
+    return html.Form(
+        action="/logout", method="POST",
+        style={"display": "flex", "alignItems": "center", "gap": "10px", "margin": "0"},
+        children=[
+            html.Span(accounts.current_user.email, title=accounts.current_user.email,
+                      style={"fontSize": "13px", "color": "var(--body-text)", "maxWidth": "240px",
+                             "overflow": "hidden", "textOverflow": "ellipsis", "whiteSpace": "nowrap"}),
+            html.Button("Log out", type="submit", name="csrf_token", value=accounts.generate_csrf(),
+                        style=_TOP_BAR_BTN_STYLE),
+        ],
+    )
+
+
+def _watchlist_base(local_items):
+    """The list a watchlist edit applies to: the account's saved list when
+    logged in (another device may have changed it since this page loaded,
+    so the browser's copy could be stale), the browser's own otherwise."""
+    if accounts.current_user.is_authenticated:
+        return accounts.load_watchlist(accounts.current_user.id)
+    return local_items or []
+
+
+def _commit_watchlist(items):
+    """Saves items to the account when logged in; returns what
+    watchlist-store should hold either way."""
+    if accounts.current_user.is_authenticated:
+        return accounts.save_watchlist(accounts.current_user.id, items)
+    return items
+
+
 def _build_sidebar():
     nav_rows = [
         html.Div(
@@ -3076,6 +3245,22 @@ def _build_sidebar():
                              children=nav_rows),
                 ],
             ),
+            # minHeight 0 + the list's own overflowY: a long watchlist
+            # scrolls inside the 100vh sidebar instead of pushing the
+            # theme toggle/footer below the fold.
+            html.Div(
+                id="sidebar-watchlist-section",
+                style={"display": "flex", "flexDirection": "column", "minHeight": "0", "flex": "0 1 auto"},
+                children=[
+                    html.Div("Watchlist", style=_SIDEBAR_SECTION_LABEL_STYLE),
+                    html.Div(id="sidebar-watchlist-list",
+                             style={"display": "flex", "flexDirection": "column", "gap": "2px",
+                                    "minHeight": "0", "overflowY": "auto"}),
+                    # Filled in per visitor by sync_account_on_load -- the
+                    # layout itself is built once and shared by everyone.
+                    html.Div(id="sidebar-account", style={"padding": "10px 10px 0"}),
+                ],
+            ),
             html.Div(
                 style={"marginTop": "auto", "display": "flex", "flexDirection": "column", "gap": "10px"},
                 children=[
@@ -3113,6 +3298,8 @@ app.layout = html.Div(
         # runs -- see the two clientside callbacks right after this
         # layout for how a click updates it and how it's applied.
         dcc.Store(id="theme-store", storage_type="local", data="dark"),
+        # See _WATCHLIST_BADGES above for the item shape.
+        dcc.Store(id="watchlist-store", storage_type="local", data=[]),
         # storage_type="session": a refresh keeps whichever tracker was
         # open, but a brand-new tab/session lands back on _DEFAULT_VIEW.
         # Nothing reads this store server-side (see the clientside nav
@@ -3131,6 +3318,7 @@ app.layout = html.Div(
         # itself has an upstream producer (the sidebar nav clientside
         # callback), and chaining a second clientside callback off a prop
         # another one owns turned out not to fire reliably on initial load.
+        # sync_account_on_load uses it the same way.
         dcc.Store(id="page-load-trigger", data=True),
         # Global (not inside a lazy panel -- see build_company_panel/
         # build_politician_panel below) so select_global_search_result can
@@ -3162,6 +3350,9 @@ app.layout = html.Div(
             # main-content's own layout).
             style={"position": "relative"},
             children=[
+                # Log in / Sign up (or email + Log out), filled in per
+                # visitor by sync_account_on_load. Positioned by custom.css.
+                html.Div(id="top-account-bar"),
                 # Company/Politician panels start empty -- see
                 # build_company_panel/build_politician_panel below, which
                 # fill them in the first time each is actually visited,
@@ -3582,12 +3773,16 @@ def update_global_search_suggestions(query):
     # id if the same ticker ever appears in both at once.
     Input({"type": "top-buy-link", "ticker": ALL, "idx": ALL}, "n_clicks"),
     Input("all-positions-table", "active_cell"),
+    # A sidebar watchlist row. Manager rows only switch the view here --
+    # select_manager_candidate loads them by CIK (see _WATCHLIST_BADGES).
+    Input({"type": "watchlist-item", "kind": ALL, "key": ALL}, "n_clicks"),
     State("manager-input", "n_submit"),
     State("all-positions-table", "data"),
     prevent_initial_call=True,
 )
 def select_global_search_result(company_clicks, manager_clicks, member_clicks, holding_clicks,
-                                 top_buy_clicks, active_cell, manager_n_submit, all_positions_data):
+                                 top_buy_clicks, active_cell, _watchlist_clicks, manager_n_submit,
+                                 all_positions_data):
     # IMPORTANT: this callback must never declare company-input,
     # politician-chamber-tabs, or politician-input as Outputs, even
     # conditionally returning no_update for them -- all three live
@@ -3624,6 +3819,14 @@ def select_global_search_result(company_clicks, manager_clicks, member_clicks, h
             raise PreventUpdate  # fires with all-zero clicks whenever either list re-renders
         view = "company"
         pending_company_selection = triggered["ticker"]
+    elif isinstance(triggered, dict) and triggered["type"] == "watchlist-item":
+        if not ctx.triggered[0]["value"]:
+            raise PreventUpdate  # fires with all-zero clicks whenever the watchlist re-renders
+        view = triggered["kind"]
+        if view == "company":
+            pending_company_selection = triggered["key"]
+        elif view == "politician":
+            pending_selection = triggered["key"]
     else:
         if not any(company_clicks or []) and not any(manager_clicks or []) and not any(member_clicks or []):
             raise PreventUpdate  # fires with all-zero clicks whenever the suggestion list re-renders
@@ -3669,18 +3872,29 @@ def select_global_search_result(company_clicks, manager_clicks, member_clicks, h
 # selection changing while the panel is still unbuilt) fails harmlessly
 # on its own -- it does not block or poison the other, later invocation
 # that succeeds once the panel actually exists.
+#
+# suppress-next-suggestions, same as select_mover: without it, the value
+# change re-renders company-suggestions, which re-triggers
+# resolve_ticker_fast (it listens on those suggestion buttons) while the
+# n_submit-triggered call is still in flight -- Dash then drops that
+# in-flight result in favor of the re-render's no-op call, and the price
+# chart/header stay on the previous ticker (easy to hit flipping between
+# watchlist stocks).
 @app.callback(
     Output("company-input", "value", allow_duplicate=True),
     Output("company-input", "n_submit", allow_duplicate=True),
+    Output("suppress-next-suggestions", "data", allow_duplicate=True),
     Input("pending-company-selection", "data"),
     Input("company-panel", "children"),
     State("company-input", "n_submit"),
+    State("company-input", "value"),
     prevent_initial_call=True,
 )
-def apply_pending_company_selection(pending_ticker, _panel_children, current_n_submit):
+def apply_pending_company_selection(pending_ticker, _panel_children, current_n_submit, current_value):
     if not pending_ticker:
         raise PreventUpdate
-    return pending_ticker, (current_n_submit or 0) + 1
+    # Only suppress on an actual value change -- see select_mover.
+    return pending_ticker, (current_n_submit or 0) + 1, pending_ticker != current_value
 
 
 # Same two-Input/independent-invocation reasoning as
@@ -3733,6 +3947,134 @@ def apply_pending_politician_selection(pending, _panel_children, current_chamber
 )
 def clear_pending_politician_selection(_value):
     return None
+
+
+# Per-visitor sidebar account area, and -- when logged in -- replaces the
+# browser's watchlist copy with the account's saved list. Right after a
+# login/signup (accounts.MERGE_LOCAL_WATCHLIST_KEY), whatever this browser
+# had saved while logged out is folded into the account first, once.
+@app.callback(
+    Output("sidebar-account", "children"),
+    Output("top-account-bar", "children"),
+    Output("watchlist-store", "data", allow_duplicate=True),
+    Input("page-load-trigger", "data"),
+    State("watchlist-store", "data"),
+    prevent_initial_call="initial_duplicate",
+)
+def sync_account_on_load(_trigger, local_items):
+    if not accounts.current_user.is_authenticated:
+        return _render_account_area(), _render_top_account_bar(), no_update
+    user_id = accounts.current_user.id
+    items = accounts.load_watchlist(user_id)
+    if flask.session.pop(accounts.MERGE_LOCAL_WATCHLIST_KEY, False):
+        saved = {(i["kind"], str(i["key"])) for i in items}
+        items = accounts.save_watchlist(
+            user_id, items + [i for i in local_items or []
+                              if isinstance(i, dict) and (i.get("kind"), str(i.get("key"))) not in saved])
+    return _render_account_area(), _render_top_account_bar(), items
+
+
+# Watchlist (see _WATCHLIST_BADGES). Fires on page load too, once
+# watchlist-store has re-hydrated from localStorage.
+@app.callback(
+    Output("sidebar-watchlist-list", "children"),
+    Input("watchlist-store", "data"),
+)
+def render_watchlist(items):
+    return _render_watchlist_rows(items)
+
+
+@app.callback(
+    Output("watchlist-store", "data", allow_duplicate=True),
+    Input({"type": "watchlist-remove", "kind": ALL, "key": ALL}, "n_clicks"),
+    State("watchlist-store", "data"),
+    prevent_initial_call=True,
+)
+def remove_watchlist_item(_clicks, items):
+    if not ctx.triggered[0]["value"]:
+        raise PreventUpdate  # fires with all-zero clicks whenever the watchlist re-renders
+    kind, key = ctx.triggered_id["kind"], ctx.triggered_id["key"]
+    return _commit_watchlist([i for i in _watchlist_base(items) if not (i["kind"] == kind and i["key"] == key)])
+
+
+# One add/remove toggle per tracker rather than one shared callback: the
+# Companies and Politicians panels are built lazily, and a callback whose
+# Inputs/States span panels that don't all exist yet never fires (see
+# select_global_search_result's comment). Each toggle acts on whatever
+# that tracker currently has loaded, not the raw search-box text.
+@app.callback(
+    Output("watchlist-store", "data", allow_duplicate=True),
+    Input("watchlist-add-company", "n_clicks"),
+    State("ticker-store", "data"),
+    State("watchlist-store", "data"),
+    prevent_initial_call=True,
+)
+def toggle_watchlist_company(n_clicks, ticker_store, items):
+    if not n_clicks or not ticker_store:
+        raise PreventUpdate
+    return _commit_watchlist(_toggle_watchlist_item(_watchlist_base(items), "company", ticker_store["ticker"],
+                                                    ticker_store["title"]))
+
+
+@app.callback(
+    Output("watchlist-store", "data", allow_duplicate=True),
+    Input("watchlist-add-manager", "n_clicks"),
+    State("manager-positions-meta", "data"),
+    State("watchlist-store", "data"),
+    prevent_initial_call=True,
+)
+def toggle_watchlist_manager(n_clicks, meta, items):
+    if not n_clicks or not meta:
+        raise PreventUpdate
+    return _commit_watchlist(_toggle_watchlist_item(_watchlist_base(items), "manager", meta["cik"], meta["name"]))
+
+
+@app.callback(
+    Output("watchlist-store", "data", allow_duplicate=True),
+    Input("watchlist-add-politician", "n_clicks"),
+    State("politician-input", "value"),
+    State("politician-input", "options"),
+    State("watchlist-store", "data"),
+    prevent_initial_call=True,
+)
+def toggle_watchlist_politician(n_clicks, member_key, options, items):
+    if not n_clicks or not member_key:
+        raise PreventUpdate
+    label = next((o["label"] for o in options or [] if o["value"] == member_key), None)
+    if label is None:
+        _, last, first = member_key.split("|", 2)
+        label = f"{first} {last}".strip()
+    return _commit_watchlist(_toggle_watchlist_item(_watchlist_base(items), "politician", member_key, label))
+
+
+@app.callback(
+    Output("watchlist-add-company", "children"),
+    Output("watchlist-add-company", "style"),
+    Input("ticker-store", "data"),
+    Input("watchlist-store", "data"),
+)
+def sync_watchlist_company_button(ticker_store, items):
+    return _watchlist_add_button_state(items, "company", (ticker_store or {}).get("ticker"))
+
+
+@app.callback(
+    Output("watchlist-add-manager", "children"),
+    Output("watchlist-add-manager", "style"),
+    Input("manager-positions-meta", "data"),
+    Input("watchlist-store", "data"),
+)
+def sync_watchlist_manager_button(meta, items):
+    return _watchlist_add_button_state(items, "manager", (meta or {}).get("cik"))
+
+
+@app.callback(
+    Output("watchlist-add-politician", "children"),
+    Output("watchlist-add-politician", "style"),
+    Input("politician-input", "value"),
+    Input("watchlist-store", "data"),
+)
+def sync_watchlist_politician_button(member_key, items):
+    return _watchlist_add_button_state(items, "politician", member_key)
 
 
 # Flips theme-store's persisted value on a click. Guarded on n_clicks so
@@ -5668,7 +6010,8 @@ def generate_manager(_n_submit, query):
     increases = [_manager_row_to_record(r, companies) for r in result["top_increases"]]
     decreases = [_manager_row_to_record(r, companies) for r in result["top_decreases"]]
     all_positions = [_all_positions_row_to_record(r, companies) for r in result["all_positions"]]
-    meta = {"cik": result["cik"], "truncated": result.get("positions_truncated", False)}
+    meta = {"cik": result["cik"], "name": result["resolved_name"],
+            "truncated": result.get("positions_truncated", False)}
     return (status, _build_delta_bar_list(increases, True), _build_delta_bar_list(decreases, False),
             all_positions[:_POSITIONS_PAGE_SIZE], None, None,
             all_positions, min(_POSITIONS_PAGE_SIZE, len(all_positions)), not all_positions, meta,
@@ -5693,12 +6036,20 @@ def generate_manager(_n_submit, query):
     Input({"type": "manager-candidate", "cik": ALL}, "n_clicks"),
     Input({"type": "manager-suggestion", "cik": ALL}, "n_clicks"),
     Input({"type": "top-buy-manager-link", "cik": ALL, "idx": ALL}, "n_clicks"),
+    # A sidebar watchlist manager row (key is the CIK) --
+    # select_global_search_result switches to the Managers view alongside.
+    Input({"type": "watchlist-item", "kind": "manager", "key": ALL}, "n_clicks"),
     prevent_initial_call=True,
 )
-def select_manager_candidate(candidate_clicks, suggestion_clicks, top_buy_manager_clicks):
-    if not any(candidate_clicks) and not any(suggestion_clicks) and not any(top_buy_manager_clicks):
+def select_manager_candidate(candidate_clicks, suggestion_clicks, top_buy_manager_clicks, _watchlist_clicks):
+    if ctx.triggered_id and ctx.triggered_id["type"] == "watchlist-item":
+        if not ctx.triggered[0]["value"]:
+            raise PreventUpdate  # fires with all-zero clicks whenever the watchlist re-renders
+        cik = ctx.triggered_id["key"]
+    elif not any(candidate_clicks) and not any(suggestion_clicks) and not any(top_buy_manager_clicks):
         raise PreventUpdate  # fires with all-zero clicks whenever a button/card list re-renders
-    cik = ctx.triggered_id["cik"]
+    else:
+        cik = ctx.triggered_id["cik"]
     # A Top Buys card's manager name sits above the lookup section, so on
     # mobile scroll down to where the result lands (same as a top-search pick).
     scroll = "manager" if ctx.triggered_id["type"] == "top-buy-manager-link" else no_update
@@ -5718,7 +6069,8 @@ def select_manager_candidate(candidate_clicks, suggestion_clicks, top_buy_manage
     increases = [_manager_row_to_record(r, companies) for r in result["top_increases"]]
     decreases = [_manager_row_to_record(r, companies) for r in result["top_decreases"]]
     all_positions = [_all_positions_row_to_record(r, companies) for r in result["all_positions"]]
-    meta = {"cik": result["cik"], "truncated": result.get("positions_truncated", False)}
+    meta = {"cik": result["cik"], "name": result["resolved_name"],
+            "truncated": result.get("positions_truncated", False)}
     # Setting manager-input's value below re-triggers update_manager_suggestions
     # (it watches that same value) — this flag tells that callback to skip
     # showing a dropdown for this one programmatic change, not real typing.
