@@ -423,6 +423,38 @@ def _find_infotable_filename(session, cik, accession_nodash):
     return (info_named or candidates)[0]
 
 
+def _local_tag(tag):
+    # The info table's default xmlns varies subtly by filer software, so
+    # match on local tag name rather than trusting one fixed namespace.
+    return tag.rsplit("}", 1)[-1]
+
+
+def _iter_infotable_rows(session, url):
+    """Yields each <infoTable> row element of a 13F information table,
+    streamed straight off the HTTP response and discarded as soon as the
+    caller moves on. The largest managers' tables are tens of MB of XML
+    (BlackRock's has tens of thousands of rows): reading the whole body and
+    building the full ElementTree, twice per comparison (two quarters),
+    peaked around +250MB for a single Export CSV -- enough on its own to
+    push a 512MB instance over its memory limit."""
+    _throttle()
+    with session.get(url, headers={"User-Agent": USER_AGENT, "Accept-Encoding": "gzip, deflate"},
+                     timeout=30, stream=True) as resp:
+        resp.raise_for_status()
+        resp.raw.decode_content = True
+        root = None
+        for event, el in ET.iterparse(resp.raw, events=("start", "end")):
+            if event == "start":
+                if root is None:
+                    root = el
+                continue
+            if _local_tag(el.tag) == "infoTable":
+                yield el
+                # Drop every finished row from the tree (not just this
+                # one's children), so memory stays flat across the file.
+                root.clear()
+
+
 def get_filing_holdings(session, cik, accession):
     """Fetch one 13F-HR filing's period-of-report and holdings. Returns
     (period_end_iso, manager_name, holdings) where holdings is a dict
@@ -446,18 +478,9 @@ def get_filing_holdings(session, cik, accession):
     infotable_name = _find_infotable_filename(session, cik, accession_nodash)
     if not infotable_name:
         raise FilingDataError(f"Could not find an information table in filing {accession}.")
-    info_root = ET.fromstring(_get(session, f"{base}/{infotable_name}").content)
-
-    # The info table's default xmlns varies subtly by filer software, so
-    # match on local tag name rather than trusting one fixed namespace.
-    def local(tag):
-        return tag.rsplit("}", 1)[-1]
-
     holdings = {}
-    for row in info_root:
-        if local(row.tag) != "infoTable":
-            continue
-        fields = {local(child.tag): child for child in row}
+    for row in _iter_infotable_rows(session, f"{base}/{infotable_name}"):
+        fields = {_local_tag(child.tag): child for child in row}
         issuer = (fields["nameOfIssuer"].text or "").strip() if "nameOfIssuer" in fields else ""
         title_of_class = (fields["titleOfClass"].text or "").strip() if "titleOfClass" in fields else ""
         cusip = (fields["cusip"].text or "").strip() if "cusip" in fields else None
@@ -468,7 +491,7 @@ def get_filing_holdings(session, cik, accession):
         shrs_el = fields.get("shrsOrPrnAmt")
         if shrs_el is not None:
             for child in shrs_el:
-                tag = local(child.tag)
+                tag = _local_tag(child.tag)
                 if tag == "sshPrnamt" and child.text:
                     shares = int(float(child.text))
                 elif tag == "sshPrnamtType" and child.text:
@@ -572,7 +595,7 @@ def build_holdings_comparison(session, cik, top_n=10, skip_snapshot=False, adjus
     live instead (see dash_app.py's download_positions, which needs the
     full list rather than the snapshot's capped one)."""
     if not skip_snapshot:
-        snapshot_hit = _load_top_managers_snapshot().get(str(cik))
+        snapshot_hit = top_managers_snapshot_entry(cik)
         if snapshot_hit is not None:
             return apply_split_adjustments(snapshot_hit, top_n=top_n) if adjust_splits else snapshot_hit
 
@@ -963,12 +986,77 @@ def _build_comparisons(session, ciks, comparison_top_n, max_workers, results, fa
 
 _TOP_MANAGERS_SNAPSHOT_PATH = Path(__file__).parent / "data" / "thirteenf_top_managers.json"
 _top_managers_cache = None
+_top_managers_index = None  # cik -> byte offset of that manager's line in the snapshot
+_top_managers_index_lock = threading.Lock()
+
+
+def write_top_managers_snapshot(snapshot, path=_TOP_MANAGERS_SNAPSHOT_PATH):
+    """Writes `snapshot` ({cik: comparison}) as a JSON object with one
+    manager per line -- still plain, valid JSON, but laid out so the live
+    app can read a single manager's line on demand (see
+    top_managers_snapshot_entry) instead of holding the whole file in
+    memory. Loaded whole it was ~125MB resident on a 512MB instance."""
+    lines = [f"{json.dumps(str(cik))}:{json.dumps(comparison, separators=(',', ':'))}"
+             for cik, comparison in snapshot.items()]
+    Path(path).write_text("{\n" + ",\n".join(lines) + "\n}\n", encoding="utf-8", newline="\n")
+
+
+def _top_managers_snapshot_index():
+    """{cik: byte offset} for the snapshot's one-manager-per-line layout
+    (see write_top_managers_snapshot), built by one pass over the file's
+    lines without parsing any of them. Empty if the file is missing or in
+    the older single-line layout, which top_managers_snapshot_entry then
+    falls back to loading whole."""
+    global _top_managers_index
+    if _top_managers_index is not None:
+        return _top_managers_index
+    with _top_managers_index_lock:
+        if _top_managers_index is not None:
+            return _top_managers_index
+        index = {}
+        try:
+            with open(_TOP_MANAGERS_SNAPSHOT_PATH, "rb") as f:
+                offset = 0
+                for line in f:
+                    if line.startswith(b'"'):
+                        end = line.find(b'":')
+                        if end > 0:
+                            index[line[1:end].decode("ascii")] = offset
+                    offset += len(line)
+        except OSError:
+            pass
+        # A whole-file single line (older layout) has no '"cik":' line
+        # starts at all -- treat it as unindexed, not as an empty snapshot.
+        _top_managers_index = index
+        return index
+
+
+def top_managers_snapshot_entry(cik):
+    """One manager's precomputed comparison from the top-managers snapshot
+    (see build_top_managers), or None if they're not in it. Reads just
+    that manager's line off disk (~150KB) rather than keeping all ~300
+    in memory."""
+    index = _top_managers_snapshot_index()
+    if not index:
+        return _load_top_managers_snapshot().get(str(cik))
+    offset = index.get(str(cik))
+    if offset is None:
+        return None
+    try:
+        with open(_TOP_MANAGERS_SNAPSHOT_PATH, "rb") as f:
+            f.seek(offset)
+            line = f.readline()
+        return json.loads(line[line.find(b'":') + 2:].rstrip().rstrip(b","))
+    except (OSError, ValueError):
+        return None
 
 
 def _load_top_managers_snapshot():
-    """In-process cache of the repo-committed top-N-by-AUM holdings
-    comparisons (see build_top_managers) -- read once per worker
-    process, not once per lookup."""
+    """The whole top-N-by-AUM snapshot as one dict, cached in-process.
+    Live lookups go through top_managers_snapshot_entry instead, which
+    only falls back to this for an older single-line snapshot file --
+    this is otherwise just for the top-buys fallback in load_top_buys and
+    build-time callers."""
     global _top_managers_cache
     if _top_managers_cache is not None:
         return _top_managers_cache

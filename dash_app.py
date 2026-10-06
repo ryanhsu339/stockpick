@@ -57,7 +57,7 @@ from stock_price import (HoldingsDataError, PriceDataError, RANGE_KEYS, fetch_da
 from thirteenf import (
     FilingDataError,
     ManagerLookupError,
-    _load_top_managers_snapshot,
+    _top_managers_snapshot_index,
     fetch_manager_comparison,
     fetch_manager_comparison_by_cik,
     load_top_buys,
@@ -76,10 +76,11 @@ from congress_trades import (
 _session = requests.Session()
 
 # Both of these lazily cache themselves in memory on first call (see
-# load_ticker_map/_load_top_managers_snapshot), reading a repo-committed
-# JSON snapshot off disk -- ticker_map.json (~3MB, used by every ticker
-# search suggestion) and thirteenf_top_managers.json (~28MB, used by the
-# Managers tracker, which is the default landing view). Without this,
+# load_ticker_map/_top_managers_snapshot_index), reading a repo-committed
+# snapshot off disk -- ticker_map.json (~3MB, used by every ticker search
+# suggestion) and the line offsets of thirteenf_top_managers.json (~42MB
+# on disk, never loaded whole -- lookups read one manager's line at a
+# time; used by the Managers tracker, the default landing view). Without this,
 # that read+parse cost landed on whichever real request happened to be
 # first after a deploy/restart -- e.g. a visitor's first search
 # suggestion, or their first page load, sitting noticeably slower than
@@ -92,7 +93,7 @@ _session = requests.Session()
 # behavior for that one cache.
 try:
     load_ticker_map(_session)
-    _load_top_managers_snapshot()
+    _top_managers_snapshot_index()
     load_top_buys()
 except Exception:
     pass

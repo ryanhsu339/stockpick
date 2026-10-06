@@ -13,8 +13,9 @@ data/thirteenf_top_buys.json and data/thirteenf_top_managers.json.
    detected across the whole pool first (thirteenf_splits.json, also used
    by the live app's own lookups) and every comparison restated for them.
 3. Keeps only the top --snapshot-n (default 300) of those comparisons in
-   thirteenf_top_managers.json, which the live app loads into memory for
-   instant manager lookups.
+   thirteenf_top_managers.json, one manager per line, which the live app
+   reads one line at a time for instant manager lookups (see
+   thirteenf.write_top_managers_snapshot).
 
 Step 2 is the heavy part -- a full two-quarter holdings comparison
 (several SEC fetches each, one of them often a large XML document) for
@@ -33,7 +34,8 @@ import sys
 
 from thirteenf import (_MANAGER_RANKING_PATH, _SPLITS_PATH, _TOP_BUYS_PATH, _TOP_MANAGERS_SNAPSHOT_PATH, _retry,
                        apply_split_adjustments, build_top_managers, detect_split_factors,
-                       fetch_sec_13f_ranking, largest_managers_top_buys, top_buys_across_managers)
+                       fetch_sec_13f_ranking, largest_managers_top_buys, top_buys_across_managers,
+                       write_top_managers_snapshot)
 
 # Only the top of the ranking is ever used; the full list (~9,000 filers)
 # would just bloat the repo.
@@ -178,7 +180,7 @@ def main():
     _TOP_BUYS_PATH.write_text(json.dumps(top_buys, indent=1), encoding="utf-8")
     print(f"Wrote {len(top_buys['conviction'])} conviction and {len(top_buys['fund_size'])} fund-size "
           f"top buys to {_TOP_BUYS_PATH}")
-    _TOP_MANAGERS_SNAPSHOT_PATH.write_text(json.dumps(snapshot, separators=(",", ":")), encoding="utf-8")
+    write_top_managers_snapshot(snapshot)
     print(f"Wrote {len(snapshot)} of the top {args.snapshot_n} 13F filers to {_TOP_MANAGERS_SNAPSHOT_PATH}")
 
 
