@@ -1482,6 +1482,13 @@ def _company_tracker_children():
         dcc.Store(id="suppress-next-suggestions", data=False),
         dcc.Store(id="rows-store-2"),
         dcc.Store(id="suppress-next-suggestions-2", data=False),
+        # {"ticker", "title"} the moment a lookup's ticker is known -- set by
+        # resolve_ticker_fast/_2 from the in-memory ticker map, in parallel
+        # with (not after) the SEC lookup that fills rows-store. The price
+        # chart, header/KPI tiles and earnings chart key off this, since
+        # none of them need SEC data to start.
+        dcc.Store(id="ticker-store"),
+        dcc.Store(id="ticker-store-2"),
         html.H2("Stock Tracker", id="company-main-heading", style=_HEADER_STYLE),
         html.P(_MOVERS_NOTE, id="company-movers-note", style={**_PARA_STYLE, "fontSize": "13px"}),
         html.Div(
@@ -1931,8 +1938,8 @@ def _best_returns_note(rows):
         return "Estimated returns will appear after the next weekly refresh of the top managers' data."
     return (f"Estimated return from {_quarter_end_label(rows[0].get('previous_period'))} to "
             f"{_quarter_end_label(rows[0].get('latest_period'))} on each manager's 13F portfolio as of the start "
-            "of the quarter, as if held unchanged. Ignores trading during current quarter, dividends, and "
-            "fees; $1B+ equity portfolios with 10+ positions only.")
+            "of the quarter, as if held unchanged and ignoring trading during quarter. $1B+ equity "
+            "portfolios with 10+ positions only.")
 
 
 def _build_best_return_row(r, rank):
@@ -3970,6 +3977,79 @@ def build_compare_panels(is_compare, existing_children):
     return _financials_valuation_blocks("-2")
 
 
+def _fast_ticker_store(query):
+    """{"ticker", "title"} for `query` from the in-memory ticker map alone
+    (no SEC/Yahoo round trip), or None if it doesn't resolve to exactly
+    one company -- the SEC lookup alongside it handles the not-found and
+    ambiguous (candidate list) cases."""
+    if not query or not str(query).strip():
+        return None
+    try:
+        company = resolve_company(query, load_ticker_map(_session))
+    except (CompanyLookupError, requests.RequestException):
+        return None
+    return {"ticker": company["ticker"], "title": company["title"]}
+
+
+def _fast_lookup_query(triggered, n_submit_query, candidate_clicks, suggestion_clicks, active_cell,
+                       holdings_data, holdings_table_id):
+    """The query a lookup was just started with, from whichever of the SEC
+    lookup callbacks' own triggers fired -- mirrors generate/
+    select_company_candidate (and their _2 twins) exactly, so this runs in
+    parallel with them on the very same click/Enter."""
+    if triggered == holdings_table_id:
+        if not active_cell or active_cell.get("column_id") != "symbol" or not holdings_data:
+            return None
+        return holdings_data[active_cell["row"]]["symbol"]
+    if isinstance(triggered, dict):
+        if not any(candidate_clicks or []) and not any(suggestion_clicks or []):
+            return None
+        return triggered["ticker"]
+    return n_submit_query
+
+
+# Fast half of a company lookup: resolves the ticker from the in-memory
+# ticker map and sets ticker-store immediately, so the price chart, KPI
+# tiles and earnings start right away -- in parallel with generate/
+# select_company_candidate's SEC lookup (which fills rows-store, the
+# financials and the DCF) rather than waiting for it to finish first.
+@app.callback(
+    Output("ticker-store", "data"),
+    Input("company-input", "n_submit"),
+    Input({"type": "company-candidate", "ticker": ALL}, "n_clicks"),
+    Input({"type": "company-suggestion", "ticker": ALL}, "n_clicks"),
+    Input("holdings-table", "active_cell"),
+    State("company-input", "value"),
+    State("holdings-table", "data"),
+)
+def resolve_ticker_fast(_n_submit, candidate_clicks, suggestion_clicks, active_cell, query, holdings_data):
+    query = _fast_lookup_query(ctx.triggered_id, query, candidate_clicks, suggestion_clicks, active_cell,
+                               holdings_data, "holdings-table")
+    store = _fast_ticker_store(query)
+    if store is None:
+        raise PreventUpdate
+    return store
+
+
+@app.callback(
+    Output("ticker-store-2", "data"),
+    Input("company-input-2", "n_submit"),
+    Input({"type": "company-candidate-2", "ticker": ALL}, "n_clicks"),
+    Input({"type": "company-suggestion-2", "ticker": ALL}, "n_clicks"),
+    Input("holdings-table-2", "active_cell"),
+    State("company-input-2", "value"),
+    State("holdings-table-2", "data"),
+    prevent_initial_call=True,
+)
+def resolve_ticker_fast_2(_n_submit, candidate_clicks, suggestion_clicks, active_cell, query, holdings_data):
+    query = _fast_lookup_query(ctx.triggered_id, query, candidate_clicks, suggestion_clicks, active_cell,
+                               holdings_data, "holdings-table-2")
+    store = _fast_ticker_store(query)
+    if store is None:
+        raise PreventUpdate
+    return store
+
+
 @app.callback(
     Output("results-table", "data"),
     Output("status-msg", "children"),
@@ -4390,8 +4470,8 @@ _EMPTY_PRICE_HEADER = ("", "", {}, "", "")
     Output("stock-header-change", "style"),
     Output("stock-header-hi", "children"),
     Output("stock-header-lo", "children"),
-    Input("rows-store", "data"),
-    Input("rows-store-2", "data"),
+    Input("ticker-store", "data"),
+    Input("ticker-store-2", "data"),
     Input("compare-mode", "data"),
     Input("range-tabs", "value"),
     Input("price-chart-refresh", "n_intervals"),
@@ -4437,10 +4517,13 @@ _KPI_TILE_VALUE_STYLE = {"fontFamily": "'IBM Plex Mono', monospace", "fontSize":
 _KPI_TILE_SUB_STYLE = {"fontSize": "12px", "color": "var(--body-text)"}
 
 
-def _kpi_tile(label, value, sub=None):
+def _kpi_tile(label, value, sub=None, value_id=None):
+    value_span = html.Span(value if value is not None else "—", style=_KPI_TILE_VALUE_STYLE)
+    if value_id:
+        value_span.id = value_id
     children = [
         html.Span(label, style=_KPI_TILE_LABEL_STYLE),
-        html.Span(value if value is not None else "—", style=_KPI_TILE_VALUE_STYLE),
+        value_span,
     ]
     if sub is not None:
         children.append(html.Span(sub, style=_KPI_TILE_SUB_STYLE))
@@ -4477,18 +4560,30 @@ def _analyst_tiles(overview):
     ]
 
 
-def _company_overview_data(store):
+def _roic_text(store, rows_store):
+    """ROIC for the ticker in `store` (ticker-store) from the SEC lookup's
+    rows-store -- None until that lookup has finished for this same
+    ticker (or if it has no ROIC, e.g. a fund)."""
+    if not store or not rows_store or rows_store.get("ticker") != store.get("ticker"):
+        return None
+    rows = rows_store.get("rows") or []
+    roic = rows[-1].get("roic") if rows else None
+    return f"{roic * 100:.1f}%" if roic is not None else None
+
+
+def _company_overview_data(store, rows_store=None, suffix=""):
     """(meta_text, kpi_label, tiles) for a ticker's header meta line, KPI
     section label, and KPI tiles -- shared between update_company_overview
     (which also uses meta_text for the page's own header) and Compare
     mode's update_company_overview_2 (which only needs a label + tiles for
-    its second, no-header KPI row)."""
+    its second, no-header KPI row). `store` is ticker-store; `rows_store`
+    (the SEC lookup's rows-store, passed as State) only supplies ROIC if
+    it's already in for this same ticker -- otherwise update_kpi_roic/_2
+    fills that one tile in when it arrives."""
     if not store:
         return "", "", []
     ticker = store["ticker"]
     title = store.get("title") or ticker
-    rows = store.get("rows") or []
-    roic = rows[-1].get("roic") if rows else None
 
     # Best-effort: yfinance not having overview data for this ticker (funds,
     # thinly-traded names) shouldn't break the rest of the page -- the KPI
@@ -4507,7 +4602,7 @@ def _company_overview_data(store):
         _kpi_tile("P/E (TTM)", f"{trailing_pe:.1f}×" if trailing_pe is not None else None),
         _kpi_tile("Revenue TTM", _fmt_big_dollars(overview.get("revenue_ttm"))),
         _kpi_tile("Net Margin", f"{net_margin * 100:.1f}%" if net_margin is not None else None),
-        _kpi_tile("ROIC", f"{roic * 100:.1f}%" if roic is not None else None),
+        _kpi_tile("ROIC", _roic_text(store, rows_store), value_id=f"kpi-roic{suffix}"),
         *_analyst_tiles(overview),
     ]
     return meta_text, f"{ticker} — {title}", tiles
@@ -4524,10 +4619,15 @@ def _company_overview_data(store):
     Output("stock-kpi-label", "children"),
     Output("stock-kpi-grid", "children"),
     Output("dcf-company-label", "children"),
-    Input("rows-store", "data"),
+    Input("ticker-store", "data"),
+    # State, not Input: Dash holds a callback back while any of its Inputs
+    # is still being produced by an in-flight callback, so an Input here
+    # made the KPI tiles wait for the whole SEC lookup. ROIC catches up
+    # via update_kpi_roic instead.
+    State("rows-store", "data"),
 )
-def update_company_overview(store):
-    meta_text, kpi_label, tiles = _company_overview_data(store)
+def update_company_overview(store, rows_store):
+    meta_text, kpi_label, tiles = _company_overview_data(store, rows_store)
     title = (store or {}).get("title") or (store or {}).get("ticker") or ""
     return meta_text, title, kpi_label, tiles, kpi_label
 
@@ -4572,15 +4672,15 @@ def _fiscal_quarter_label(report_date, fy_end_month):
     return f"Q{quarter} FY{fiscal_year % 100:02d}"
 
 
-def _fy_end_month(store):
-    """Fiscal year-end month from the SEC rows' period-end dates (see
-    company_growth_calc's "end"), falling back to December. A 52/53-week
-    year ending in a month's first week (a retailer's "Feb 1") counts as
-    the prior month's year-end."""
-    rows = (store or {}).get("rows") or []
+def _fy_end_month(fiscal_year_end):
+    """Fiscal year-end month from an ISO date (Yahoo's lastFiscalYearEnd, see
+    fetch_ticker_overview), falling back to December. A 52/53-week year
+    ending in a month's first week (a retailer's "Feb 1") counts as the
+    prior month's year-end. Not taken from the SEC rows, so the earnings
+    chart doesn't have to wait for the SEC lookup."""
     try:
-        end = date.fromisoformat(rows[-1]["end"][:10])
-    except (KeyError, TypeError, ValueError, IndexError):
+        end = date.fromisoformat(fiscal_year_end[:10])
+    except (TypeError, ValueError):
         return 12
     return (end - timedelta(days=7)).month
 
@@ -4674,7 +4774,10 @@ def _earnings_outputs(store, theme, mobile, suffix=""):
         events = fetch_earnings_history(store["ticker"])
     except PriceDataError:
         return None, "", hidden
-    fy_end = _fy_end_month(store)
+    try:
+        fy_end = _fy_end_month(fetch_ticker_overview(store["ticker"]).get("fiscal_year_end"))
+    except PriceDataError:
+        fy_end = 12
     graph = dcc.Graph(id=f"earnings-chart{suffix}", config={"displayModeBar": False},
                       figure=build_earnings_figure(events, fy_end, theme=theme, mobile=mobile))
     return graph, _earnings_summary(events, fy_end), {"marginBottom": "24px"}
@@ -4684,7 +4787,7 @@ def _earnings_outputs(store, theme, mobile, suffix=""):
     Output("earnings-chart-holder", "children"),
     Output("earnings-summary", "children"),
     Output("earnings-wrap", "style"),
-    Input("rows-store", "data"),
+    Input("ticker-store", "data"),
     Input("theme-store", "data"),
     Input("viewport-is-mobile", "data"),
 )
@@ -4696,13 +4799,13 @@ def update_earnings_chart(store, theme, mobile):
     Output("earnings-chart-holder-2", "children"),
     Output("earnings-summary-2", "children"),
     Output("earnings-wrap-2", "style"),
-    Input("rows-store-2", "data"),
+    Input("ticker-store-2", "data"),
     Input("theme-store", "data"),
     Input("viewport-is-mobile", "data"),
 )
 def update_earnings_chart_2(store, theme, mobile):
     # Nothing to show (or re-theme) until Compare mode has a second ticker.
-    if not store and ctx.triggered_id != "rows-store-2":
+    if not store and ctx.triggered_id != "ticker-store-2":
         raise PreventUpdate
     return _earnings_outputs(store, theme, mobile, suffix="-2")
 
@@ -4713,13 +4816,38 @@ def update_earnings_chart_2(store, theme, mobile):
 @app.callback(
     Output("stock-kpi-label-2", "children"),
     Output("stock-kpi-grid-2", "children"),
-    Input("rows-store-2", "data"),
+    Input("ticker-store-2", "data"),
+    State("rows-store-2", "data"),  # see update_company_overview
 )
-def update_company_overview_2(store):
+def update_company_overview_2(store, rows_store):
     if ctx.triggered_id is None and not store:
         raise PreventUpdate  # empty KPI row, already empty in the layout
-    _meta_text, kpi_label, tiles = _company_overview_data(store)
+    _meta_text, kpi_label, tiles = _company_overview_data(store, rows_store, suffix="-2")
     return kpi_label, tiles
+
+
+# Fills in the ROIC tile once the SEC lookup (rows-store) lands -- the rest
+# of the KPI tiles render as soon as the ticker is known (see
+# update_company_overview), without waiting for it. Also re-runs whenever
+# the tile grid itself is (re)drawn: the grid's own request can be sent
+# before the SEC lookup finishes but answered after it, so neither
+# arrival order on its own reliably leaves ROIC filled in.
+@app.callback(Output("kpi-roic", "children"), Input("rows-store", "data"), Input("stock-kpi-grid", "children"),
+              State("ticker-store", "data"), prevent_initial_call=True)
+def update_kpi_roic(rows_store, _tiles, store):
+    text = _roic_text(store, rows_store)
+    if text is None:
+        raise PreventUpdate
+    return text
+
+
+@app.callback(Output("kpi-roic-2", "children"), Input("rows-store-2", "data"), Input("stock-kpi-grid-2", "children"),
+              State("ticker-store-2", "data"), prevent_initial_call=True)
+def update_kpi_roic_2(rows_store, _tiles, store):
+    text = _roic_text(store, rows_store)
+    if text is None:
+        raise PreventUpdate
+    return text
 
 
 # Its own callback (not another Output of update_company_overview_2):

@@ -84,13 +84,35 @@ def fetch_price_history(ticker, range_key):
     return df[["Close", "Volume"]]
 
 
+# fetch_ticker_overview results, briefly: the KPI tiles render once as soon
+# as a ticker is picked and again when its SEC data (ROIC) arrives a moment
+# later, and the earnings chart reads the fiscal year-end from the same
+# overview -- without this, each of those would be its own Yahoo round trip.
+_OVERVIEW_CACHE_TTL = 120
+_overview_cache = {}
+
+
 def fetch_ticker_overview(ticker):
     """Return a dict of yfinance's own overview stats for `ticker` (market
     cap, trailing P/E, trailing-twelve-month revenue, net margin, exchange,
-    sector, analyst price target and buy/hold/sell split) for the Company
-    Tracker's KPI tiles. Individual fields come back None when yfinance
-    doesn't have them for this ticker (e.g. ETFs have no P/E or analyst
-    coverage) -- only raises if the ticker itself can't be resolved at all."""
+    sector, analyst price target and buy/hold/sell split, last fiscal
+    year-end as an ISO date) for the Company Tracker's KPI tiles. Individual
+    fields come back None when yfinance doesn't have them for this ticker
+    (e.g. ETFs have no P/E or analyst coverage) -- only raises if the ticker
+    itself can't be resolved at all."""
+    key = ticker.upper()
+    cached = _overview_cache.get(key)
+    if cached and time.time() - cached[0] < _OVERVIEW_CACHE_TTL:
+        return cached[1]
+    overview = _fetch_ticker_overview_uncached(ticker)
+    _overview_cache[key] = (time.time(), overview)
+    if len(_overview_cache) > 200:
+        for stale in [k for k, (at, _) in _overview_cache.items() if time.time() - at >= _OVERVIEW_CACHE_TTL]:
+            del _overview_cache[stale]
+    return overview
+
+
+def _fetch_ticker_overview_uncached(ticker):
     try:
         ticker_obj = yf.Ticker(ticker)
         info = ticker_obj.info
@@ -107,6 +129,8 @@ def fetch_ticker_overview(ticker):
         "sector": info.get("sector"),
         "current_price": info.get("currentPrice") or info.get("regularMarketPrice"),
         "target_mean_price": info.get("targetMeanPrice"),
+        "fiscal_year_end": (date.fromtimestamp(info["lastFiscalYearEnd"]).isoformat()
+                            if info.get("lastFiscalYearEnd") else None),
         **_fetch_analyst_split(ticker_obj),
     }
 
