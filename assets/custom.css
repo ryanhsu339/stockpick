@@ -37,6 +37,7 @@
     /* Scrollbar thumbs -- --border is too close to the dark card/page
        background to see a scrollbar against. */
     --scrollbar-thumb: #4a4945;
+    --section-loading-bg: rgba(22, 22, 21, 0.85);
     --scrollbar-thumb-hover: #63625d;
 }
 :root[data-theme="light"] {
@@ -60,6 +61,7 @@
        defined here too so the mobile override below isn't dark-only. */
     --tap-highlight: rgba(0, 0, 0, 0.10);
     --scrollbar-thumb: #cfcec8;
+    --section-loading-bg: rgba(255, 255, 255, 0.85);
     --scrollbar-thumb-hover: #b3b2ab;
 }
 
@@ -782,6 +784,24 @@ details summary { cursor: pointer; color: var(--body-text); font-size: 13px; }
    only (no JS driving the motion), so it stays smooth regardless of
    whatever else the browser's main thread is busy with right after page
    load, which is exactly when this shows. */
+/* Companies tab section spinners -- see _section_loading_overlay and
+   _company_panel_skeleton in dash_app.py. */
+.section-loading {
+    position: absolute;
+    inset: 0;
+    z-index: 5;
+    align-items: center;
+    justify-content: center;
+    background: var(--section-loading-bg);
+    border-radius: inherit;
+}
+.skeleton-spinner-wrap {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 120px;
+}
 .spinner {
     width: 32px;
     height: 32px;

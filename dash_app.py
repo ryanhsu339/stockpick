@@ -28,10 +28,18 @@ import concurrent.futures
 import io
 import json
 import math
+import os
 import re
+import threading
+import time
 from datetime import date, timedelta
 
+# For the "worker ready" log line at the bottom of this module -- see
+# _log_slow_requests below.
+_IMPORT_STARTED = time.perf_counter()
+
 import pandas as pd
+import flask
 import plotly.graph_objects as go
 import requests
 from dash import ALL, Dash, Input, Output, State, ctx, dash_table, dcc, html, no_update
@@ -1470,6 +1478,52 @@ def _movers_card(title, container_id):
     )
 
 
+def _section_loading_overlay(overlay_id):
+    """A spinner covering one section of the Companies tab while a newly
+    picked stock's data for it loads -- shown/hidden by the
+    section-spinner callbacks (_SECTION_LOADING_IDS). Starts visible: the panel is
+    built with a lookup (the default ticker) already on its way."""
+    return html.Div(id=overlay_id, className="section-loading", style={"display": "flex"},
+                    children=html.Div(className="spinner"))
+
+
+def _company_panel_skeleton():
+    """What the Companies panel shows the instant its tab is opened, before
+    build_company_panel's real content arrives: the tab's headings and its
+    top sections' outlines, each with its own spinner -- rather than a
+    full-page overlay hiding the whole tab. Replaced wholesale once the real
+    panel lands (build_company_panel treats this as "not built yet")."""
+    def card(title):
+        return html.Div(
+            style={"flex": "1 1 420px", "minWidth": "0", "backgroundColor": "var(--card-bg)",
+                   "border": "1px solid var(--border)", "borderRadius": "14px", "padding": "0 20px 16px",
+                   "minHeight": "220px", "display": "flex", "flexDirection": "column"},
+            children=[html.H3(title, style={**_HEADER_STYLE, "padding": "16px 0 8px", "margin": "0"}),
+                      html.Div(className="skeleton-spinner-wrap", children=html.Div(className="spinner"))],
+        )
+    return html.Div(
+        id=_COMPANY_SKELETON_ID,
+        style=_APP_CONTENT_STYLE,
+        children=[
+            html.H2("Stock Tracker", style=_HEADER_STYLE),
+            html.P(_MOVERS_NOTE, style={**_PARA_STYLE, "fontSize": "13px"}),
+            html.Div(style={"display": "flex", "gap": "48px", "flexWrap": "wrap"},
+                     children=[card("Today's Top Gainers"), card("Today's Top Losers")]),
+            html.Hr(style=_SECTION_DIVIDER_STYLE),
+            html.H3("Look Up a Stock", style=_LOOKUP_HEADING_STYLE),
+            html.Div(
+                style={"backgroundColor": "var(--card-bg)", "border": "1px solid var(--border)",
+                       "borderRadius": "14px", "marginTop": "24px", "minHeight": "420px",
+                       "display": "flex", "flexDirection": "column"},
+                children=html.Div(className="skeleton-spinner-wrap", children=html.Div(className="spinner")),
+            ),
+        ],
+    )
+
+
+_COMPANY_SKELETON_ID = "company-skeleton"
+
+
 def _company_tracker_children():
     financials_1, valuation_1 = _financials_valuation_blocks("")
     return [
@@ -1625,8 +1679,10 @@ def _company_tracker_children():
         html.Div(
             id="stock-chart-card",
             style={"backgroundColor": "var(--card-bg)", "border": "1px solid var(--border)",
-                   "borderRadius": "14px", "padding": "18px 20px 12px", "marginTop": "24px"},
+                   "borderRadius": "14px", "padding": "18px 20px 12px", "marginTop": "24px",
+                   "position": "relative"},
             children=[
+                _section_loading_overlay("price-loading"),
                 # Right above the chart itself (not up in the page header)
                 # so the number you're looking at and the chart explaining
                 # it sit together -- same on mobile and desktop, a real DOM
@@ -1696,8 +1752,9 @@ def _company_tracker_children():
         # Filled in by update_company_overview once a ticker's loaded.
         html.Div(
             id="stock-kpi-wrap",
-            style={"marginTop": "20px"},
+            style={"marginTop": "20px", "position": "relative", "minHeight": "80px"},
             children=[
+                _section_loading_overlay("kpi-loading"),
                 html.Div(id="stock-kpi-label", style=_KPI_SECTION_LABEL_STYLE),
                 html.Div(id="stock-kpi-grid",
                          style={"display": "grid", "gridTemplateColumns": "repeat(auto-fit, minmax(150px,1fr))",
@@ -1724,7 +1781,14 @@ def _company_tracker_children():
             style={"display": "flex", "flexWrap": "wrap", "gap": "32px", "alignItems": "flex-start",
                    "marginTop": "24px"},
             children=[
-                html.Div(style={"flex": "1", "minWidth": "0"}, children=financials_1),
+                # financials_1[0] is the Earnings block, which loads off the
+                # fast ticker store -- kept outside the Financials spinner so
+                # it isn't hidden while the slower SEC lookup finishes.
+                html.Div(style={"flex": "1", "minWidth": "0"}, children=[
+                    financials_1[0],
+                    html.Div(style={"position": "relative"},
+                             children=[_section_loading_overlay("financials-loading"), *financials_1[1:]]),
+                ]),
                 # Hidden until Compare mode is on (see render_compare_mode).
                 html.Div(id="financials-col-2", style={"flex": "1", "minWidth": "0", "display": "none"},
                          children=[]),
@@ -2816,6 +2880,60 @@ app.index_string = """<!DOCTYPE html>
 # for local `python dash_app.py` runs, not the hosted deployment.
 server = app.server
 
+# Request timing, to see where production time goes (stockpick.io sits
+# behind Cloudflare, which blocks automated browsers from measuring it):
+#   - every response carries a Server-Timing header with the app's own
+#     processing time -- browser DevTools shows it under a request's
+#     Timing tab, so a slow request can be split into "in the app" vs.
+#     "before it reached the app" (queued for a free worker thread,
+#     Cloudflare/network, a worker still starting up);
+#   - any request taking over _SLOW_REQUEST_MS is logged to stdout (Render's
+#     logs) with which callback it was for, how many requests were in
+#     flight at the time, and the worker's memory use.
+_SLOW_REQUEST_MS = 1000
+_in_flight = 0
+_in_flight_lock = threading.Lock()
+
+
+def _rss_mb():
+    """Resident memory of this process in MB (Linux /proc only -- None
+    elsewhere, e.g. local Windows runs)."""
+    try:
+        with open("/proc/self/statm") as f:
+            return int(f.read().split()[1]) * os.sysconf("SC_PAGE_SIZE") / 2**20
+    except (OSError, ValueError, AttributeError):
+        return None
+
+
+@server.before_request
+def _start_request_timer():
+    global _in_flight
+    flask.g.request_started = time.perf_counter()
+    with _in_flight_lock:
+        _in_flight += 1
+        flask.g.in_flight_at_start = _in_flight
+
+
+@server.after_request
+def _log_slow_requests(response):
+    global _in_flight
+    started = getattr(flask.g, "request_started", None)
+    if started is None:
+        return response
+    with _in_flight_lock:
+        _in_flight -= 1
+    elapsed_ms = (time.perf_counter() - started) * 1000
+    response.headers["Server-Timing"] = f"app;dur={elapsed_ms:.0f}"
+    if elapsed_ms >= _SLOW_REQUEST_MS:
+        what = flask.request.path
+        if what.endswith("_dash-update-component"):
+            body = flask.request.get_json(silent=True) or {}
+            what = f"callback {str(body.get('output', '?'))[:120]}"
+        rss = _rss_mb()
+        print(f"SLOW REQUEST {elapsed_ms:.0f}ms: {what} | in flight at start: "
+              f"{flask.g.in_flight_at_start} | rss: {f'{rss:.0f}MB' if rss else 'n/a'}", flush=True)
+    return response
+
 # Sidebar replaces the old edge-to-edge top nav bar: a fixed 232px rail
 # (logo, search stub, tracker nav, theme toggle) beside a scrolling main
 # content column. Each panel's own content wrapper still carries its own
@@ -3031,7 +3149,12 @@ app.layout = html.Div(
                 # subtree (thousands of DOM nodes between the two) on
                 # every single page load just to keep them ready unseen.
                 # Manager is _DEFAULT_VIEW and stays eager, same as today.
-                html.Div(id="company-panel", style=_tracker_panel_style("company"), children=None),
+                # Starts with a lightweight skeleton (headings + per-section
+                # spinners) so opening the tab shows its outline immediately,
+                # instead of a full-page overlay, while the real content
+                # builds.
+                html.Div(id="company-panel", style=_tracker_panel_style("company"),
+                         children=_company_panel_skeleton()),
                 html.Div(id="manager-panel", style=_tracker_panel_style("manager"),
                           children=html.Div(style=_APP_CONTENT_STYLE, children=_manager_tracker_children())),
                 html.Div(id="politician-panel", style=_tracker_panel_style("politician"), children=None),
@@ -3100,7 +3223,11 @@ app.layout = html.Div(
     prevent_initial_call=True,
 )
 def build_company_panel(active_view, existing_children):
-    if active_view != "company" or existing_children:
+    # The panel starts out holding _company_panel_skeleton, which counts as
+    # "not built yet" -- only real content already there means skip.
+    is_skeleton = isinstance(existing_children, dict) and \
+        (existing_children.get("props") or {}).get("id") == _COMPANY_SKELETON_ID
+    if active_view != "company" or (existing_children and not is_skeleton):
         raise PreventUpdate
     return html.Div(id="company-content", style=_APP_CONTENT_STYLE, children=_company_tracker_children())
 
@@ -3147,7 +3274,9 @@ app.clientside_callback(
         // so there's no fixed delay that's reliably "long enough."
         window.__visitedViews = window.__visitedViews || new Set(["manager"]);
         const spinner = document.getElementById("panel-switch-spinner");
-        if (spinner && !window.__visitedViews.has(view)) {
+        // Companies shows its own skeleton (see _company_panel_skeleton)
+        // instead of this full-page overlay.
+        if (spinner && !window.__visitedViews.has(view) && view !== "company") {
             // "block", not "flex" -- the centering flex properties live
             // on the inner fixed-position wrapper (see dash_app.py
             // layout), not this outer div; making this one a flex
@@ -3999,6 +4128,51 @@ def build_compare_panels(is_compare, existing_children):
     if not is_compare or existing_children:
         raise PreventUpdate
     return _financials_valuation_blocks("-2")
+
+
+# Section spinners (see _section_loading_overlay): shown the moment a new
+# stock is picked (ticker-store changes), hidden when that section's own
+# data lands. Driven by the lookup itself -- not by Dash's generic loading
+# state -- so the price chart's 15-second refresh never flashes them.
+#
+# Show and hide are separate callbacks on purpose: Dash holds back a
+# callback while any of its Inputs is still being produced by an in-flight
+# callback, so one callback listening to both ticker-store and, say,
+# price-chart.figure (which ticker-store itself triggers) would only ever
+# run once the chart had already arrived -- never showing the spinner.
+_SECTION_LOADING_IDS = ("price-loading", "kpi-loading", "financials-loading")
+app.clientside_callback(
+    """
+    function(store, rowsStore) {
+        if (!store) return Array(3).fill(window.dash_clientside.no_update);
+        const show = {display: "flex"}, hide = {display: "none"};
+        // A 20s fallback hides them regardless, so an error can't leave
+        // one stuck.
+        clearTimeout(window.__sectionLoadingTimer);
+        window.__sectionLoadingTimer = setTimeout(() => {
+            ["price-loading", "kpi-loading", "financials-loading"].forEach(
+                (id) => window.dash_clientside.set_props(id, {style: hide}));
+        }, 20000);
+        // The SEC lookup can finish before this fast ticker resolve does --
+        // if the Financials data is already in for this ticker, leave it.
+        const financialsLoaded = rowsStore && rowsStore.ticker === store.ticker;
+        return [show, show, financialsLoaded ? hide : show];
+    }
+    """,
+    *[Output(_id, "style") for _id in _SECTION_LOADING_IDS],
+    Input("ticker-store", "data"),
+    State("rows-store", "data"),
+    prevent_initial_call=True,
+)
+for _overlay_id, _done_input in (("price-loading", Input("price-chart", "figure")),
+                                 ("kpi-loading", Input("stock-kpi-grid", "children")),
+                                 ("financials-loading", Input("results-table", "data"))):
+    app.clientside_callback(
+        """function(_done) { return {display: "none"}; }""",
+        Output(_overlay_id, "style", allow_duplicate=True),
+        _done_input,
+        prevent_initial_call=True,
+    )
 
 
 def _fast_ticker_store(query):
@@ -6196,6 +6370,10 @@ def clear_politician_filters(_n_clicks, full_data):
     # which uses sort_action="custom") has to.
     return [None] * (len(_POLITICIAN_FILTER_FIELDS) * 2) + [full_data or []]
 
+
+_rss_at_ready = _rss_mb()
+print(f"Worker ready: dash_app imported in {time.perf_counter() - _IMPORT_STARTED:.1f}s"
+      f" | rss: {f'{_rss_at_ready:.0f}MB' if _rss_at_ready else 'n/a'}", flush=True)
 
 if __name__ == "__main__":
     # threaded=True matters here specifically: building the cross-chamber
