@@ -52,6 +52,9 @@ _db_lock = threading.Lock()
 # only ever reaches whoever actually reads that inbox.
 _EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
 _MAX_EMAIL_LEN = 254
+# A single free-form name field -- first name only, full name, a nickname;
+# whatever people are comfortable with. Shown as "Welcome, <name>".
+_MAX_NAME_LEN = 60
 _MIN_PASSWORD_LEN = 8
 _MAX_PASSWORD_LEN = 128
 # Watchlist sanity caps -- items come from the browser, so bound what one
@@ -90,8 +93,14 @@ def _init_db():
                 id INTEGER PRIMARY KEY,
                 email TEXT NOT NULL UNIQUE COLLATE NOCASE,
                 password_hash TEXT NOT NULL,
-                created_at REAL NOT NULL
+                created_at REAL NOT NULL,
+                name TEXT NOT NULL DEFAULT ''
             )""")
+        # Accounts created before names were asked for: add the column in
+        # place (existing rows get ''), keeping every account as-is.
+        columns = {row["name"] for row in conn.execute("PRAGMA table_info(users)")}
+        if "name" not in columns:
+            conn.execute("ALTER TABLE users ADD COLUMN name TEXT NOT NULL DEFAULT ''")
         conn.execute("""
             CREATE TABLE IF NOT EXISTS watchlists (
                 user_id INTEGER PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
@@ -108,9 +117,10 @@ def _password_fingerprint(password_hash):
 
 
 class User(UserMixin):
-    def __init__(self, user_id, email, password_hash):
+    def __init__(self, user_id, email, password_hash, name=""):
         self.id = user_id
         self.email = email
+        self.name = name or ""  # '' for accounts from before names were asked for
         self.fingerprint = _password_fingerprint(password_hash)
 
     def get_id(self):
@@ -120,29 +130,30 @@ class User(UserMixin):
 
 
 def _user_from_row(row):
-    return User(row["id"], row["email"], row["password_hash"]) if row else None
+    return User(row["id"], row["email"], row["password_hash"], row["name"]) if row else None
 
 
 def _get_user(user_id):
     with _connect() as conn:
-        row = conn.execute("SELECT id, email, password_hash FROM users WHERE id = ?", (user_id,)).fetchone()
+        row = conn.execute("SELECT id, email, password_hash, name FROM users WHERE id = ?", (user_id,)).fetchone()
     return _user_from_row(row)
 
 
 def _get_user_by_email(email):
     with _connect() as conn:
-        row = conn.execute("SELECT id, email, password_hash FROM users WHERE email = ?", (email,)).fetchone()
+        row = conn.execute("SELECT id, email, password_hash, name FROM users WHERE email = ?", (email,)).fetchone()
     return _user_from_row(row)
 
 
-def _create_user(email, password):
+def _create_user(email, password, name):
     """The new User, or None if the email is already registered."""
     password_hash = generate_password_hash(password)
     try:
         with _db_lock, _connect() as conn:
-            cur = conn.execute("INSERT INTO users (email, password_hash, created_at) VALUES (?, ?, ?)",
-                               (email, password_hash, time.time()))
-            return User(cur.lastrowid, email, password_hash)
+            cur = conn.execute(
+                "INSERT INTO users (email, password_hash, created_at, name) VALUES (?, ?, ?, ?)",
+                (email, password_hash, time.time(), name))
+            return User(cur.lastrowid, email, password_hash, name)
     except sqlite3.IntegrityError:
         return None
 
@@ -163,7 +174,7 @@ _DUMMY_HASH = generate_password_hash(secrets.token_hex(16))
 
 def _authenticate(email, password):
     with _connect() as conn:
-        row = conn.execute("SELECT id, email, password_hash FROM users WHERE email = ?",
+        row = conn.execute("SELECT id, email, password_hash, name FROM users WHERE email = ?",
                            (email,)).fetchone()
     if row is None:
         check_password_hash(_DUMMY_HASH, password)
@@ -225,6 +236,14 @@ def _client_ip():
     forwarded = flask.request.headers.get("CF-Connecting-IP") or \
         flask.request.headers.get("X-Forwarded-For", "").split(",")[0].strip()
     return forwarded or flask.request.remote_addr or "unknown"
+
+
+def _form_name():
+    # Collapses whitespace runs (tabs, newlines) to single spaces and drops
+    # other non-printing characters, so only a plain line of text can make
+    # it into the "Welcome, ..." greeting.
+    raw = "".join(ch for ch in (flask.request.form.get("name") or "") if ch.isprintable() or ch.isspace())
+    return " ".join(raw.split())
 
 
 def _form_email():
@@ -438,10 +457,18 @@ def _password_field(field_id, label, autocomplete, autofocus=False):
             f'aria-label="Show password" title="Show/hide password">{_EYE_OPEN_SVG}{_EYE_CLOSED_SVG}</button></div>')
 
 
-def _email_field(email):
+def _name_field(name):
+    return ('<label for="name">Name</label>'
+            f'<input type="text" id="name" name="name" class="field" value="{escape(name)}" '
+            f'autocomplete="name" maxlength="{_MAX_NAME_LEN}" required autofocus>'
+            '<div class="hint">First name, full name, or a nickname.</div>')
+
+
+def _email_field(email, autofocus=True):
     return ('<label for="email">Email</label>'
             f'<input type="email" id="email" name="email" class="field" value="{escape(email)}" '
-            'autocomplete="username" autocapitalize="none" spellcheck="false" maxlength="254" required autofocus>')
+            'autocomplete="username" autocapitalize="none" spellcheck="false" maxlength="254" required'
+            + (' autofocus>' if autofocus else '>'))
 
 
 _NEW_PASSWORD_HINT = f'<div class="hint">At least {_MIN_PASSWORD_LEN} characters.</div>'
@@ -474,8 +501,8 @@ def _login_page(error=None, notice=None, email="", status=200):
                  'New here? <a href="/signup">Create an account</a>', error, notice, status)
 
 
-def _signup_page(error=None, email="", status=200):
-    fields = (_email_field(email)
+def _signup_page(error=None, email="", name="", status=200):
+    fields = (_name_field(name) + _email_field(email, autofocus=False)
               + _password_field("password", "Password", "new-password") + _NEW_PASSWORD_HINT
               + _password_field("confirm", "Confirm password", "new-password"))
     return _page("Create account", _form("/signup", fields, "Create account"),
@@ -523,7 +550,7 @@ _TOO_MANY = "Too many attempts. Please wait a few minutes and try again."
 def _too_many_attempts(_limit):
     path = flask.request.path
     if path.startswith("/signup"):
-        return _signup_page(_TOO_MANY, email=_form_email(), status=429)
+        return _signup_page(_TOO_MANY, email=_form_email(), name=_form_name(), status=429)
     if path.startswith("/forgot-password"):
         return _forgot_page(_TOO_MANY, email=_form_email(), status=429)
     if path.startswith("/reset-password"):
@@ -630,21 +657,24 @@ def init_accounts(server):
             return flask.redirect("/")
         if flask.request.method == "GET":
             return _signup_page()
-        email = _form_email()
+        email, name = _form_email(), _form_name()
         if not _csrf_ok():
-            return _signup_page(_SESSION_EXPIRED, email=email, status=400)
+            return _signup_page(_SESSION_EXPIRED, email=email, name=name, status=400)
         password = flask.request.form.get("password") or ""
-        error = None
-        if len(email) > _MAX_EMAIL_LEN or not _EMAIL_RE.match(email):
+        if not name:
+            error = "Enter your name."
+        elif len(name) > _MAX_NAME_LEN:
+            error = f"Name must be at most {_MAX_NAME_LEN} characters."
+        elif len(email) > _MAX_EMAIL_LEN or not _EMAIL_RE.match(email):
             error = "Enter a valid email address."
         else:
             error = _password_error(password, flask.request.form.get("confirm") or "")
         if error:
-            return _signup_page(error, email=email, status=400)
-        user = _create_user(email, password)
+            return _signup_page(error, email=email, name=name, status=400)
+        user = _create_user(email, password, name)
         if user is None:
             return _signup_page("An account with that email already exists. Log in instead?",
-                                email=email, status=400)
+                                email=email, name=name, status=400)
         _start_session(user)
         return flask.redirect("/")
 

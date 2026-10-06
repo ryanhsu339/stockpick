@@ -3085,32 +3085,16 @@ _ACCOUNT_TEXT_STYLE = {"fontSize": "12px", "color": "var(--body-text)", "lineHei
 
 
 def _render_account_area():
-    if not accounts.current_user.is_authenticated:
-        return html.Div(style=_ACCOUNT_TEXT_STYLE, children=[
-            "Saved in this browser only. ",
-            html.A("Log in", href="/login"), " or ", html.A("sign up", href="/signup"),
-            " for free to save it!",
-        ])
-    # A real <form> POST (not a link) -- see accounts.py's logout route.
-    return html.Form(
-        action="/logout", method="POST",
-        style={**_ACCOUNT_TEXT_STYLE, "display": "flex", "alignItems": "center", "gap": "6px",
-               "flexWrap": "wrap"},
-        children=[
-            # Long addresses would otherwise widen the 232px sidebar --
-            # truncated, with the full address on hover.
-            html.Span(["Signed in as ", html.B(accounts.current_user.email, style={"color": "var(--text)"})],
-                      title=accounts.current_user.email,
-                      style={"minWidth": "0", "maxWidth": "100%", "overflow": "hidden",
-                             "textOverflow": "ellipsis", "whiteSpace": "nowrap"}),
-            # The CSRF token rides on the submit button itself (a clicked
-            # button's name/value are sent with the form) -- Dash has no
-            # html.Input for a hidden field.
-            html.Button("Log out", type="submit", name="csrf_token", value=accounts.generate_csrf(),
-                        style={"border": "none", "background": "none", "padding": "0", "cursor": "pointer",
-                               "color": "var(--accent)", "fontSize": "12px", "fontFamily": "inherit"}),
-        ],
-    )
+    """Under the sidebar watchlist: a nudge to sign up while logged out.
+    Nothing once logged in -- the top-right bar already has the greeting
+    and Log out, and the sidebar's vertical space goes to the list."""
+    if accounts.current_user.is_authenticated:
+        return None
+    return html.Div(style=_ACCOUNT_TEXT_STYLE, children=[
+        "Saved in this browser only. ",
+        html.A("Log in", href="/login"), " or ", html.A("sign up", href="/signup"),
+        " for free to save it!",
+    ])
 
 
 _TOP_BAR_BTN_STYLE = {
@@ -3125,19 +3109,26 @@ _TOP_BAR_PRIMARY_BTN_STYLE = {**_TOP_BAR_BTN_STYLE, "border": "1px solid var(--a
 
 def _render_top_account_bar():
     """Top-right corner of the main column (desktop only -- see
-    #top-account-bar in custom.css): Log in / Sign up, or the signed-in
-    email and Log out."""
+    #top-account-bar in custom.css): Log in / Sign up, or "Welcome, <name>"
+    and Log out."""
     if not accounts.current_user.is_authenticated:
         return [html.A("Log in", href="/login", style=_TOP_BAR_BTN_STYLE),
                 html.A("Sign up", href="/signup", style=_TOP_BAR_PRIMARY_BTN_STYLE)]
-    # Same CSRF-token-on-the-button logout form as _render_account_area.
+    user = accounts.current_user
+    # Accounts from before signup asked for a name fall back to the email.
+    greeting = f"Welcome, {user.name}" if user.name else user.email
+    # A real <form> POST (not a link) -- see accounts.py's logout route. The
+    # CSRF token rides on the submit button itself (a clicked button's
+    # name/value are sent with the form) -- Dash has no html.Input for a
+    # hidden field.
     return html.Form(
         action="/logout", method="POST",
-        style={"display": "flex", "alignItems": "center", "gap": "10px", "margin": "0"},
+        style={"display": "flex", "alignItems": "center", "gap": "12px", "margin": "0"},
         children=[
-            html.Span(accounts.current_user.email, title=accounts.current_user.email,
-                      style={"fontSize": "13px", "color": "var(--body-text)", "maxWidth": "240px",
-                             "overflow": "hidden", "textOverflow": "ellipsis", "whiteSpace": "nowrap"}),
+            html.Span(greeting, title=f"{greeting} ({user.email})" if user.name else greeting,
+                      style={"fontSize": "14px", "fontWeight": "600", "color": "var(--accent)",
+                             "maxWidth": "260px", "overflow": "hidden", "textOverflow": "ellipsis",
+                             "whiteSpace": "nowrap"}),
             html.Button("Log out", type="submit", name="csrf_token", value=accounts.generate_csrf(),
                         style=_TOP_BAR_BTN_STYLE),
         ],

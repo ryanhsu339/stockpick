@@ -130,6 +130,11 @@ a:hover { color: var(--text); }
 #top-account-bar:empty {
     display: none;
 }
+/* The sign-up nudge under the watchlist -- empty once logged in (the top
+   bar has the greeting/Log out), so drop its padding too. */
+#sidebar-account:empty {
+    display: none;
+}
 @media (max-width: 1100px) {
     #top-account-bar {
         position: static;
