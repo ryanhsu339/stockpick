@@ -17,7 +17,9 @@ services:
     disk:
       name: stockpick-data
       mountPath: /var/data
-      sizeGB: 1
+      # Must match the disk as created in Render's dashboard -- a Blueprint
+      # sync can't shrink a disk, so a smaller size here fails the sync.
+      sizeGB: 2
     envVars:
       - key: PYTHON_VERSION
         value: 3.12.10
