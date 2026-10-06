@@ -1101,7 +1101,16 @@ def _resolve_and_fetch_facts(query, session, user_agent):
     title = company["title"]
     cik = int(company["cik_str"])
 
-    facts_data = sec_get(session, FACTS_URL.format(cik=cik))
+    try:
+        facts_data = sec_get(session, FACTS_URL.format(cik=cik))
+    except requests.HTTPError as e:
+        # SEC has no companyfacts file at all for filers that never submit
+        # XBRL financials -- e.g. exchange-traded trusts like SPY/DIA/GLD,
+        # which SEC's ticker map lists as ordinary companies rather than
+        # funds. That's "no financials", not a network failure.
+        if e.response is not None and e.response.status_code == 404:
+            raise NoXbrlFactsError("SEC has no XBRL financial data for this filer.") from e
+        raise
     facts = facts_data.get("facts", {}).get("us-gaap", {})
     if not facts:
         raise NoXbrlFactsError("No us-gaap XBRL facts found for this company.")

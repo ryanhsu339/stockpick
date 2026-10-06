@@ -41,6 +41,7 @@ from dash.exceptions import PreventUpdate
 from company_growth_calc import (
     CompanyDataError,
     CompanyLookupError,
+    NoXbrlFactsError,
     compute_dcf,
     fetch_balance_sheet_data,
     fetch_cash_flow_data,
@@ -2309,7 +2310,7 @@ def _manager_tracker_children():
         # Both lists' records, so sort_top_buys can swap between them
         # without another round trip for the data.
         dcc.Store(id="top-buys-records", data=top_buy_records),
-        html.H3("Top Funds by Estimated Return", style={**_HEADER_STYLE, "marginTop": "32px"}),
+        html.H3("Best Performing Funds Previous Quarter", style={**_HEADER_STYLE, "marginTop": "32px"}),
         html.P(_best_returns_note(top_buys.get("best_returns")),
                style={**_PARA_STYLE, "fontSize": "13px", "marginTop": "0", "maxWidth": "760px"}),
         html.Div(
@@ -3744,6 +3745,19 @@ def _run_company_lookup(query, years):
     except CompanyLookupError as e:
         return _empty_company_outputs(str(e)), (e.candidates or None)
     except CompanyDataError as e:
+        # No XBRL facts at all can also mean an exchange-traded trust that
+        # SEC's ticker map lists as an ordinary company (SPY, DIA, ...)
+        # rather than a fund, so it never got is_fund above -- if Yahoo has
+        # a holdings breakdown for it, show the same fund view QQQ/VOO get.
+        # A commodity trust like GLD, or a foreign filer like TSM, has none
+        # and falls through to price-only below.
+        if isinstance(e, NoXbrlFactsError):
+            try:
+                holdings_df = fetch_top_holdings(company["ticker"])
+            except HoldingsDataError:
+                holdings_df = None
+            if holdings_df is not None:
+                return _run_etf_lookup(company["ticker"], title=company["title"], holdings_df=holdings_df), None
         # Whatever the specific reason (no us-gaap facts at all --
         # NoXbrlFactsError, typically a foreign private issuer filing
         # Form 20-F under IFRS like TSM/ASML -- or some us-gaap facts
@@ -3816,13 +3830,17 @@ def _run_company_lookup(query, years):
     return outputs, None
 
 
-def _run_etf_lookup(ticker):
+def _run_etf_lookup(ticker, title=None, holdings_df=None):
     """ETFs/mutual funds don't have 10-K financials or a DCF to compute, so
-    this skips the SEC pipeline entirely and shows top holdings instead."""
-    try:
-        holdings_df = fetch_top_holdings(ticker)
-    except HoldingsDataError as e:
-        return _empty_company_outputs(f"{ticker}: {e}", mode="fund")
+    this skips the SEC pipeline entirely and shows top holdings instead.
+    `title` (the page header name) defaults to the ticker -- SEC's fund
+    map has no names; `holdings_df` skips the fetch if the caller already
+    has it."""
+    if holdings_df is None:
+        try:
+            holdings_df = fetch_top_holdings(ticker)
+        except HoldingsDataError as e:
+            return _empty_company_outputs(f"{ticker}: {e}", mode="fund")
 
     status = ("ETF/Fund: financials and DCF valuation aren't available for funds (no 10-K/XBRL data); "
               "showing top holdings instead.")
@@ -3830,7 +3848,7 @@ def _run_etf_lookup(ticker):
         {"symbol": r.symbol, "name": r.name, "holding_pct": round(r.holding_pct, 2)}
         for r in holdings_df.itertuples()
     ]
-    store = {"rows": [], "title": ticker, "ticker": ticker}
+    store = {"rows": [], "title": title or ticker, "ticker": ticker}
     return (
         # download-btn.disabled=False: the holdings table alone is enough
         # for the Excel download (see the download callback below).
