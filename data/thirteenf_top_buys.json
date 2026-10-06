@@ -2003,5 +2003,127 @@
    "delta_shares_value_pct_of_portfolio": 1.559297755107465,
    "total_portfolio_value_m": 239152.3484071838
   }
+ ],
+ "best_returns": [
+  {
+   "cik": "1704268",
+   "manager_name": "Mubadala Investment Co PJSC",
+   "est_return_pct": 79.69423416528234,
+   "equity_aum_m": 20491.64247272601,
+   "positions": 70,
+   "coverage_pct": 99.93811586634457,
+   "top_contributor": "GLOBALFOUNDRIES INC (ORDINARY SHARES)",
+   "top_contributor_pct": 78.35364837451041,
+   "previous_period": "2026-03-31",
+   "latest_period": "2026-06-30"
+  },
+  {
+   "cik": "1963565",
+   "manager_name": "Value Aligned Research Advisors, LLC",
+   "est_return_pct": 53.32948297967253,
+   "equity_aum_m": 20707.453049114538,
+   "positions": 60,
+   "coverage_pct": 99.92491004288335,
+   "top_contributor": "INTEL CORP",
+   "top_contributor_pct": 6.072438090917384,
+   "previous_period": "2026-03-31",
+   "latest_period": "2026-06-30"
+  },
+  {
+   "cik": "1389426",
+   "manager_name": "Rafferty Asset Management, LLC",
+   "est_return_pct": 43.14546071058683,
+   "equity_aum_m": 24631.52964339018,
+   "positions": 494,
+   "coverage_pct": 96.4640784068849,
+   "top_contributor": "MICRON TECHNOLOGY INC",
+   "top_contributor_pct": 7.889409065023664,
+   "previous_period": "2026-03-31",
+   "latest_period": "2026-06-30"
+  },
+  {
+   "cik": "1837309",
+   "manager_name": "Polar Capital Holdings Plc",
+   "est_return_pct": 41.21939011972682,
+   "equity_aum_m": 28162.18123365301,
+   "positions": 216,
+   "coverage_pct": 98.91909247683117,
+   "top_contributor": "SANDISK CORP",
+   "top_contributor_pct": 5.157870923013339,
+   "previous_period": "2026-03-31",
+   "latest_period": "2026-06-30"
+  },
+  {
+   "cik": "1881567",
+   "manager_name": "Clear Street Group Inc.",
+   "est_return_pct": 38.58616220212776,
+   "equity_aum_m": 24615.523357044072,
+   "positions": 366,
+   "coverage_pct": 97.84940603116374,
+   "top_contributor": "ADVANCED MICRO DEVICES INC",
+   "top_contributor_pct": 15.454396192655635,
+   "previous_period": "2026-03-31",
+   "latest_period": "2026-06-30"
+  },
+  {
+   "cik": "763212",
+   "manager_name": "PRIMECAP MANAGEMENT CO/CA/",
+   "est_return_pct": 35.963404858110586,
+   "equity_aum_m": 127010.53726110273,
+   "positions": 314,
+   "coverage_pct": 99.74691517979578,
+   "top_contributor": "MICRON TECHNOLOGY INC",
+   "top_contributor_pct": 14.096865156459696,
+   "previous_period": "2026-03-31",
+   "latest_period": "2026-06-30"
+  },
+  {
+   "cik": "1388391",
+   "manager_name": "Walleye Trading LLC",
+   "est_return_pct": 31.211083136398347,
+   "equity_aum_m": 60012.64308012487,
+   "positions": 491,
+   "coverage_pct": 93.42651451366189,
+   "top_contributor": "MICRON TECHNOLOGY INC",
+   "top_contributor_pct": 3.8735989585272543,
+   "previous_period": "2026-03-31",
+   "latest_period": "2026-06-30"
+  },
+  {
+   "cik": "1135730",
+   "manager_name": "COATUE MANAGEMENT LLC",
+   "est_return_pct": 30.08129699308668,
+   "equity_aum_m": 29055.953582707425,
+   "positions": 62,
+   "coverage_pct": 100.0,
+   "top_contributor": "LAM RESEARCH CORP (COM NEW)",
+   "top_contributor_pct": 7.593105804423289,
+   "previous_period": "2026-03-31",
+   "latest_period": "2026-06-30"
+  },
+  {
+   "cik": "3520",
+   "manager_name": "FRED ALGER MANAGEMENT, LLC",
+   "est_return_pct": 29.978599552388246,
+   "equity_aum_m": 22766.62469818553,
+   "positions": 420,
+   "coverage_pct": 98.26412235691653,
+   "top_contributor": "Nebius Group N.V. Class A (Equity)",
+   "top_contributor_pct": 7.397898840509833,
+   "previous_period": "2026-03-31",
+   "latest_period": "2026-06-30"
+  },
+  {
+   "cik": "1350694",
+   "manager_name": "Bridgewater Associates, LP",
+   "est_return_pct": 29.905985243545498,
+   "equity_aum_m": 22404.631449340563,
+   "positions": 439,
+   "coverage_pct": 90.56374156410075,
+   "top_contributor": "MICRON TECHNOLOGY INC",
+   "top_contributor_pct": 5.937935962628763,
+   "previous_period": "2026-03-31",
+   "latest_period": "2026-06-30"
+  }
  ]
 }

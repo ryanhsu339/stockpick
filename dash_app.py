@@ -1127,16 +1127,12 @@ def _financials_valuation_blocks(suffix):
         style={"flex": "1", "minWidth": "280px"},
         children=[
             # The chart itself is only built where it's shown (see
-            # _dcf_chart_view): always on desktop, but on mobile only
-            # after this toggle is tapped -- a Plotly chart costs real
-            # main-thread time on a phone even while hidden, and the
-            # banner above already gives the headline fair value.
-            # update_dcf writes the figure into dcf-chart-store rather
-            # than straight into the Graph, so it never has to target a
-            # component that may not exist yet. Hidden on desktop by
-            # custom.css (.dcf-chart-toggle).
-            html.Button("+ Show chart", id=f"dcf-chart-toggle{suffix}", n_clicks=0,
-                        className="dcf-chart-toggle"),
+            # _dcf_chart_view): always on desktop, but on mobile only once
+            # the Valuation section is opened (valuation-toggle) -- a
+            # Plotly chart costs real main-thread time on a phone even
+            # while hidden. update_dcf writes the figure into
+            # dcf-chart-store rather than straight into the Graph, so it
+            # never has to target a component that may not exist yet.
             dcc.Store(id=f"dcf-chart-store{suffix}"),
             html.Div(id=f"dcf-chart-holder{suffix}"),
             html.Details(
@@ -1390,14 +1386,21 @@ def _financials_valuation_blocks(suffix):
                 # Section heading + description only once, on the primary panel
                 # -- in Compare mode the second panel stacks right below it
                 # (see _company_tracker_children) under the same heading.
+                # On mobile the whole section starts collapsed to just this
+                # heading, opened by valuation-toggle (hidden on desktop, see
+                # .valuation-toggle in custom.css) -- the clientside
+                # callbacks after _dcf_chart_view show/hide dcf-body below.
+                # dcf-wrap itself isn't toggled since generate already uses
+                # its style to hide the whole section for funds.
                 *([
-                    html.H3("Valuation", style={**_HEADER_STYLE, "marginTop": "40px"}),
-                    html.P("A simple discounted cash flow model: projects Free Cash Flow forward at the "
-                           "growth rate below, discounts each year back to present value, and adds a "
-                           "discounted terminal value to estimate Enterprise and per-share fair value. "
-                           "Inputs default from the company's own financials (where available) but are "
-                           "yours to adjust — click Calculate to re-run with your changes.",
-                           style={**_PARA_STYLE, "fontSize": "13px"}),
+                    html.Div(
+                        style={"display": "flex", "alignItems": "center", "gap": "10px", "marginTop": "40px"},
+                        children=[
+                            html.H3("Valuation", style={**_HEADER_STYLE, "margin": "0"}),
+                            html.Button("+", id="valuation-toggle", n_clicks=0, className="valuation-toggle",
+                                        title="Show valuation"),
+                        ],
+                    ),
                 ] if suffix == "" else []),
                 # "TICKER — Company" label so the two stacked panels are
                 # distinguishable in Compare mode -- filled in by
@@ -1405,9 +1408,18 @@ def _financials_valuation_blocks(suffix):
                 # label), shown only in Compare mode (render_compare_mode).
                 # The "-2" copy is only ever built once Compare mode is on
                 # (see build_compare_panels), so it starts out visible.
+                dcc.Interval(id=f"dcf-price-refresh{suffix}", interval=60000, n_intervals=0),
+                html.Div(id=f"dcf-body{suffix}", children=[
+                *([
+                    html.P("A simple discounted cash flow model: projects Free Cash Flow forward at the "
+                           "growth rate below, discounts each year back to present value, and adds a "
+                           "discounted terminal value to estimate Enterprise and per-share fair value. "
+                           "Inputs default from the company's own financials (where available) but are "
+                           "yours to adjust — click Calculate to re-run with your changes.",
+                           style={**_PARA_STYLE, "fontSize": "13px", "marginTop": "8px"}),
+                ] if suffix == "" else []),
                 html.Div(id=f"dcf-company-label{suffix}",
                          style=_DCF_COMPANY_LABEL_STYLE if suffix else _DCF_COMPANY_LABEL_HIDDEN_STYLE),
-                dcc.Interval(id=f"dcf-price-refresh{suffix}", interval=60000, n_intervals=0),
                 # One shared Loading boundary around the banner, the assumptions
                 # panel/chart, AND dcf-defaults-store itself (a non-visual Store,
                 # but still a descendant here) -- so Dash's loading-state tracking
@@ -1435,6 +1447,7 @@ def _financials_valuation_blocks(suffix):
                         dcc.Store(id=f"dcf-defaults-store{suffix}", data=None),
                     ],
                 ),
+                ]),
             ],
         ),
     ]
@@ -1903,6 +1916,63 @@ def _build_top_buy_card(r, idx):
     )
 
 
+def _quarter_end_label(iso):
+    """"2026-06-30" -> "Jun 30, 2026" for the returns table's note."""
+    try:
+        d = date.fromisoformat(iso)
+    except (TypeError, ValueError):
+        return iso or "?"
+    return f"{d:%b} {d.day}, {d.year}"
+
+
+def _best_returns_note(rows):
+    if not rows:
+        return "Estimated returns will appear after the next weekly refresh of the top managers' data."
+    return (f"Estimated return from {_quarter_end_label(rows[0].get('previous_period'))} to "
+            f"{_quarter_end_label(rows[0].get('latest_period'))} on each manager's 13F portfolio as of the start "
+            "of the quarter, as if held unchanged. Ignores trading during current quarter, dividends, and "
+            "fees; $1B+ equity portfolios with 10+ positions only.")
+
+
+def _build_best_return_row(r, rank):
+    ret = r["est_return_pct"]
+    up = ret >= 0
+    details = (f"Equity AUM {_fmt_big_dollars(r['equity_aum_m'] * 1e6)} · {r['positions']} positions · "
+               f"Top: {r['top_contributor']}")
+    return html.Div(
+        style={"display": "grid", "gridTemplateColumns": "22px minmax(0,1fr) 78px", "gap": "12px",
+               "alignItems": "center", "padding": "11px 0", "borderBottom": "1px solid var(--border)",
+               "fontSize": "13px"},
+        children=[
+            html.Span(str(rank), style={"fontFamily": "'IBM Plex Mono', monospace", "fontSize": "12px",
+                                          "color": "var(--body-text)"}),
+            html.Div(
+                style={"display": "flex", "flexDirection": "column", "gap": "2px", "minWidth": "0"},
+                children=[
+                    # Same pattern as a Top Buys card's manager name, so
+                    # select_manager_candidate loads it in Look Up a Manager.
+                    html.Span(r["manager_name"],
+                              id={"type": "top-buy-manager-link", "cik": r["cik"], "idx": f"ret-{rank}"},
+                              n_clicks=0,
+                              style={"color": "var(--text)", "fontWeight": "500", "textDecoration": "underline",
+                                     "cursor": "pointer",
+                                     "whiteSpace": "nowrap", "overflow": "hidden", "textOverflow": "ellipsis"}),
+                    html.Span(details, style={"fontSize": "12px", "color": "var(--body-text)",
+                                              "whiteSpace": "nowrap", "overflow": "hidden",
+                                              "textOverflow": "ellipsis"}),
+                ],
+            ),
+            html.Span(
+                f"{ret:+.1f}%",
+                style={"fontFamily": "'IBM Plex Mono', monospace", "fontSize": "12px", "fontWeight": "600",
+                       "textAlign": "center", "padding": "3px 0", "borderRadius": "4px",
+                       "backgroundColor": "rgba(76,195,138,0.14)" if up else "rgba(229,103,90,0.14)",
+                       "color": "var(--up)" if up else "var(--down)"},
+            ),
+        ],
+    )
+
+
 def _build_delta_bar_row(r, max_abs_value, up):
     value_m = r.get("delta_shares_value_m") or 0
     width_pct = min(100.0, abs(value_m) / max_abs_value * 100) if max_abs_value else 0.0
@@ -2239,6 +2309,16 @@ def _manager_tracker_children():
         # Both lists' records, so sort_top_buys can swap between them
         # without another round trip for the data.
         dcc.Store(id="top-buys-records", data=top_buy_records),
+        html.H3("Top Funds by Estimated Return", style={**_HEADER_STYLE, "marginTop": "32px"}),
+        html.P(_best_returns_note(top_buys.get("best_returns")),
+               style={**_PARA_STYLE, "fontSize": "13px", "marginTop": "0", "maxWidth": "760px"}),
+        html.Div(
+            id="best-returns-card",
+            style={"backgroundColor": "var(--card-bg)", "border": "1px solid var(--border)",
+                   "borderRadius": "14px", "padding": "4px 20px 8px", "maxWidth": "760px"},
+            children=[_build_best_return_row(r, i + 1) for i, r in enumerate(top_buys.get("best_returns") or [])]
+            or html.P("No data yet.", style={"color": "var(--body-text)", "fontSize": "13px"}),
+        ),
         html.Hr(style=_SECTION_DIVIDER_STYLE),
         html.H3("Look Up a Manager", id="lookup-manager-heading", style=_LOOKUP_HEADING_STYLE),
         html.Div(
@@ -4992,21 +5072,24 @@ def update_dcf_2(defaults, _n_clicks, _n_intervals, theme, mobile, *current_valu
     return (*input_outputs, data, columns, summary, banner, chart)
 
 
+def _valuation_open(n_clicks, mobile):
+    """Valuation is always open on desktop; on mobile it starts collapsed
+    and each tap of valuation-toggle flips it."""
+    return not mobile or (n_clicks or 0) % 2 == 1
+
+
 def _dcf_chart_view(figure, n_clicks, mobile, suffix):
-    """(chart holder children, toggle label) -- see dcf_chart_column in
-    _financials_valuation_blocks for why mobile starts collapsed."""
-    show = not mobile or (n_clicks or 0) % 2 == 1
-    label = "− Hide chart" if show else "+ Show chart"
-    if not show or not figure:
-        return None, label
-    return dcc.Graph(id=f"dcf-chart{suffix}", figure=figure, config={"displayModeBar": False}), label
+    """The DCF chart, built only while the Valuation section is open --
+    see dcf_chart_column in _financials_valuation_blocks."""
+    if not _valuation_open(n_clicks, mobile) or not figure:
+        return None
+    return dcc.Graph(id=f"dcf-chart{suffix}", figure=figure, config={"displayModeBar": False})
 
 
 @app.callback(
     Output("dcf-chart-holder", "children"),
-    Output("dcf-chart-toggle", "children"),
     Input("dcf-chart-store", "data"),
-    Input("dcf-chart-toggle", "n_clicks"),
+    Input("valuation-toggle", "n_clicks"),
     Input("viewport-is-mobile", "data"),
 )
 def update_dcf_chart_view(figure, n_clicks, mobile):
@@ -5015,13 +5098,45 @@ def update_dcf_chart_view(figure, n_clicks, mobile):
 
 @app.callback(
     Output("dcf-chart-holder-2", "children"),
-    Output("dcf-chart-toggle-2", "children"),
     Input("dcf-chart-store-2", "data"),
-    Input("dcf-chart-toggle-2", "n_clicks"),
+    Input("valuation-toggle", "n_clicks"),
     Input("viewport-is-mobile", "data"),
 )
 def update_dcf_chart_view_2(figure, n_clicks, mobile):
     return _dcf_chart_view(figure, n_clicks, mobile, "-2")
+
+
+# Shows/hides the Valuation section's body (everything under its heading)
+# -- see valuation-toggle. Clientside since it's only a style flip, with
+# the same open/closed rule as _valuation_open. Compare mode's second
+# panel gets its own callback since it's built lazily (see
+# build_compare_panels), and Dash rejects a callback whose Outputs are
+# only partly on the page.
+app.clientside_callback(
+    """
+    function(nClicks, isMobile) {
+        const open = !isMobile || (nClicks || 0) % 2 === 1;
+        return [open ? {} : {display: "none"}, open ? "\u2212" : "+",
+                open ? "Hide valuation" : "Show valuation"];
+    }
+    """,
+    Output("dcf-body", "style"),
+    Output("valuation-toggle", "children"),
+    Output("valuation-toggle", "title"),
+    Input("valuation-toggle", "n_clicks"),
+    Input("viewport-is-mobile", "data"),
+)
+app.clientside_callback(
+    """
+    function(nClicks, isMobile) {
+        const open = !isMobile || (nClicks || 0) % 2 === 1;
+        return open ? {} : {display: "none"};
+    }
+    """,
+    Output("dcf-body-2", "style"),
+    Input("valuation-toggle", "n_clicks"),
+    Input("viewport-is-mobile", "data"),
+)
 
 
 def _all_positions_row_to_record(r, companies):

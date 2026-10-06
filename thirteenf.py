@@ -1252,6 +1252,96 @@ def largest_managers_top_buys(top_n=50, min_public_equity_portfolio_m=_MIN_PUBLI
     return sorted(biggest.values(), key=lambda r: r["total_portfolio_value_m"], reverse=True)[:top_n]
 
 
+# best_estimated_returns: a manager needs at least this share of its
+# previous-quarter portfolio priced at both quarter-ends to be ranked, and
+# at least this many priced positions (a one- or two-stock holding company
+# isn't really a "fund" return). A quarter-over-quarter price ratio outside
+# _RETURN_MAX_PRICE_RATIO either way is treated as a data error, not a move.
+_RETURN_MIN_COVERAGE = 0.9
+_RETURN_MIN_POSITIONS = 10
+_RETURN_MAX_PRICE_RATIO = 10
+_RETURN_MIN_PRICE_QUOTES = 3
+
+
+def best_estimated_returns(comparisons, top_n=10, min_public_equity_portfolio_m=_MIN_PUBLIC_EQUITY_PORTFOLIO_M):
+    """The `top_n` managers by estimated quarterly return on their
+    previous-quarter 13F portfolio: every position held at the previous
+    quarter-end, priced at both quarter-ends, as if it were held unchanged
+    through the quarter --
+
+        sum(prev_shares * (latest_price - prev_price)) / sum(prev_shares * prev_price)
+
+    Prices are the median share price (value / shares) every manager in
+    `comparisons` reported for that CUSIP at each quarter-end -- robust to
+    one filer's reporting error, and it still prices a position this
+    manager sold out of entirely (no latest price of its own) as long as
+    others held it. Falls back to the manager's own price where fewer than
+    _RETURN_MIN_PRICE_QUOTES managers reported one. An estimate only: it
+    ignores trading within the quarter, dividends, and fees, and 13F covers
+    long US-listed equity only. Expects split-adjusted comparisons (see
+    apply_split_adjustments). Each row: cik, manager_name, est_return_pct,
+    equity_aum_m (previous quarter), positions, coverage_pct,
+    top_contributor, previous_period, latest_period."""
+    cur_quotes, prev_quotes = {}, {}
+    for comparison in comparisons.values():
+        for row in comparison.get("all_positions", []):
+            if row.get("shares_m") and row.get("share_price"):
+                cur_quotes.setdefault(row["cusip"], []).append(row["share_price"])
+            if row.get("prev_shares_m") and row.get("prev_share_price"):
+                prev_quotes.setdefault(row["cusip"], []).append(row["prev_share_price"])
+
+    def median_price(quotes, cusip):
+        prices = sorted(quotes.get(cusip, ()))
+        if len(prices) < _RETURN_MIN_PRICE_QUOTES:
+            return None
+        mid = len(prices) // 2
+        return prices[mid] if len(prices) % 2 else (prices[mid - 1] + prices[mid]) / 2
+
+    results = []
+    for cik, comparison in comparisons.items():
+        held = [r for r in comparison.get("all_positions", []) if r.get("prev_shares_m")]
+        # Total previous-quarter portfolio, recovered from any one position's
+        # value and weight (the same derivation _pooled_buys uses) -- not
+        # just the sum of `held`, which the snapshot's position cap can cut short.
+        sized = next((r for r in held if r.get("prev_value_m") and r.get("prev_portfolio_pct")), None)
+        if sized is None:
+            continue
+        total_prev_m = sized["prev_value_m"] / (sized["prev_portfolio_pct"] / 100)
+        if total_prev_m < min_public_equity_portfolio_m:
+            continue
+        gain = base = 0.0
+        contributions = []
+        for row in held:
+            prev_price = median_price(prev_quotes, row["cusip"]) or row.get("prev_share_price")
+            cur_price = median_price(cur_quotes, row["cusip"]) or (
+                row.get("share_price") if row.get("shares_m") else None)
+            if not prev_price or not cur_price:
+                continue
+            if not 1 / _RETURN_MAX_PRICE_RATIO <= cur_price / prev_price <= _RETURN_MAX_PRICE_RATIO:
+                continue
+            position_gain = row["prev_shares_m"] * (cur_price - prev_price)
+            gain += position_gain
+            base += row["prev_shares_m"] * prev_price
+            contributions.append((position_gain, row["issuer"]))
+        if len(contributions) < _RETURN_MIN_POSITIONS or not base or base / total_prev_m < _RETURN_MIN_COVERAGE:
+            continue
+        top_gain, top_issuer = max(contributions)
+        results.append({
+            "cik": cik,
+            "manager_name": comparison.get("manager_name", ""),
+            "est_return_pct": gain / base * 100,
+            "equity_aum_m": total_prev_m,
+            "positions": len(contributions),
+            "coverage_pct": min(100.0, base / total_prev_m * 100),
+            "top_contributor": top_issuer,
+            "top_contributor_pct": top_gain / base * 100,
+            "previous_period": comparison.get("previous_period"),
+            "latest_period": comparison.get("latest_period"),
+        })
+    results.sort(key=lambda r: r["est_return_pct"], reverse=True)
+    return results[:top_n]
+
+
 # Both card lists for the Managers tab, precomputed by build_top_managers.py
 # across the top ~1000 managers -- far more than the top-300 snapshot
 # above, which stays small because the live app holds it in memory.
@@ -1260,8 +1350,9 @@ _top_buys_cache = None
 
 
 def load_top_buys():
-    """{"conviction": [...], "fund_size": [...]} -- see
-    top_buys_across_managers/largest_managers_top_buys. Read once per
+    """{"conviction": [...], "fund_size": [...], "best_returns": [...]} --
+    see top_buys_across_managers/largest_managers_top_buys/
+    best_estimated_returns. Read once per
     worker process from the repo-committed file; if it's missing or
     unreadable, falls back to computing both from the top-300 snapshot."""
     global _top_buys_cache
@@ -1270,9 +1361,11 @@ def load_top_buys():
     try:
         with open(_TOP_BUYS_PATH, encoding="utf-8") as f:
             data = json.load(f)
-        _top_buys_cache = {"conviction": data["conviction"], "fund_size": data["fund_size"]}
+        _top_buys_cache = {"conviction": data["conviction"], "fund_size": data["fund_size"],
+                           "best_returns": data.get("best_returns", [])}
     except (OSError, json.JSONDecodeError, KeyError):
-        _top_buys_cache = {"conviction": top_buys_across_managers(), "fund_size": largest_managers_top_buys()}
+        _top_buys_cache = {"conviction": top_buys_across_managers(), "fund_size": largest_managers_top_buys(),
+                           "best_returns": best_estimated_returns(_load_top_managers_snapshot())}
     return _top_buys_cache
 
 

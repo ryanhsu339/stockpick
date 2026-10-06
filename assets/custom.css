@@ -502,11 +502,11 @@ a:hover { color: var(--text); }
         margin-top: 8px !important;
     }
 
-    /* DCF chart starts collapsed on mobile behind this toggle -- see
-       dcf_chart_column in dash_app.py. "button." for specificity over
+    /* Valuation starts collapsed on mobile behind this "+" -- see
+       valuation-toggle in dash_app.py. "button." for specificity over
        the base display:none rule, which comes later in this file. */
-    button.dcf-chart-toggle {
-        display: inline-block;
+    button.valuation-toggle {
+        display: inline-flex;
     }
 
     /* Analyst Rating tile's "· N analysts" pushed its sub-line onto a
@@ -594,11 +594,17 @@ p  { line-height: 1.55; text-wrap: pretty; }
     overflow: hidden;
 }
 
-/* DCF chart toggle: mobile-only (shown by the @media block above). */
-.dcf-chart-toggle {
+/* Valuation section toggle: mobile-only (shown by the @media block above). */
+.valuation-toggle {
     display: none;
-    font-size: 12px;
-    margin-bottom: 8px;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    padding: 0;
+    font-size: 18px;
+    line-height: 1;
+    border-radius: 50%;
 }
 
 /* Buttons */
