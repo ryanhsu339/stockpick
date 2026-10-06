@@ -1945,17 +1945,20 @@ def _best_returns_note(rows):
 def _build_best_return_row(r, rank):
     ret = r["est_return_pct"]
     up = ret >= 0
-    details = (f"Equity AUM {_fmt_big_dollars(r['equity_aum_m'] * 1e6)} · {r['positions']} positions · "
-               f"Top: {r['top_contributor']}")
+    details = f"Equity AUM {_fmt_big_dollars(r['equity_aum_m'] * 1e6)} · {r['positions']} positions"
     return html.Div(
         style={"display": "grid", "gridTemplateColumns": "22px minmax(0,1fr) 78px", "gap": "12px",
-               "alignItems": "center", "padding": "11px 0", "borderBottom": "1px solid var(--border)",
+               "alignItems": "center", "padding": "9px 0", "borderBottom": "1px solid var(--border)",
                "fontSize": "13px"},
         children=[
             html.Span(str(rank), style={"fontFamily": "'IBM Plex Mono', monospace", "fontSize": "12px",
                                           "color": "var(--body-text)"}),
+            # Name and AUM/positions on one line; flexWrap lets the details
+            # drop under the name only when the row is too narrow (phones)
+            # rather than squeezing the name down to nothing.
             html.Div(
-                style={"display": "flex", "flexDirection": "column", "gap": "2px", "minWidth": "0"},
+                style={"display": "flex", "flexWrap": "wrap", "alignItems": "baseline", "columnGap": "12px",
+                       "rowGap": "2px", "minWidth": "0"},
                 children=[
                     # Same pattern as a Top Buys card's manager name, so
                     # select_manager_candidate loads it in Look Up a Manager.
@@ -1963,11 +1966,10 @@ def _build_best_return_row(r, rank):
                               id={"type": "top-buy-manager-link", "cik": r["cik"], "idx": f"ret-{rank}"},
                               n_clicks=0,
                               style={"color": "var(--text)", "fontWeight": "500", "textDecoration": "underline",
-                                     "cursor": "pointer",
+                                     "cursor": "pointer", "maxWidth": "100%",
                                      "whiteSpace": "nowrap", "overflow": "hidden", "textOverflow": "ellipsis"}),
                     html.Span(details, style={"fontSize": "12px", "color": "var(--body-text)",
-                                              "whiteSpace": "nowrap", "overflow": "hidden",
-                                              "textOverflow": "ellipsis"}),
+                                              "whiteSpace": "nowrap"}),
                 ],
             ),
             html.Span(
@@ -3219,11 +3221,12 @@ app.clientside_callback(
     prevent_initial_call=True,
 )
 
-# Scrolls down to the relevant "Look Up a ..." section after a top-search-
-# bar pick, or an in-panel Recent Trades/Leaderboard row click -- mobile
-# only (per feedback: on a phone, landing at the top of the page/tab
-# leaves the actual lookup/dropdown several screens down, under the Top
-# Buys/Recent Trades cards above it). scroll-to-lookup-trigger (set by
+# Scrolls down to the relevant "Look Up a ..." section whenever a stock,
+# manager or member is picked from elsewhere -- a top-search-bar result, a
+# ticker or manager link on the Managers tab, a mover row, a Recent
+# Trades/Leaderboard row -- on desktop and mobile alike (otherwise the page
+# lands at the top of the tab, with what was just loaded out of view below
+# the Top Buys/movers/Recent Trades cards). scroll-to-lookup-trigger (set by
 # select_global_search_result and select_member_from_summary, never by a
 # plain sidebar nav click) is also an Input here rather than just a State
 # so the two panel-children Inputs' "catch-up" firings -- for a company/
@@ -3235,15 +3238,36 @@ app.clientside_callback(
 app.clientside_callback(
     """
     function(trigger, _companyChildren, _politicianChildren, isMobile) {
-        if (!trigger || !isMobile) return window.dash_clientside.no_update;
+        if (!trigger) return window.dash_clientside.no_update;
         const targetId = {
-            company: "ticker-search-row",
+            // Desktop lands on the section heading; mobile skips straight
+            // to the search row below it to save a screen of scrolling.
+            company: isMobile ? "ticker-search-row" : "lookup-stock-heading",
             politician: "lookup-member-heading",
             manager: "lookup-manager-heading",
         }[trigger];
         const el = targetId ? document.getElementById(targetId) : null;
         if (!el) return window.dash_clientside.no_update;
         el.scrollIntoView({behavior: "smooth", block: "start"});
+        // Content above the target is often still loading at this point
+        // (the Top Gainers/Losers lists grow from a spinner to ~480px), which
+        // pushed the target back down out of view after the scroll. Keep it
+        // aligned while the page settles -- for a few seconds at most, and
+        // never once the user scrolls/taps/types themselves.
+        let userMoved = false;
+        const stop = () => { userMoved = true; };
+        ["wheel", "touchstart", "keydown", "mousedown"].forEach(
+            (evt) => window.addEventListener(evt, stop, {once: true, passive: true}));
+        const watched = document.getElementById("main-content") || document.body;
+        const realign = new ResizeObserver(() => {
+            if (userMoved) return;
+            if (Math.abs(el.getBoundingClientRect().top) > 4) el.scrollIntoView({block: "start"});
+        });
+        realign.observe(watched);
+        setTimeout(() => {
+            realign.disconnect();
+            ["wheel", "touchstart", "keydown", "mousedown"].forEach((evt) => window.removeEventListener(evt, stop));
+        }, 4000);
         return "";
     }
     """,

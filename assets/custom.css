@@ -34,6 +34,10 @@
        -- card-bg-2 is too close to this near-black bg to register as a
        quick tap flash; a light overlay reads clearly against it. */
     --tap-highlight: rgba(255, 255, 255, 0.16);
+    /* Scrollbar thumbs -- --border is too close to the dark card/page
+       background to see a scrollbar against. */
+    --scrollbar-thumb: #4a4945;
+    --scrollbar-thumb-hover: #63625d;
 }
 :root[data-theme="light"] {
     color-scheme: light;
@@ -55,6 +59,8 @@
     /* Light theme's card-bg-2 already contrasts fine against white, but
        defined here too so the mobile override below isn't dark-only. */
     --tap-highlight: rgba(0, 0, 0, 0.10);
+    --scrollbar-thumb: #cfcec8;
+    --scrollbar-thumb-hover: #b3b2ab;
 }
 
 html, body {
@@ -724,7 +730,8 @@ details summary { cursor: pointer; color: var(--body-text); font-size: 13px; }
 
 ::-webkit-scrollbar { width: 10px; height: 10px; }
 ::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: var(--border); border-radius: 5px; border: 2px solid var(--card-bg); }
+::-webkit-scrollbar-thumb { background: var(--scrollbar-thumb); border-radius: 5px; border: 2px solid var(--card-bg); }
+::-webkit-scrollbar-thumb:hover { background: var(--scrollbar-thumb-hover); }
 
 /* Ticker search typeahead: show the suggestions dropdown only while focus
    is somewhere inside its wrapper (the input itself, or a suggestion
