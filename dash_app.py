@@ -1625,6 +1625,7 @@ def _company_tracker_children():
                id="company-tagline", style={**_PARA_STYLE, "marginTop": "10px"}),
         html.Div(
             id="ticker-search-row",
+            className="lookup-search-row",
             style={"display": "flex", "gap": "12px", "alignItems": "flex-end",
                    "flexWrap": "wrap"},
             children=[
@@ -2418,6 +2419,7 @@ def _manager_tracker_children():
         html.Hr(style=_SECTION_DIVIDER_STYLE),
         html.H3("Look Up a Manager", id="lookup-manager-heading", style=_LOOKUP_HEADING_STYLE),
         html.Div(
+            className="lookup-search-row",
             style={"display": "flex", "gap": "12px", "alignItems": "flex-end", "flexWrap": "wrap"},
             children=[
                 html.Div(
@@ -2711,6 +2713,7 @@ def _politician_tracker_children(initial_pending=None):
             ],
         ),
         html.Div(
+            className="lookup-search-row",
             style={"display": "flex", "gap": "12px", "alignItems": "flex-end", "flexWrap": "wrap",
                    "marginTop": "16px"},
             children=[
@@ -3178,6 +3181,11 @@ def _build_sidebar():
                                      "backgroundColor": "var(--accent)"}),
                     html.Div("Stockpick", style={"fontWeight": "700", "fontSize": "17px",
                                                   "letterSpacing": "-0.02em", "color": "var(--text)"}),
+                    # Mobile-only twin of #top-account-bar (which lives in
+                    # the main column, below this whole stacked sidebar on a
+                    # phone) -- same contents, filled by the same callback;
+                    # shown/sized by #mobile-account-bar in custom.css.
+                    html.Div(id="mobile-account-bar"),
                 ],
             ),
             html.Div(
@@ -3241,9 +3249,24 @@ def _build_sidebar():
             # theme toggle/footer below the fold.
             html.Div(
                 id="sidebar-watchlist-section",
+                # "expanded" is toggled by the mobile header button below
+                # (clientside callback after render_watchlist); desktop
+                # ignores it and always shows the list.
+                className="",
                 style={"display": "flex", "flexDirection": "column", "minHeight": "0", "flex": "0 1 auto"},
                 children=[
-                    html.Div("Watchlist", style=_SIDEBAR_SECTION_LABEL_STYLE),
+                    html.Div("Watchlist", id="sidebar-watchlist-label", style=_SIDEBAR_SECTION_LABEL_STYLE),
+                    # Phone-only collapsible header (hidden on desktop, see
+                    # #watchlist-mobile-toggle in custom.css): "Watchlist  3 v".
+                    html.Button(
+                        id="watchlist-mobile-toggle", n_clicks=0, type="button",
+                        **{"aria-expanded": "false", "aria-controls": "sidebar-watchlist-list"},
+                        children=[
+                            html.Span("Watchlist", style={"flex": "1", "textAlign": "left"}),
+                            html.Span(id="watchlist-mobile-count", className="watchlist-mobile-count"),
+                            html.Span("▾", className="watchlist-chevron", **{"aria-hidden": "true"}),
+                        ],
+                    ),
                     html.Div(id="sidebar-watchlist-list",
                              style={"display": "flex", "flexDirection": "column", "gap": "2px",
                                     "minHeight": "0", "overflowY": "auto"}),
@@ -3253,6 +3276,7 @@ def _build_sidebar():
                 ],
             ),
             html.Div(
+                id="sidebar-footer",
                 style={"marginTop": "auto", "display": "flex", "flexDirection": "column", "gap": "10px"},
                 children=[
                     html.Button(
@@ -3947,6 +3971,7 @@ def clear_pending_politician_selection(_value):
 @app.callback(
     Output("sidebar-account", "children"),
     Output("top-account-bar", "children"),
+    Output("mobile-account-bar", "children"),
     Output("watchlist-store", "data", allow_duplicate=True),
     Input("page-load-trigger", "data"),
     State("watchlist-store", "data"),
@@ -3954,7 +3979,7 @@ def clear_pending_politician_selection(_value):
 )
 def sync_account_on_load(_trigger, local_items):
     if not accounts.current_user.is_authenticated:
-        return _render_account_area(), _render_top_account_bar(), no_update
+        return _render_account_area(), _render_top_account_bar(), _render_top_account_bar(), no_update
     user_id = accounts.current_user.id
     items = accounts.load_watchlist(user_id)
     if flask.session.pop(accounts.MERGE_LOCAL_WATCHLIST_KEY, False):
@@ -3962,17 +3987,38 @@ def sync_account_on_load(_trigger, local_items):
         items = accounts.save_watchlist(
             user_id, items + [i for i in local_items or []
                               if isinstance(i, dict) and (i.get("kind"), str(i.get("key"))) not in saved])
-    return _render_account_area(), _render_top_account_bar(), items
+    return _render_account_area(), _render_top_account_bar(), _render_top_account_bar(), items
 
 
 # Watchlist (see _WATCHLIST_BADGES). Fires on page load too, once
 # watchlist-store has re-hydrated from localStorage.
 @app.callback(
     Output("sidebar-watchlist-list", "children"),
+    Output("watchlist-mobile-count", "children"),
     Input("watchlist-store", "data"),
 )
 def render_watchlist(items):
-    return _render_watchlist_rows(items)
+    return _render_watchlist_rows(items), (str(len(items)) if items else "")
+
+
+# Phone-only: opens/closes the watchlist under the search bar. Clientside
+# since it's pure show/hide -- no reason for a server round trip. Starts
+# collapsed on every page load so the list doesn't push the page down.
+app.clientside_callback(
+    """
+    function(n_clicks, className) {
+        if (!n_clicks) {
+            return [window.dash_clientside.no_update, window.dash_clientside.no_update];
+        }
+        var expanded = (className || "").split(" ").indexOf("expanded") === -1;
+        return [expanded ? "expanded" : "", expanded ? "true" : "false"];
+    }
+    """,
+    Output("sidebar-watchlist-section", "className"),
+    Output("watchlist-mobile-toggle", "aria-expanded"),
+    Input("watchlist-mobile-toggle", "n_clicks"),
+    State("sidebar-watchlist-section", "className"),
+)
 
 
 @app.callback(

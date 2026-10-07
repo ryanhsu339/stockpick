@@ -130,6 +130,20 @@ a:hover { color: var(--text); }
 #top-account-bar:empty {
     display: none;
 }
+/* Phone-only twin of #top-account-bar, shown by the mobile block below. */
+#mobile-account-bar {
+    display: none;
+}
+/* Breathing room under the ticker / manager / member lookup rows (each
+   ending in an Add to Watchlist button) before the status line. */
+.lookup-search-row {
+    margin-bottom: 20px;
+}
+/* Phone-only collapsible watchlist header -- shown by the mobile block
+   below; desktop keeps the plain "WATCHLIST" label and an always-open list. */
+#watchlist-mobile-toggle {
+    display: none;
+}
 /* The sign-up nudge under the watchlist -- empty once logged in (the top
    bar has the greeting/Log out), so drop its padding too. */
 #sidebar-account:empty {
@@ -159,46 +173,76 @@ a:hover { color: var(--text); }
            instead of wrapping/shrinking to the viewport. */
         grid-template-columns: minmax(0, 1fr);
     }
+    /* Phone header as a 4-row grid instead of desktop's flex column:
+         1. logo ............................ Log in / Sign up
+         2. Trackers nav strip (full width)
+         3. search box ...................... dark-mode toggle
+         4. collapsible watchlist (full width)
+       Rows are placed explicitly -- the DOM order (logo, search, nav,
+       watchlist, footer) is desktop's. The watchlist's own rules and the
+       hidden footer data-source line are further down this block. */
     #app-sidebar {
-        /* relative, not static: anchors #theme-toggle-btn below, which
-           is absolutely positioned into this row on mobile -- relative
-           with no top/left offset of its own behaves exactly like static
-           for #app-sidebar's own layout, so this doesn't otherwise
-           change anything about how it stacks in the page. */
-        position: relative;
+        /* static: undoes desktop's position: sticky (+ 100vh height) --
+           on a phone the header scrolls away with the page instead of
+           pinning over the content. */
+        position: static;
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        column-gap: 8px;
+        row-gap: 18px;
         height: auto;
         border-right: none;
         border-bottom: 1px solid var(--border);
     }
-
-    /* Dark-mode toggle: sits in its own full-width row (under the
-       sidebar's Trackers list) on desktop, which on a phone screen is a
-       whole row spent on one small button -- moved up into the logo
-       row's top-right corner instead, and shrunk down to match. Several
-       properties need !important since the button's own Python style
-       sets them inline (width/padding/font-size) for its desktop,
-       full-width appearance. */
-    #theme-toggle-btn {
-        position: absolute;
-        top: 16px;
-        right: 14px;
-        width: auto !important;
-        padding: 4px 10px !important;
-        font-size: 11px !important;
-    }
-
-    /* Sidebar reorder: Trackers above the search box instead of below it
-       -- #app-sidebar is already a flex column (same on desktop), so
-       plain order does it, no display:contents trickery needed since
-       these are already direct siblings. Search box and footer are left
-       at their default order (0), which (ties broken by original DOM
-       position) keeps search right after Trackers and the footer last,
-       same relative order as before between those two. */
     #sidebar-logo-row {
-        order: -2;
+        grid-row: 1;
+        grid-column: 1 / -1;
     }
     #sidebar-trackers-section {
-        order: -1;
+        grid-row: 2;
+        grid-column: 1 / -1;
+    }
+    #app-sidebar > .global-search-wrap {
+        grid-row: 3;
+        grid-column: 1;
+    }
+    /* Unwraps the footer so the toggle inside it becomes a grid item of
+       its own (display is set inline from Python, hence !important). */
+    #sidebar-footer {
+        display: contents !important;
+    }
+    /* Dark-mode toggle: a full-width row at the bottom of the desktop
+       sidebar; here a compact button to the right of the search box,
+       stretched to the box's height. !important where the button's own
+       Python style sets the desktop look inline. */
+    #theme-toggle-btn {
+        grid-row: 3;
+        grid-column: 2;
+        align-self: stretch;
+        width: auto !important;
+        padding: 0 12px !important;
+        font-size: 12px !important;
+    }
+
+    /* Log in / Sign up (or Welcome + Log out) at the logo row's right end
+       -- the phone twin of #top-account-bar, smaller to fit beside the logo. */
+    #mobile-account-bar {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin-left: auto;
+    }
+    #mobile-account-bar form {
+        gap: 8px !important;
+    }
+    #mobile-account-bar a,
+    #mobile-account-bar button {
+        padding: 5px 11px !important;
+        font-size: 12px !important;
+    }
+    #mobile-account-bar span {
+        font-size: 13px !important;
+        max-width: 120px !important;
     }
 
     /* Sidebar TRACKERS nav: one horizontal row of 3 tabs instead of 3
@@ -412,13 +456,63 @@ a:hover { color: var(--text); }
         display: none;
     }
 
-    /* Watchlist is desktop-only for now: the mobile sidebar is already a
-       compact strip above the content, with no room for a growing list.
-       The Add buttons go with it, so nothing adds to a list you can't see. */
-    #sidebar-watchlist-section,
-    .watchlist-add-btn,
+    /* The main column's top-right account bar -- phones use the twin in
+       the logo row instead (#mobile-account-bar above). */
     #top-account-bar {
         display: none !important;
+    }
+
+    /* Watchlist: a 4th header row under the search box, collapsed to a
+       single "Watchlist  3 v" bar until tapped (clientside callback after
+       render_watchlist in dash_app.py toggles .expanded), so a long list
+       doesn't push the page itself down. */
+    #sidebar-watchlist-section {
+        grid-row: 4;
+        grid-column: 1 / -1;
+    }
+    #sidebar-watchlist-label {
+        display: none;
+    }
+    #watchlist-mobile-toggle {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        width: 100%;
+        padding: 10px 12px;
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        background-color: var(--card-bg);
+        color: var(--text);
+        font-family: inherit;
+        font-size: 14px;
+        font-weight: 600;
+        cursor: pointer;
+    }
+    .watchlist-mobile-count {
+        font-family: "IBM Plex Mono", monospace;
+        font-size: 12px;
+        font-weight: 500;
+        color: var(--body-text);
+    }
+    .watchlist-chevron {
+        color: var(--body-text);
+        transition: transform 0.15s ease;
+    }
+    #sidebar-watchlist-section.expanded .watchlist-chevron {
+        transform: rotate(180deg);
+    }
+    /* !important: the list's display is set inline from Python. */
+    #sidebar-watchlist-section:not(.expanded) #sidebar-watchlist-list,
+    #sidebar-watchlist-section:not(.expanded) #sidebar-account {
+        display: none !important;
+    }
+    #sidebar-watchlist-section.expanded #sidebar-watchlist-list {
+        margin-top: 6px;
+        max-height: 260px;
+    }
+    /* No hover on touch screens to reveal the remove "x" -- keep it visible. */
+    .watchlist-remove-btn {
+        opacity: 0.7;
     }
 
     /* No physical keyboard on a phone to advertise a Cmd+K shortcut for. */
