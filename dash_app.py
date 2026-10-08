@@ -3025,13 +3025,13 @@ def _watchlist_add_btn_style(on_list):
 def _watchlist_add_button(btn_id):
     # className lets the mobile media query hide it alongside the sidebar
     # list itself (see .watchlist-add-btn in custom.css).
-    return html.Button("☆ Add to Watchlist", id=btn_id, n_clicks=0, className="watchlist-add-btn",
+    return html.Button("+ Add to Watchlist", id=btn_id, n_clicks=0, className="watchlist-add-btn",
                        style=_watchlist_add_btn_style(False))
 
 
 def _watchlist_add_button_state(items, kind, key):
     on_list = bool(key) and any(i["kind"] == kind and i["key"] == key for i in items or [])
-    return ("★ On Watchlist" if on_list else "☆ Add to Watchlist"), _watchlist_add_btn_style(on_list)
+    return ("✓ On Watchlist" if on_list else "+ Add to Watchlist"), _watchlist_add_btn_style(on_list)
 
 
 def _toggle_watchlist_item(items, kind, key, label):
@@ -3044,7 +3044,7 @@ def _toggle_watchlist_item(items, kind, key, label):
 
 def _render_watchlist_rows(items):
     if not items:
-        return html.Div("Nothing saved yet. Use ☆ Add to Watchlist on any lookup.",
+        return html.Div("Nothing saved yet. Use + Add to Watchlist on any lookup.",
                         style={"fontSize": "12px", "color": "var(--body-text)", "padding": "0 10px",
                                "lineHeight": "1.5"})
     rows = []
