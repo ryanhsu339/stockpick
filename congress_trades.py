@@ -776,6 +776,29 @@ def load_activity_summary_snapshot():
     return _activity_summary_snapshot_cache
 
 
+def count_recent_member_trades(member_key, days=30, today=None):
+    """Number of trades in the activity snapshot that `member_key`
+    ("chamber|Last|First", the Politicians dropdown's key) made in the last
+    `days` days, by transaction date. Note members have up to 45 days to
+    disclose a trade, so the most recent few weeks can still fill in.
+    Raises OSError/json.JSONDecodeError like load_activity_summary_snapshot."""
+    chamber, _, rest = member_key.partition("|")
+    last, _, first = rest.partition("|")
+    wanted = [chamber.lower(), last.lower(), first.lower()]
+    cutoff = (today or date.today()) - timedelta(days=days)
+    count = 0
+    for trade in load_activity_summary_snapshot()["recent_trades"]:
+        if [str(part).lower() for part in trade.get("member_key") or []] != wanted:
+            continue
+        try:
+            traded = datetime.strptime(trade["transaction_date"], "%m/%d/%Y").date()
+        except (KeyError, TypeError, ValueError):
+            continue
+        if traded >= cutoff:
+            count += 1
+    return count
+
+
 def _cache_db():
     _CACHE_DIR.mkdir(parents=True, exist_ok=True)
     conn = sqlite3.connect(_CACHE_DB_PATH)

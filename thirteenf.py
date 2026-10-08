@@ -412,6 +412,27 @@ def list_13f_filings(session, cik, count=40):
     return filings
 
 
+# latest_13f_filing_date results per CIK. 13F-HRs land once a quarter, so a
+# few hours' staleness never matters -- this just keeps the sidebar
+# watchlist's 5-minute refresh from re-asking SEC each time.
+_LATEST_FILING_CACHE_TTL = 6 * 3600
+_latest_filing_cache = {}
+
+
+def latest_13f_filing_date(cik, session=None):
+    """ISO date ("2026-08-14") of this filer's most recent 13F-HR (not
+    amendments), or None if it has none. Raises requests.RequestException on
+    a network failure (not cached, so the next call retries)."""
+    cik = int(cik)
+    cached = _latest_filing_cache.get(cik)
+    if cached and time.time() - cached[0] < _LATEST_FILING_CACHE_TTL:
+        return cached[1]
+    filings = list_13f_filings(session or requests.Session(), cik, count=10)
+    latest = filings[0]["filing_date"] if filings else None
+    _latest_filing_cache[cik] = (time.time(), latest)
+    return latest
+
+
 def _find_infotable_filename(session, cik, accession_nodash):
     url = f"{ARCHIVES_URL}/{cik}/{accession_nodash}/index.json"
     items = _get(session, url).json().get("directory", {}).get("item", [])

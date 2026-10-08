@@ -102,15 +102,16 @@ a:hover { color: var(--text); }
 
 /* Sidebar watchlist rows (see _render_watchlist_rows in dash_app.py) --
    hover lives here rather than inline since inline styles can't express
-   :hover; the remove "x" stays faint until its row is hovered. */
+   :hover. The remove "x" only appears on hover, so at rest each row's
+   status (day %, "new filing", "3 trades") sits flush right. */
 .watchlist-row:hover {
     background-color: var(--pill-active);
 }
 .watchlist-remove-btn {
-    opacity: 0.4;
+    display: none;
 }
 .watchlist-row:hover .watchlist-remove-btn {
-    opacity: 1;
+    display: inline-block;
 }
 
 /* Log in / Sign up (or email + Log out) in the main column's top-right
@@ -512,6 +513,7 @@ a:hover { color: var(--text); }
     }
     /* No hover on touch screens to reveal the remove "x" -- keep it visible. */
     .watchlist-remove-btn {
+        display: inline-block;
         opacity: 0.7;
     }
 

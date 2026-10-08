@@ -33,6 +33,7 @@ import re
 import threading
 import time
 from datetime import date, timedelta
+from xml.etree.ElementTree import ParseError as ET_ParseError
 
 # For the "worker ready" log line at the bottom of this module -- see
 # _log_slow_requests below.
@@ -61,20 +62,22 @@ from company_growth_calc import (
     resolve_ticker_for_security,
     search_companies,
 )
-from stock_price import (HoldingsDataError, PriceDataError, RANGE_KEYS, fetch_day_movers, fetch_fund_name,
-                          fetch_earnings_history, fetch_price_history, fetch_ticker_overview,
-                          fetch_top_holdings)
+from stock_price import (HoldingsDataError, PriceDataError, RANGE_KEYS, fetch_day_change_pcts,
+                          fetch_day_movers, fetch_fund_name, fetch_earnings_history, fetch_price_history,
+                          fetch_ticker_overview, fetch_top_holdings)
 from thirteenf import (
     FilingDataError,
     ManagerLookupError,
     _top_managers_snapshot_index,
     fetch_manager_comparison,
     fetch_manager_comparison_by_cik,
+    latest_13f_filing_date,
     load_top_buys,
     search_managers,
 )
 from congress_trades import (
     PoliticianDataError,
+    count_recent_member_trades,
     list_all_house_members,
     list_all_senators,
     load_activity_summary_snapshot,
@@ -3003,13 +3006,26 @@ def _sidebar_nav_dot_style(active):
 
 # Watchlist: saved in the browser's own localStorage (watchlist-store,
 # storage_type="local", same as theme-store) as a list of
-# {"kind", "key", "label"} dicts -- no accounts yet, so it's per-browser.
+# {"kind", "key", "label"} dicts, and when logged in also saved to the
+# account (see _watchlist_base / sync_account_on_load).
 # key is whatever that tracker needs to reload the item: the ticker for
 # "company", the CIK for "manager" (loaded the same way a candidate
 # click is, via select_manager_candidate -- re-resolving by name could
 # come back ambiguous), and "chamber|last|first" for "politician" (the
 # same key politician-input's dropdown uses).
-_WATCHLIST_BADGES = {"manager": "13F", "politician": "PTR"}
+#
+# Each row: a short name on the left, and on the right a glanceable status
+# filled in a moment later by update_watchlist_metrics -- the day's % change
+# for a stock, "new filing" for a manager with a 13F-HR in the last
+# _WATCHLIST_RECENT_DAYS, and how many trades a member made in that window.
+_WATCHLIST_RECENT_DAYS = 30
+_WATCHLIST_METRIC_STYLE = {"fontFamily": "'IBM Plex Mono', monospace", "fontSize": "12px",
+                           "color": "var(--body-text)", "flex": "0 0 auto", "whiteSpace": "nowrap"}
+# Trailing legal/boilerplate words dropped from manager names for the
+# sidebar ("Scion Asset Management, LLC" -> "Scion Asset"); the full name
+# stays in the row's hover title.
+_MANAGER_NAME_SUFFIXES = {"inc", "llc", "l.l.c", "lp", "l.p", "llp", "ltd", "limited", "corp", "corporation",
+                          "co", "company", "plc", "sa", "ag", "gmbh", "management", "mgmt", "&"}
 
 
 def _watchlist_add_btn_style(on_list):
@@ -3042,6 +3058,25 @@ def _toggle_watchlist_item(items, kind, key, label):
     return items + [{"kind": kind, "key": key, "label": label}]
 
 
+def _short_manager_name(name):
+    words = name.replace(",", " ").split()
+    if name.isupper():  # SEC's all-caps filer names
+        words = [w.capitalize() for w in words]
+    while len(words) > 1 and words[-1].lower().rstrip(".") in _MANAGER_NAME_SUFFIXES:
+        words.pop()
+    return " ".join(words) or name
+
+
+def _watchlist_display_name(item):
+    kind, key = item["kind"], item["key"]
+    if kind == "company":
+        return str(key)
+    if kind == "politician":
+        chamber, _, rest = str(key).partition("|")
+        return f"{'Sen.' if chamber == 'senate' else 'Rep.'} {rest.partition('|')[0]}"
+    return _short_manager_name(item["label"])
+
+
 def _render_watchlist_rows(items):
     if not items:
         return html.Div("Nothing saved yet. Use + Add to Watchlist on any lookup.",
@@ -3050,7 +3085,6 @@ def _render_watchlist_rows(items):
     rows = []
     for item in items:
         kind, key = item["kind"], item["key"]
-        badge = key if kind == "company" else _WATCHLIST_BADGES.get(kind, "")
         rows.append(html.Div(
             className="watchlist-row",
             style={"display": "flex", "alignItems": "center", "borderRadius": "7px"},
@@ -3060,14 +3094,15 @@ def _render_watchlist_rows(items):
                     n_clicks=0,
                     title=item["label"],
                     style={"display": "flex", "alignItems": "center", "gap": "10px", "flex": "1",
-                           "minWidth": "0", "padding": "7px 4px 7px 10px", "border": "none",
+                           "minWidth": "0", "padding": "7px 10px", "border": "none",
                            "backgroundColor": "transparent", "color": "var(--text)", "cursor": "pointer",
                            "fontSize": "13px", "textAlign": "left", "fontFamily": "inherit"},
                     children=[
-                        html.Span(item["label"], style={"flex": "1", "minWidth": "0", "overflow": "hidden",
-                                                         "textOverflow": "ellipsis", "whiteSpace": "nowrap"}),
-                        html.Span(badge, style={"fontFamily": "'IBM Plex Mono', monospace", "fontSize": "11px",
-                                                "color": "var(--body-text)", "flex": "0 0 auto"}),
+                        html.Span(_watchlist_display_name(item),
+                                  style={"flex": "1", "minWidth": "0", "overflow": "hidden",
+                                         "textOverflow": "ellipsis", "whiteSpace": "nowrap"}),
+                        html.Span(id={"type": "watchlist-metric", "kind": kind, "key": key},
+                                  style=_WATCHLIST_METRIC_STYLE),
                     ],
                 ),
                 html.Button(
@@ -3270,6 +3305,8 @@ def _build_sidebar():
                     html.Div(id="sidebar-watchlist-list",
                              style={"display": "flex", "flexDirection": "column", "gap": "2px",
                                     "minHeight": "0", "overflowY": "auto"}),
+                    # Re-runs update_watchlist_metrics so day returns stay current.
+                    dcc.Interval(id="watchlist-refresh", interval=5 * 60 * 1000, n_intervals=0),
                     # Filled in per visitor by sync_account_on_load -- the
                     # layout itself is built once and shared by everyone.
                     html.Div(id="sidebar-account", style={"padding": "10px 10px 0"}),
@@ -3313,7 +3350,7 @@ app.layout = html.Div(
         # runs -- see the two clientside callbacks right after this
         # layout for how a click updates it and how it's applied.
         dcc.Store(id="theme-store", storage_type="local", data="dark"),
-        # See _WATCHLIST_BADGES above for the item shape.
+        # See the Watchlist notes above _WATCHLIST_RECENT_DAYS for the item shape.
         dcc.Store(id="watchlist-store", storage_type="local", data=[]),
         # storage_type="session": a refresh keeps whichever tracker was
         # open, but a brand-new tab/session lands back on _DEFAULT_VIEW.
@@ -3789,7 +3826,7 @@ def update_global_search_suggestions(query):
     Input({"type": "top-buy-link", "ticker": ALL, "idx": ALL}, "n_clicks"),
     Input("all-positions-table", "active_cell"),
     # A sidebar watchlist row. Manager rows only switch the view here --
-    # select_manager_candidate loads them by CIK (see _WATCHLIST_BADGES).
+    # select_manager_candidate loads them by CIK (see _WATCHLIST_RECENT_DAYS's notes).
     Input({"type": "watchlist-item", "kind": ALL, "key": ALL}, "n_clicks"),
     State("manager-input", "n_submit"),
     State("all-positions-table", "data"),
@@ -3990,7 +4027,7 @@ def sync_account_on_load(_trigger, local_items):
     return _render_account_area(), _render_top_account_bar(), _render_top_account_bar(), items
 
 
-# Watchlist (see _WATCHLIST_BADGES). Fires on page load too, once
+# Watchlist (see the notes above _WATCHLIST_RECENT_DAYS). Fires on page load too, once
 # watchlist-store has re-hydrated from localStorage.
 @app.callback(
     Output("sidebar-watchlist-list", "children"),
@@ -3999,6 +4036,63 @@ def sync_account_on_load(_trigger, local_items):
 )
 def render_watchlist(items):
     return _render_watchlist_rows(items), (str(len(items)) if items else "")
+
+
+def _watchlist_metric(kind, key, day_changes, filing_dates, trade_counts):
+    if kind == "company":
+        pct = day_changes.get(str(key).upper())
+        if pct is None:
+            return "—"
+        pct = round(pct, 1)
+        if pct == 0:  # no "-0.0%" in red for a move that rounds to nothing
+            return "0.0%"
+        return html.Span(f"{pct:+.1f}%", style={"color": "var(--up)" if pct > 0 else "var(--down)"})
+    if kind == "manager":
+        filed = filing_dates.get(key)
+        try:
+            recent = filed and date.fromisoformat(filed) >= date.today() - timedelta(days=_WATCHLIST_RECENT_DAYS)
+        except ValueError:
+            recent = False
+        return "new filing" if recent else ""
+    count = trade_counts.get(key)
+    return "" if count is None else f"{count} trade{'' if count == 1 else 's'}"
+
+
+# Fills each watchlist row's right-hand status after the rows render (so the
+# list itself shows instantly) and again every 5 minutes. All three lookups
+# are cached underneath (stock_price / thirteenf / the congress snapshot),
+# so re-renders are cheap after the first.
+@app.callback(
+    Output({"type": "watchlist-metric", "kind": ALL, "key": ALL}, "children"),
+    Input("sidebar-watchlist-list", "children"),
+    Input("watchlist-refresh", "n_intervals"),
+)
+def update_watchlist_metrics(_rows, _n_intervals):
+    ids = [o["id"] for o in ctx.outputs_list]
+    if not ids:
+        return []
+    tickers = [i["key"] for i in ids if i["kind"] == "company"]
+    ciks = [i["key"] for i in ids if i["kind"] == "manager"]
+
+    def filing_date(cik):
+        try:
+            return cik, latest_13f_filing_date(cik, session=_session)
+        except (requests.RequestException, ValueError, ET_ParseError):
+            return cik, None
+
+    with concurrent.futures.ThreadPoolExecutor(max_workers=4) as pool:
+        day_changes_future = pool.submit(fetch_day_change_pcts, tickers) if tickers else None
+        filing_dates = dict(pool.map(filing_date, ciks))
+        day_changes = day_changes_future.result() if day_changes_future else {}
+
+    trade_counts = {}
+    for i in ids:
+        if i["kind"] == "politician":
+            try:
+                trade_counts[i["key"]] = count_recent_member_trades(i["key"], days=_WATCHLIST_RECENT_DAYS)
+            except (OSError, json.JSONDecodeError):
+                trade_counts[i["key"]] = None
+    return [_watchlist_metric(i["kind"], i["key"], day_changes, filing_dates, trade_counts) for i in ids]
 
 
 # Phone-only: opens/closes the watchlist under the search bar. Clientside

@@ -10,6 +10,7 @@ symbols can differ slightly from SEC tickers, e.g. share classes).
 
 import threading
 import time
+from concurrent.futures import ThreadPoolExecutor
 from datetime import date, timedelta
 
 import yfinance as yf
@@ -301,6 +302,51 @@ def fetch_top_holdings(ticker, limit=10):
 
     df["holding_pct"] = df["holding_pct"].astype(float) * 100
     return df[["symbol", "name", "holding_pct"]].head(limit)
+
+
+# fetch_day_change_pcts results per ticker -- the sidebar watchlist asks
+# again on every re-render and on its own 5-minute refresh, and a few
+# minutes' staleness is fine for a glanceable "day's return".
+_DAY_CHANGE_CACHE_TTL = 120
+_day_change_cache = {}
+
+
+def _fetch_day_change_pct_uncached(ticker):
+    # Last two daily closes: during market hours Yahoo's last daily bar is
+    # today's so-far price, so this is today's move vs. yesterday's close;
+    # outside market hours it's the most recent session's move.
+    df = yf.Ticker(ticker).history(period="5d", interval="1d", auto_adjust=True)
+    closes = df["Close"].dropna() if df is not None and "Close" in df else []
+    if len(closes) < 2 or not closes.iloc[-2]:
+        return None
+    return float((closes.iloc[-1] / closes.iloc[-2] - 1) * 100)
+
+
+def fetch_day_change_pcts(tickers, max_workers=6):
+    """{ticker: today's % change (or the last session's), or None if Yahoo
+    has no data} for each of `tickers`, fetched in parallel. Never raises --
+    a ticker that fails just maps to None."""
+    now = time.time()
+    result, missing = {}, []
+    for t in dict.fromkeys(t.upper() for t in tickers):
+        cached = _day_change_cache.get(t)
+        if cached and now - cached[0] < _DAY_CHANGE_CACHE_TTL:
+            result[t] = cached[1]
+        else:
+            missing.append(t)
+
+    def fetch(t):
+        try:
+            return t, _fetch_day_change_pct_uncached(t)
+        except Exception:
+            return t, None
+
+    if missing:
+        with ThreadPoolExecutor(max_workers=min(max_workers, len(missing))) as pool:
+            for t, pct in pool.map(fetch, missing):
+                result[t] = pct
+                _day_change_cache[t] = (now, pct)
+    return result
 
 
 # Yahoo's predefined "day_gainers"/"day_losers" screens -- already filtered
