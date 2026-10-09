@@ -4055,7 +4055,8 @@ def _watchlist_metric(kind, key, day_changes, filing_dates, trade_counts):
             recent = False
         return "new filing" if recent else ""
     count = trade_counts.get(key)
-    return "" if count is None else f"{count} trade{'' if count == 1 else 's'}"
+    # "new", so 0 reads as "nothing recent" rather than "never traded".
+    return "" if count is None else f"{count} new trade{'' if count == 1 else 's'}"
 
 
 # Fills each watchlist row's right-hand status after the rows render (so the

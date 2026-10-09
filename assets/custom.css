@@ -131,6 +131,14 @@ a:hover { color: var(--text); }
 #top-account-bar:empty {
     display: none;
 }
+/* Extra room between the Trackers nav and the Watchlist on the desktop
+   sidebar (on top of the sidebar's own 24px gap). Phones lay the sidebar
+   out as a grid with its own spacing, so this stays desktop-only. */
+@media (min-width: 769px) {
+    #sidebar-watchlist-section {
+        margin-top: 16px;
+    }
+}
 /* Phone-only twin of #top-account-bar, shown by the mobile block below. */
 #mobile-account-bar {
     display: none;
