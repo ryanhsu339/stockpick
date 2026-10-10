@@ -2417,7 +2417,7 @@ def _manager_tracker_children():
         # Both lists' records, so sort_top_buys can swap between them
         # without another round trip for the data.
         dcc.Store(id="top-buys-records", data=top_buy_records),
-        html.H3("Best Performing Funds Previous Quarter", style={**_HEADER_STYLE, "marginTop": "32px"}),
+        html.H3("Best Performing Funds Previous Quarter", style={**_HEADER_STYLE, "marginTop": "56px"}),
         html.P(_best_returns_note(top_buys.get("best_returns")),
                style={**_PARA_STYLE, "fontSize": "13px", "marginTop": "0", "maxWidth": "760px"}),
         # Scrolls like the Companies tab's Top Gainers/Losers cards: the first
