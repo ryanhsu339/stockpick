@@ -304,6 +304,36 @@ def fetch_top_holdings(ticker, limit=10):
     return df[["symbol", "name", "holding_pct"]].head(limit)
 
 
+# fetch_previous_close results per (ticker, session date) -- the 1D price
+# chart re-renders every 15s (price-chart-refresh), but the prior session's
+# close doesn't change during the day.
+_PREV_CLOSE_CACHE_TTL = 3600
+_prev_close_cache = {}
+
+
+def fetch_previous_close(ticker, session_date):
+    """Official close of the last trading session before `session_date` (a
+    datetime.date) -- the baseline for a "day's change", matching how Yahoo's
+    movers screens and every quote page measure it. The 1D chart's own first
+    5-minute bar is the wrong baseline: on a gap-up/down day it misses the
+    whole overnight move. Returns None if Yahoo has no such session."""
+    key = (ticker.upper(), session_date)
+    cached = _prev_close_cache.get(key)
+    if cached and time.time() - cached[0] < _PREV_CLOSE_CACHE_TTL:
+        return cached[1]
+    try:
+        df = yf.Ticker(ticker).history(period="10d", interval="1d", auto_adjust=True)
+    except Exception:
+        return None
+    prev = None
+    if df is not None and "Close" in df:
+        earlier = df[[d.date() < session_date for d in df.index]]["Close"].dropna()
+        if len(earlier):
+            prev = float(earlier.iloc[-1])
+    _prev_close_cache[key] = (time.time(), prev)
+    return prev
+
+
 # fetch_day_change_pcts results per ticker -- the sidebar watchlist asks
 # again on every re-render and on its own 5-minute refresh, and a few
 # minutes' staleness is fine for a glanceable "day's return".

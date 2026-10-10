@@ -63,8 +63,8 @@ from company_growth_calc import (
     search_companies,
 )
 from stock_price import (HoldingsDataError, PriceDataError, RANGE_KEYS, fetch_day_change_pcts,
-                          fetch_day_movers, fetch_fund_name, fetch_earnings_history, fetch_price_history,
-                          fetch_ticker_overview, fetch_top_holdings)
+                          fetch_day_movers, fetch_fund_name, fetch_earnings_history, fetch_previous_close,
+                          fetch_price_history, fetch_ticker_overview, fetch_top_holdings)
 from thirteenf import (
     FilingDataError,
     ManagerLookupError,
@@ -373,9 +373,12 @@ def empty_price_figure(message="Enter a ticker and click Generate to load a char
 # straight from the client, by name, for the price-scrub feature -- see
 # the "Price" trace in build_price_figure and the scrub listeners in
 # custom.js -- so this shape (first/last close) needs to keep matching.
-def _price_change_stats(df):
+def _price_change_stats(df, baseline=None):
+    """Change over the window shown -- from `baseline` when given (the 1D
+    range passes the previous session's close, see _day_baseline), else from
+    the window's first point."""
     closes = df["Close"]
-    first, last = float(closes.iloc[0]), float(closes.iloc[-1])
+    first, last = baseline or float(closes.iloc[0]), float(closes.iloc[-1])
     change = last - first
     pct = (change / first * 100) if first else 0.0
     lo, hi = float(closes.min()), float(closes.max())
@@ -393,11 +396,13 @@ def _price_header_texts(stats):
     return price_text, change_text, {"color": color}, f"${stats['hi']:,.2f}", f"${stats['lo']:,.2f}"
 
 
-def build_price_figure(df, ticker, range_key, theme="dark", mobile=False):
+def build_price_figure(df, ticker, range_key, theme="dark", mobile=False, baseline=None):
+    """`baseline` (1D only: the previous session's close) sets the line's
+    up/down color and is drawn as a dotted reference line."""
     colors = _chart_colors(theme)
     closes = df["Close"]
     volume = df["Volume"]
-    first, last = float(closes.iloc[0]), float(closes.iloc[-1])
+    first, last = baseline or float(closes.iloc[0]), float(closes.iloc[-1])
     up = last >= first
     color = _PRICE_UP_COLOR if up else _PRICE_DOWN_COLOR
     # A flat translucent fill read as a barely-there tint on the old light
@@ -410,8 +415,13 @@ def build_price_figure(df, ticker, range_key, theme="dark", mobile=False):
     # The fill still targets zero — it just gets clipped to this visible
     # window, which reads as "filled to the bottom of the chart."
     lo, hi = float(closes.min()), float(closes.max())
+    if baseline:  # keep the previous-close line on screen after a big gap
+        lo, hi = min(lo, baseline), max(hi, baseline)
     pad = (hi - lo) * 0.08 or max(hi * 0.01, 0.01)
-    y_range = [lo - pad, hi + pad]
+    # With a previous-close line, extra room underneath so that line (often
+    # the chart's lowest point after a gap up) clears the volume bars in
+    # the bottom quarter instead of sitting among them.
+    y_range = [lo - (pad * 4 if baseline else pad), hi + pad]
 
     # Price and volume share ONE plot area (one x-axis) rather than two
     # stacked subplots — a hover spike line only ever spans the subplot(s)
@@ -474,6 +484,15 @@ def build_price_figure(df, ticker, range_key, theme="dark", mobile=False):
         hoverinfo="skip",
         showlegend=False,
     ))
+
+    if baseline:
+        # Dotted previous-close line: the day's change is measured from here,
+        # not from the chart's left edge (the first 5-minute bar), which on a
+        # gap-up/down day can be far from it.
+        fig.add_hline(y=baseline, line=dict(color=colors["muted_text"], width=1, dash="dot"),
+                      annotation_text=f"Prev close ${baseline:,.2f}", annotation_position="top left",
+                      annotation_font=dict(size=10, color=colors["muted_text"]),
+                      annotation_bgcolor=colors["surface"])
 
     # A plain date axis reserves calendar-time width for days with no data
     # (weekends; overnight hours on intraday ranges), which both stretches
@@ -5195,6 +5214,15 @@ def select_mover(clicks, current_n_submit, current_value):
 _EMPTY_PRICE_HEADER = ("", "", {}, "", "")
 
 
+def _day_baseline(ticker, range_key, df):
+    """The previous session's close for the 1D range (None otherwise, or if
+    Yahoo doesn't have it -- the header then falls back to the window's
+    first point). Every other range measures from the window's start."""
+    if range_key != "1D" or df.empty:
+        return None
+    return fetch_previous_close(ticker, df.index[-1].date())
+
+
 @app.callback(
     Output("price-chart", "figure"),
     Output("stock-header-price", "children"),
@@ -5225,7 +5253,7 @@ def update_price_chart(store, store2, is_compare, range_key, _n_intervals, theme
         except Exception as e:
             return empty_price_figure(f"Price data unavailable: {e}", theme=theme), *_EMPTY_PRICE_HEADER
         figure = build_compare_price_figure(df1, ticker, df2, ticker2, range_key, theme=theme, mobile=mobile)
-        return (figure, *_price_header_texts(_price_change_stats(df1)))
+        return (figure, *_price_header_texts(_price_change_stats(df1, _day_baseline(ticker, range_key, df1))))
 
     try:
         df = fetch_price_history(ticker, range_key)
@@ -5233,8 +5261,9 @@ def update_price_chart(store, store2, is_compare, range_key, _n_intervals, theme
         return empty_price_figure(str(e), theme=theme), *_EMPTY_PRICE_HEADER
     except Exception as e:
         return empty_price_figure(f"Price data unavailable: {e}", theme=theme), *_EMPTY_PRICE_HEADER
-    figure = build_price_figure(df, ticker, range_key, theme=theme, mobile=mobile)
-    return (figure, *_price_header_texts(_price_change_stats(df)))
+    baseline = _day_baseline(ticker, range_key, df)
+    figure = build_price_figure(df, ticker, range_key, theme=theme, mobile=mobile, baseline=baseline)
+    return (figure, *_price_header_texts(_price_change_stats(df, baseline)))
 
 
 _KPI_TILE_STYLE = {
