@@ -400,15 +400,29 @@ button[type=submit] {{ width: 100%; margin-top: 22px; padding: 10px 12px; font-s
 .error {{ color: var(--down); }}
 .notice {{ color: var(--text); }}
 .alt {{ font-size: 13px; color: var(--body-text); margin-top: 18px; text-align: center; }}
+.auth-layout {{ display: flex; align-items: center; justify-content: center; gap: 48px; width: 100%; }}
+/* Sign-up page only: a static capture of the Politicians tab's Most Recent
+   Trades card (assets/signup-recent-trades.png), as a preview of what an
+   account gets you. Desktop only -- on a phone it would push the form down. */
+.auth-aside {{ flex: 0 1 520px; min-width: 0; }}
+.auth-aside p {{ font-size: 14px; color: var(--body-text); line-height: 1.5; margin: 0 0 14px; }}
+.auth-aside p strong {{ color: var(--text); font-weight: 600; }}
+.auth-aside img {{ display: block; width: 100%; height: auto; border-radius: 14px;
+    -webkit-mask-image: linear-gradient(to bottom, #000 78%, transparent);
+    mask-image: linear-gradient(to bottom, #000 78%, transparent); }}
+@media (max-width: 900px) {{ .auth-aside {{ display: none; }} }}
 </style>
 </head>
 <body>
+<div class="auth-layout">
 <div class="auth-card">
 <a class="auth-logo" href="/"><span></span><span>Stockpick</span></a>
 <h1>{title}</h1>
 {message}
 {body}
 <div class="alt">{alt}</div>
+</div>
+{aside}
 </div>
 <script>
 // Eye toggle on each password field. Fields are switched back to masked
@@ -480,13 +494,13 @@ def _form(action, fields, submit_label):
             f'{fields}<button type="submit">{submit_label}</button></form>')
 
 
-def _page(title, body, alt, error=None, notice=None, status=200):
+def _page(title, body, alt, error=None, notice=None, status=200, aside=""):
     message = ""
     if error:
         message = f'<div class="error">{escape(error)}</div>'
     elif notice:
         message = f'<div class="notice">{escape(notice)}</div>'
-    html = _PAGE_TEMPLATE.format(title=title, message=message, body=body, alt=alt)
+    html = _PAGE_TEMPLATE.format(title=title, message=message, body=body, alt=alt, aside=aside)
     return flask.Response(html, status=status, mimetype="text/html")
 
 
@@ -501,12 +515,20 @@ def _login_page(error=None, notice=None, email="", status=200):
                  'New here? <a href="/signup">Create an account</a>', error, notice, status)
 
 
+_SIGNUP_ASIDE = ('<aside class="auth-aside">'
+                 '<p><strong>Follow what Congress is trading.</strong> Save members of Congress, funds and '
+                 'stocks to a watchlist that follows you to any device.</p>'
+                 '<img src="/assets/signup-recent-trades.png" width="688" height="498" '
+                 'alt="Most recent stock trades disclosed by members of Congress"></aside>')
+
+
 def _signup_page(error=None, email="", name="", status=200):
     fields = (_name_field(name) + _email_field(email, autofocus=False)
               + _password_field("password", "Password", "new-password") + _NEW_PASSWORD_HINT
               + _password_field("confirm", "Confirm password", "new-password"))
-    return _page("Create account", _form("/signup", fields, "Create account"),
-                 'Already have an account? <a href="/login">Log in</a>', error, status=status)
+    return _page("Create free account", _form("/signup", fields, "Create free account"),
+                 'Already have an account? <a href="/login">Log in</a>', error, status=status,
+                 aside=_SIGNUP_ASIDE)
 
 
 def _forgot_page(error=None, notice=None, email="", status=200):
