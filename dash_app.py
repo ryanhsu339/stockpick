@@ -48,6 +48,7 @@ from dash.dash_table.Format import Format, Scheme, Sign
 from dash.exceptions import PreventUpdate
 
 import accounts
+import seo_pages
 from company_growth_calc import (
     CompanyDataError,
     CompanyLookupError,
@@ -2877,7 +2878,39 @@ try:
               f"(https://cdn.plot.ly/plotly-basic-<version>.min.js) and update custom.js's URL.")
 except Exception:
     pass
-app.title = "Stockpick"
+app.title = "Stockpick: Congress Stock Trades & Hedge Fund 13F Tracker"
+# Search/social metadata. The whole app lives at one URL ("/") and renders
+# client-side, so this <head> is most of what a crawler or link-preview bot
+# (Slack, X, iMessage, ...) sees without running the JS bundle.
+_SITE_URL = os.environ.get("PUBLIC_BASE_URL", "https://stockpick.io").rstrip("/")
+_SITE_DESCRIPTION = ("Track stock trades disclosed by members of Congress under the STOCK Act, "
+                     "hedge fund and investment manager 13F holdings, and public company "
+                     "financials and valuations.")
+_OG_IMAGE = f"{_SITE_URL}/assets/og-image.png"
+_SEO_HEAD = f"""<meta name="description" content="{_SITE_DESCRIPTION}">
+        <link rel="canonical" href="{_SITE_URL}/">
+        <meta name="theme-color" content="#0f0f0e">
+        <meta property="og:type" content="website">
+        <meta property="og:site_name" content="Stockpick">
+        <meta property="og:url" content="{_SITE_URL}/">
+        <meta property="og:title" content="{app.title}">
+        <meta property="og:description" content="{_SITE_DESCRIPTION}">
+        <meta property="og:image" content="{_OG_IMAGE}">
+        <meta property="og:image:width" content="1200">
+        <meta property="og:image:height" content="630">
+        <meta name="twitter:card" content="summary_large_image">
+        <meta name="twitter:title" content="{app.title}">
+        <meta name="twitter:description" content="{_SITE_DESCRIPTION}">
+        <meta name="twitter:image" content="{_OG_IMAGE}">
+        <script type="application/ld+json">{json.dumps({
+            "@context": "https://schema.org",
+            "@type": "WebApplication",
+            "name": "Stockpick",
+            "url": f"{_SITE_URL}/",
+            "description": _SITE_DESCRIPTION,
+            "applicationCategory": "FinanceApplication",
+            "operatingSystem": "Any",
+        })}</script>"""
 # Plain HTML/CSS overlay, outside Dash's own React tree entirely -- it
 # paints as soon as the browser has parsed this far into the page, not
 # waiting on the ~3-4s it otherwise takes for the JS bundle to download,
@@ -2893,10 +2926,11 @@ app.title = "Stockpick"
 # "panel-switch-spinner" below) still covers the remainder on whichever
 # tab gets clicked first.
 app.index_string = """<!DOCTYPE html>
-<html>
+<html lang="en">
     <head>
         {%metas%}
         <title>{%title%}</title>
+        """ + _SEO_HEAD + """
         {%favicon%}
         {%css%}
     </head>
@@ -2930,6 +2964,21 @@ app.index_string = """<!DOCTYPE html>
 server = app.server
 # Sessions, /login, /signup, /logout and the users database -- see accounts.py.
 accounts.init_accounts(server)
+# Crawlable /manager/<slug> and /politician/<slug> pages, their index pages,
+# robots.txt and sitemap.xml -- see seo_pages.py.
+seo_pages.init_seo_pages(server, _SITE_URL)
+
+
+# Account pages are reachable from the app, but shouldn't show up as search
+# results of their own.
+_NOINDEX_PATHS = {"/login", "/signup", "/forgot-password", "/reset-password"}
+
+
+@server.after_request
+def _noindex_account_pages(response):
+    if flask.request.path in _NOINDEX_PATHS:
+        response.headers["X-Robots-Tag"] = "noindex"
+    return response
 
 # Request timing, to see where production time goes (stockpick.io sits
 # behind Cloudflare, which blocks automated browsers from measuring it):
@@ -3347,7 +3396,16 @@ def _build_sidebar():
                     # id'd (not just styled) so the mobile media query can
                     # hide it -- freeing up a bit more of the sidebar's
                     # tight vertical space there; desktop keeps it.
-                    html.Div("Data: SEC EDGAR 13F · House & Senate PTRs.",
+                    # Real <a href>s to seo_pages.py's index pages -- the
+                    # only links from "/" a crawler can follow to the
+                    # per-manager/per-member pages (the nav rows above are
+                    # click handlers, not links). Hidden-by-CSS links on
+                    # mobile are still followed.
+                    html.Div([
+                        html.A("All managers", href="/managers", style={"color": "var(--body-text)"}),
+                        " · ",
+                        html.A("All politicians", href="/politicians", style={"color": "var(--body-text)"}),
+                    ],
                              id="sidebar-data-source",
                              style={"fontSize": "11px", "color": "var(--body-text)", "padding": "0 4px",
                                     "lineHeight": "1.5"}),
@@ -3440,6 +3498,11 @@ app.layout = html.Div(
                 html.Div(id="manager-panel", style=_tracker_panel_style("manager"),
                           children=html.Div(style=_APP_CONTENT_STYLE, children=_manager_tracker_children())),
                 html.Div(id="politician-panel", style=_tracker_panel_style("politician"), children=None),
+                # Below whichever panel is showing -- moved out of the
+                # sidebar footer, where it took up room on every screen.
+                html.Div("Data: SEC EDGAR 13F · House & Senate PTRs.", id="main-data-source",
+                         style={"maxWidth": "1400px", "margin": "0 auto", "padding": "0 16px 24px",
+                                "fontSize": "11px", "color": "var(--body-text)"}),
                 # Hidden by default; shown briefly by the sidebar nav
                 # clientside callback below the first time you switch to
                 # Companies or Politicians in a session -- the very first
