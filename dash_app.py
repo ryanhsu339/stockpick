@@ -3219,7 +3219,7 @@ def _render_top_account_bar():
     and Log out."""
     if not accounts.current_user.is_authenticated:
         return [html.A("Log in", href="/login", style=_TOP_BAR_BTN_STYLE),
-                html.A("Sign up", href="/signup", style=_TOP_BAR_PRIMARY_BTN_STYLE)]
+                html.A("Sign Up for Free!", href="/signup", style=_TOP_BAR_PRIMARY_BTN_STYLE)]
     user = accounts.current_user
     # Accounts from before signup asked for a name fall back to the email.
     greeting = f"Welcome, {user.name}" if user.name else user.email
