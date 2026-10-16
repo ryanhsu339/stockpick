@@ -3639,6 +3639,26 @@ app.clientside_callback(
         }
         window.__visitedViews.add(view);
 
+        // Each tracker keeps its own scroll position: all three panels
+        // share the one window scroll, so without this a switch landed at
+        // whatever depth the previous tab was scrolled to. Save the
+        // outgoing panel's position, then (once Dash has applied the
+        // display swap below) return to the incoming one's -- the top on a
+        // first visit. Re-clicking the open tab leaves the scroll alone.
+        window.__viewScroll = window.__viewScroll || {};
+        const panelIds = {manager: "manager-panel", politician: "politician-panel", company: "company-panel"};
+        const current = Object.keys(panelIds).find(function (v) {
+            const el = document.getElementById(panelIds[v]);
+            return el && el.style.display !== "none";
+        });
+        if (current && current !== view) {
+            window.__viewScroll[current] = window.scrollY;
+            const target = window.__viewScroll[view] || 0;
+            requestAnimationFrame(function () {
+                requestAnimationFrame(function () { window.scrollTo(0, target); });
+            });
+        }
+
         const rowStyle = (active) => ({
             display: "flex", alignItems: "center", gap: "10px", padding: "9px 10px",
             borderRadius: "7px", cursor: "pointer", fontSize: "14px", fontWeight: "500",
