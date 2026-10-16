@@ -1743,7 +1743,7 @@ def _company_tracker_children():
                         ),
                         dcc.Tabs(
                             id="range-tabs",
-                            value="6M",
+                            value="1D",
                             mobile_breakpoint=0,
                             style={**_NAV_CONTAINER_STYLE, "marginTop": "0"},
                             children=[dcc.Tab(label=k, value=k, style=_NAV_TAB_STYLE,
