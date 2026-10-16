@@ -63,7 +63,7 @@ from company_growth_calc import (
     resolve_ticker_for_security,
     search_companies,
 )
-from stock_price import (HoldingsDataError, PriceDataError, RANGE_KEYS, fetch_day_change_pcts,
+from stock_price import (HoldingsDataError, LIVE_RANGE_KEYS, PriceDataError, RANGE_KEYS, fetch_day_change_pcts,
                           fetch_day_movers, fetch_fund_name, fetch_earnings_history, fetch_previous_close,
                           fetch_price_history, fetch_ticker_overview, fetch_top_holdings)
 from thirteenf import (
@@ -1753,6 +1753,9 @@ def _company_tracker_children():
                     ],
                 ),
                 dcc.Interval(id="price-chart-refresh", interval=15000, n_intervals=0),
+                # The ticks of price-chart-refresh that actually reach the
+                # server -- see gate_price_chart_refresh.
+                dcc.Store(id="price-chart-tick", data=None),
                 # Drives the live-price dot's pulsing halo -- deliberately not
                 # wired to update_price_chart; a clientside callback below
                 # just tweaks the existing figure's marker opacity in place
@@ -5288,6 +5291,31 @@ def _day_baseline(ticker, range_key, df):
     return fetch_previous_close(ticker, df.index[-1].date())
 
 
+# Filters price-chart-refresh's 15s ticks down to the ones worth a server
+# round trip (and a Yahoo fetch): only while the Companies panel is showing,
+# the browser tab is in the foreground, and the range is one that moves
+# intraday. Clientside, so a skipped tick costs nothing at all -- the
+# interval keeps counting in the browser either way, and the next tick after
+# returning to the tab (within 15s) refreshes it.
+app.clientside_callback(
+    """
+    function(n, rangeKey) {
+        const panel = document.getElementById("company-panel");
+        if (document.visibilityState !== "visible"
+                || !panel || panel.style.display === "none"
+                || !%(live)s.includes(rangeKey)) {
+            return window.dash_clientside.no_update;
+        }
+        return n;
+    }
+    """ % {"live": json.dumps(list(LIVE_RANGE_KEYS))},
+    Output("price-chart-tick", "data"),
+    Input("price-chart-refresh", "n_intervals"),
+    State("range-tabs", "value"),
+    prevent_initial_call=True,
+)
+
+
 @app.callback(
     Output("price-chart", "figure"),
     Output("stock-header-price", "children"),
@@ -5299,7 +5327,7 @@ def _day_baseline(ticker, range_key, df):
     Input("ticker-store-2", "data"),
     Input("compare-mode", "data"),
     Input("range-tabs", "value"),
-    Input("price-chart-refresh", "n_intervals"),
+    Input("price-chart-tick", "data"),
     Input("theme-store", "data"),
     Input("viewport-is-mobile", "data"),
 )

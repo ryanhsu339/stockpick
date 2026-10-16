@@ -44,12 +44,56 @@ _RANGE_CONFIG = {
 }
 
 RANGE_KEYS = ["1D", "5D", "1M", "3M", "6M", "YTD", "1Y", "3Y", "ALL"]
+# Ranges whose data moves minute to minute -- the only ones the price chart
+# re-polls (see dash_app.py's gate_price_chart_refresh).
+LIVE_RANGE_KEYS = ("1D", "5D")
+
+# Price history per (ticker, range), shared by every visitor: each open
+# chart re-polls every 15s, so without this N people watching one ticker
+# meant N identical Yahoo requests per tick, all from the server's one IP
+# (a rate-limit risk for everything else that uses Yahoo). Intraday ranges
+# stay as fresh as the chart's own refresh; daily-bar ranges barely change.
+_PRICE_CACHE_TTL = {"1D": 15, "5D": 15}
+_PRICE_CACHE_TTL_DEFAULT = 300
+_PRICE_CACHE_MAX = 500
+_price_cache = {}  # (TICKER, range_key) -> (fetched_at, DataFrame)
+_price_cache_lock = threading.Lock()
+# One lock per key, so concurrent requests for the same ticker/range wait
+# for a single in-flight Yahoo fetch instead of each making their own.
+_price_fetch_locks = {}
 
 
 def fetch_price_history(ticker, range_key):
     """Return a DataFrame with a DatetimeIndex and 'Close'/'Volume' columns
     for `ticker` over `range_key` (one of RANGE_KEYS). Raises PriceDataError
-    if Yahoo Finance has no data for this ticker/range."""
+    if Yahoo Finance has no data for this ticker/range. Briefly cached --
+    see _price_cache."""
+    key = (ticker.upper(), range_key)
+    ttl = _PRICE_CACHE_TTL.get(range_key, _PRICE_CACHE_TTL_DEFAULT)
+    with _price_cache_lock:
+        cached = _price_cache.get(key)
+        if cached and time.time() - cached[0] < ttl:
+            return cached[1].copy()
+        fetch_lock = _price_fetch_locks.setdefault(key, threading.Lock())
+    with fetch_lock:
+        # Another request may have filled it while this one waited.
+        with _price_cache_lock:
+            cached = _price_cache.get(key)
+            if cached and time.time() - cached[0] < ttl:
+                return cached[1].copy()
+        df = _fetch_price_history_uncached(ticker, range_key)
+        with _price_cache_lock:
+            _price_cache[key] = (time.time(), df)
+            if len(_price_cache) > _PRICE_CACHE_MAX:
+                now = time.time()
+                for k, (at, _) in list(_price_cache.items()):
+                    if now - at >= _PRICE_CACHE_TTL.get(k[1], _PRICE_CACHE_TTL_DEFAULT):
+                        del _price_cache[k]
+                        _price_fetch_locks.pop(k, None)
+        return df.copy()
+
+
+def _fetch_price_history_uncached(ticker, range_key):
     config = _RANGE_CONFIG.get(range_key)
     if config is None:
         raise PriceDataError(f"Unknown range '{range_key}'.")
