@@ -516,8 +516,8 @@ def _login_page(error=None, notice=None, email="", status=200):
 
 
 _SIGNUP_ASIDE = ('<aside class="auth-aside">'
-                 '<p><strong>Follow what Congress is trading.</strong> Save members of Congress, funds and '
-                 'stocks to a watchlist that follows you to any device.</p>'
+                 '<p><strong>Follow what Congress is trading.</strong> Track politicians, hedge funds and '
+                 'stocks on a watchlist that follows you to any device.</p>'
                  '<img src="/assets/signup-recent-trades.png" width="688" height="498" '
                  'alt="Most recent stock trades disclosed by members of Congress"></aside>')
 
