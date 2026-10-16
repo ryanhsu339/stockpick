@@ -1641,11 +1641,6 @@ def _company_tracker_children():
             ],
         ),
         dcc.Store(id="compare-mode", data=False),
-        # id'd (not just styled) so the mobile media query can hide it --
-        # phone-width real estate is tight enough that this descriptive
-        # line isn't worth the vertical space there; desktop keeps it.
-        html.P("Sales, earnings, equity, cash, and ROIC growth from SEC 10-K XBRL data.",
-               id="company-tagline", style={**_PARA_STYLE, "marginTop": "10px"}),
         html.Div(
             id="ticker-search-row",
             className="lookup-search-row",

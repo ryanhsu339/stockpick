@@ -138,6 +138,12 @@ a:hover { color: var(--text); }
     #sidebar-watchlist-section {
         margin-top: 16px;
     }
+    /* Gap between the company name heading and the ticker search label
+       (phones reorder the search row above the heading -- see the mobile
+       block's #ticker-search-row). */
+    #ticker-search-row {
+        margin-top: 16px;
+    }
 }
 /* Phone-only twin of #top-account-bar, shown by the mobile block below. */
 #mobile-account-bar {
@@ -453,14 +459,8 @@ a:hover { color: var(--text); }
         margin-top: 16px;
     }
 
-    /* Descriptive tagline under the ticker search -- not worth the
-       vertical space it costs on a phone-width screen. */
-    #company-tagline {
-        display: none;
-    }
-
-    /* Sidebar footer data-source line -- same reasoning, freeing up a
-       bit more of the sidebar's tight vertical space on mobile. */
+    /* Sidebar footer links -- not worth the sidebar's tight vertical
+       space on mobile. */
     #sidebar-data-source {
         display: none;
     }
