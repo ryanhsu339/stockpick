@@ -1423,6 +1423,14 @@ def fetch_manager_comparison_by_cik(cik, session=None, user_agent=None, top_n=10
     if user_agent:
         USER_AGENT = user_agent
     session = session or requests.Session()
+    # Callers pass CIKs from JSON snapshots and Dash component ids, where
+    # they're often strings ("1704268") -- list_13f_filings formats one as
+    # an int, so a string only worked for managers served from the
+    # top-managers snapshot, never for one needing a live fetch.
+    try:
+        cik = int(cik)
+    except (TypeError, ValueError):
+        raise FilingDataError(f"Invalid CIK: {cik!r}")
 
     result = build_holdings_comparison(session, cik, top_n=top_n, skip_snapshot=skip_snapshot)
     result["cik"] = cik
