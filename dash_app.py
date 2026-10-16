@@ -1785,6 +1785,8 @@ def _company_tracker_children():
                 html.Div(id="stock-kpi-grid",
                          style={"display": "grid", "gridTemplateColumns": "repeat(auto-fit, minmax(150px,1fr))",
                                 "gap": "10px"}),
+                # What the company does -- see _company_description.
+                html.Div(id="stock-description"),
             ],
         ),
         # Compare mode's second ticker gets its own labeled KPI row right
@@ -5432,6 +5434,43 @@ def _company_overview_data(store, rows_store=None, suffix=""):
     return meta_text, f"{ticker} — {title}", tiles
 
 
+# Abbreviations that end in "." without ending a sentence ("Apple Inc.
+# designs...") -- see _company_description.
+_NON_SENTENCE_END = re.compile(r"(?:Inc|Corp|Co|Ltd|Plc|Bros|Jr|Sr|St|Mr|Mrs|Dr|No|vs|approx|[A-Z](?:\.[A-Z])*)\.")
+_DESCRIPTION_SHORT_CHARS = 220
+
+
+def _company_description(summary):
+    """Yahoo's business summary (often 1-2K characters) as its first
+    sentence or two, with the rest behind a native <details> "Read more"
+    toggle -- no callback needed to expand it. Empty when Yahoo has none."""
+    summary = (summary or "").strip()
+    if not summary:
+        return None
+    sentences, current = [], ""
+    for chunk in re.split(r"(?<=\.)\s+(?=[A-Z])", summary):
+        current = f"{current} {chunk}".strip()
+        if not _NON_SENTENCE_END.fullmatch(current.split()[-1]):
+            sentences.append(current)
+            current = ""
+    if current:
+        sentences.append(current)
+    short, rest = sentences[0], sentences[1:]
+    # A second sentence only when the first is brief and the two together
+    # still read as a short blurb (Apple's second is a long product list).
+    if len(short) < _DESCRIPTION_SHORT_CHARS and rest and len(short) + len(rest[0]) <= 360:
+        short, rest = f"{short} {rest[0]}", rest[1:]
+    style = {**_PARA_STYLE, "fontSize": "14px", "lineHeight": "1.6", "margin": "0", "maxWidth": "900px"}
+    children = [html.P(short, style=style)]
+    if rest:
+        children.append(html.Details(className="company-description-more", children=[
+            html.Summary([html.Span("Read more", className="when-closed"),
+                          html.Span("Show less", className="when-open")]),
+            html.P(" ".join(rest), style={**style, "marginTop": "8px"}),
+        ]))
+    return html.Div(children, style={"marginTop": "16px"})
+
+
 # Header meta/name and the KPI tile grid only depend on which ticker is
 # loaded, not the selected chart range -- kept as a separate callback from
 # update_price_chart above (which does re-run on every range-tabs click)
@@ -5443,6 +5482,7 @@ def _company_overview_data(store, rows_store=None, suffix=""):
     Output("stock-kpi-label", "children"),
     Output("stock-kpi-grid", "children"),
     Output("dcf-company-label", "children"),
+    Output("stock-description", "children"),
     Input("ticker-store", "data"),
     # State, not Input: Dash holds a callback back while any of its Inputs
     # is still being produced by an in-flight callback, so an Input here
@@ -5453,7 +5493,15 @@ def _company_overview_data(store, rows_store=None, suffix=""):
 def update_company_overview(store, rows_store):
     meta_text, kpi_label, tiles = _company_overview_data(store, rows_store)
     title = (store or {}).get("title") or (store or {}).get("ticker") or ""
-    return meta_text, title, kpi_label, tiles, kpi_label
+    # Same overview _company_overview_data just fetched -- a cache hit
+    # (see fetch_ticker_overview), not a second Yahoo request.
+    description = None
+    if store:
+        try:
+            description = _company_description(fetch_ticker_overview(store["ticker"]).get("business_summary"))
+        except PriceDataError:
+            pass
+    return meta_text, title, kpi_label, tiles, kpi_label, description
 
 
 # Names the company in no-financials-msg rather than a generic "this

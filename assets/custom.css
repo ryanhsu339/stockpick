@@ -885,6 +885,13 @@ input[type="range"] { accent-color: var(--accent); }
 }
 
 details summary { cursor: pointer; color: var(--body-text); font-size: 13px; }
+/* Company Tracker description's Read more / Show less toggle. */
+.company-description-more { margin-top: 4px; }
+.company-description-more summary { list-style: none; color: var(--accent); font-weight: 600; width: fit-content; }
+.company-description-more summary::-webkit-details-marker { display: none; }
+.company-description-more .when-open,
+.company-description-more[open] .when-closed { display: none; }
+.company-description-more[open] .when-open { display: inline; }
 
 ::-webkit-scrollbar { width: 10px; height: 10px; }
 ::-webkit-scrollbar-track { background: transparent; }
