@@ -33,6 +33,11 @@ services:
       # value is entered in Render's dashboard, never committed here.
       - key: RESEND_API_KEY
         sync: false
+      # Gets an email for every new sign-up (accounts._notify_signup_async).
+      # sync: false -- the address is entered in Render's dashboard, not
+      # committed (this repo is public).
+      - key: SIGNUP_NOTIFY_EMAIL
+        sync: false
       # Base of the link in reset emails -- never taken from the request's
       # Host header (see accounts._public_base_url).
       - key: PUBLIC_BASE_URL

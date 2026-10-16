@@ -14,9 +14,10 @@ wiped on every deploy, which is fine for the other *.db caches but would
 delete every account. gunicorn runs a single worker, so SQLite's
 one-writer-at-a-time locking is never contended across processes.
 
-Reset emails go out through Resend (RESEND_API_KEY). Without a key -- local
-runs -- the reset link is printed to the console instead, so the whole
-flow can be tested without sending anything.
+Reset emails, and a notice to SIGNUP_NOTIFY_EMAIL for each new sign-up, go
+out through Resend (RESEND_API_KEY). Without a key -- local runs -- they're
+printed to the console instead, so the whole flow can be tested without
+sending anything.
 """
 
 import hashlib
@@ -331,9 +332,9 @@ def _send_email(to, subject, text, html):
             headers={"Authorization": f"Bearer {api_key}"},
             json={"from": _EMAIL_FROM, "to": [to], "subject": subject, "text": text, "html": html})
         if resp.status_code >= 300:
-            print(f"ERROR: Resend rejected password reset email ({resp.status_code}): {resp.text[:300]}", flush=True)
+            print(f"ERROR: Resend rejected email \"{subject}\" ({resp.status_code}): {resp.text[:300]}", flush=True)
     except requests.RequestException as e:
-        print(f"ERROR: sending password reset email failed: {e}", flush=True)
+        print(f"ERROR: sending email \"{subject}\" failed: {e}", flush=True)
 
 
 def _send_reset_email_async(to, link):
@@ -341,6 +342,45 @@ def _send_reset_email_async(to, link):
     # whether or not the email has an account (and isn't held up by Resend).
     subject, text, html = _reset_email(link)
     threading.Thread(target=_send_email, args=(to, subject, text, html), daemon=True).start()
+
+
+def _user_count():
+    with _db_lock, _connect() as conn:
+        return conn.execute("SELECT COUNT(*) FROM users").fetchone()[0]
+
+
+def _signup_notice_email(user):
+    total = _user_count()
+    when = time.strftime("%Y-%m-%d %H:%M UTC", time.gmtime())
+    lines = [("Name", user.name or "—"), ("Email", user.email), ("Signed up", when),
+             ("Total accounts", f"{total:,}")]
+    text = "New Stockpick sign-up\n\n" + "".join(f"{k}: {v}\n" for k, v in lines)
+    rows = "".join(f'<tr><td style="color:#5f5e58;padding:4px 16px 4px 0">{escape(k)}</td>'
+                   f'<td style="padding:4px 0">{escape(str(v))}</td></tr>' for k, v in lines)
+    html = f"""<div style="font-family:-apple-system,Segoe UI,Helvetica,Arial,sans-serif;max-width:480px;
+color:#1b1b19;font-size:15px;line-height:1.5">
+<p style="font-weight:700;font-size:18px;margin:0 0 16px">New Stockpick sign-up</p>
+<table style="border-collapse:collapse;font-size:15px">{rows}</table>
+</div>"""
+    return f"New Stockpick sign-up: {user.name or user.email}", text, html
+
+
+def _notify_signup_async(user):
+    # Owner notification for each new account -- SIGNUP_NOTIFY_EMAIL is set
+    # in Render's dashboard (not committed: the repo is public). Unset means
+    # no notifications. In the background so sign-up isn't held up by Resend,
+    # and broadly caught so a failure here can never break a sign-up.
+    to = os.environ.get("SIGNUP_NOTIFY_EMAIL")
+    if not to:
+        return
+
+    def send():
+        try:
+            _send_email(to, *_signup_notice_email(user))
+        except Exception as e:
+            print(f"ERROR: sign-up notification failed: {e}", flush=True)
+
+    threading.Thread(target=send, daemon=True).start()
 
 
 # --- Pages ---------------------------------------------------------------------
@@ -698,6 +738,7 @@ def init_accounts(server):
             return _signup_page("An account with that email already exists. Log in instead?",
                                 email=email, name=name, status=400)
         _start_session(user)
+        _notify_signup_async(user)
         return flask.redirect("/")
 
     @server.route("/login", methods=["GET", "POST"])
