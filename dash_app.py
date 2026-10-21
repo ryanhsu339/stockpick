@@ -49,6 +49,7 @@ from dash.exceptions import PreventUpdate
 
 import accounts
 import seo_pages
+import tracking
 from company_growth_calc import (
     CompanyDataError,
     CompanyLookupError,
@@ -2931,10 +2932,12 @@ app.index_string = """<!DOCTYPE html>
         {%metas%}
         <title>{%title%}</title>
         """ + _SEO_HEAD + """
+        """ + tracking.META_PIXEL_HEAD + """
         {%favicon%}
         {%css%}
     </head>
     <body>
+        """ + tracking.META_PIXEL_BODY + """
         <div id="initial-load-overlay" style="position:fixed;inset:0;z-index:9999;
              display:flex;align-items:center;justify-content:center;
              pointer-events:none;">

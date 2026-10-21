@@ -23,6 +23,8 @@ from pathlib import Path
 
 import flask
 
+import tracking
+
 from congress_trades import load_activity_summary_snapshot, load_member_positions_snapshot
 from thirteenf import _top_managers_snapshot_index, top_managers_snapshot_entry
 
@@ -186,6 +188,7 @@ try {{ if (JSON.parse(localStorage.getItem("theme-store")) === "light")
     document.documentElement.setAttribute("data-theme", "light"); }} catch (e) {{}}
 </script>
 <script type="application/ld+json">{json_ld}</script>
+{pixel_head}
 <style>
 body {{ margin: 0; }}
 .seo-top {{ display: flex; align-items: center; justify-content: space-between; gap: 12px;
@@ -238,6 +241,7 @@ footer.seo-foot {{ max-width: 1040px; margin: 0 auto; padding: 24px 16px 40px; b
 </style>
 </head>
 <body>
+{pixel_body}
 <header class="seo-top">
 <a class="seo-logo" href="/"><span></span><span>Stockpick</span></a>
 <nav class="seo-nav">
@@ -263,6 +267,7 @@ def _render_page(site_url, path, title, description, body, json_ld, status=200):
         site_url=_e(site_url), body=body,
         # "</" can't appear inside a <script> block.
         json_ld=json.dumps(json_ld).replace("</", "<\\/"),
+        pixel_head=tracking.META_PIXEL_HEAD, pixel_body=tracking.META_PIXEL_BODY,
     )
     resp = flask.Response(page, status=status, mimetype="text/html")
     if status == 200:

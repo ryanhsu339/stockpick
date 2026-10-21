@@ -42,6 +42,8 @@ from itsdangerous import BadSignature, SignatureExpired, URLSafeTimedSerializer
 from werkzeug.security import check_password_hash, generate_password_hash
 from wtforms import ValidationError
 
+import tracking
+
 __all__ = ["init_accounts", "current_user", "generate_csrf", "load_watchlist", "save_watchlist",
            "MERGE_LOCAL_WATCHLIST_KEY"]
 
@@ -402,6 +404,7 @@ _PAGE_TEMPLATE = """<!DOCTYPE html>
 try {{ if (JSON.parse(localStorage.getItem("theme-store")) === "light")
     document.documentElement.setAttribute("data-theme", "light"); }} catch (e) {{}}
 </script>
+{pixel_head}
 <style>
 body {{ min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 16px;
        box-sizing: border-box; }}
@@ -454,6 +457,7 @@ button[type=submit] {{ width: 100%; margin-top: 22px; padding: 10px 12px; font-s
 </style>
 </head>
 <body>
+{pixel_body}
 <div class="auth-layout">
 <div class="auth-card">
 <a class="auth-logo" href="/"><span></span><span>Stockpick</span></a>
@@ -534,13 +538,15 @@ def _form(action, fields, submit_label):
             f'{fields}<button type="submit">{submit_label}</button></form>')
 
 
-def _page(title, body, alt, error=None, notice=None, status=200, aside=""):
+def _page(title, body, alt, error=None, notice=None, status=200, aside="", pixel=True):
     message = ""
     if error:
         message = f'<div class="error">{escape(error)}</div>'
     elif notice:
         message = f'<div class="notice">{escape(notice)}</div>'
-    html = _PAGE_TEMPLATE.format(title=title, message=message, body=body, alt=alt, aside=aside)
+    html = _PAGE_TEMPLATE.format(title=title, message=message, body=body, alt=alt, aside=aside,
+                                 pixel_head=tracking.META_PIXEL_HEAD if pixel else "",
+                                 pixel_body=tracking.META_PIXEL_BODY if pixel else "")
     return flask.Response(html, status=status, mimetype="text/html")
 
 
@@ -588,14 +594,14 @@ def _reset_page(user, error=None, status=200):
               + _password_field("confirm", "Confirm new password", "new-password"))
     body = (f'<p class="lead">Choose a new password for <b>{escape(user.email)}</b>.</p>'
             + _form("/reset-password", fields, "Save new password"))
-    return _page("Choose a new password", body, _ALT_TO_LOGIN, error, status=status)
+    return _page("Choose a new password", body, _ALT_TO_LOGIN, error, status=status, pixel=False)
 
 
 def _invalid_reset_link_page():
     body = ('<p class="lead">This reset link has expired or was already used. Links work once, '
             f'for {_RESET_TOKEN_MAX_AGE // 60} minutes.</p>'
             '<p class="lead" style="margin-top:12px"><a href="/forgot-password">Send a new link</a></p>')
-    return _page("Link expired", body, _ALT_TO_LOGIN, status=400)
+    return _page("Link expired", body, _ALT_TO_LOGIN, status=400, pixel=False)
 
 
 def _start_session(user):
@@ -616,7 +622,7 @@ def _too_many_attempts(_limit):
     if path.startswith("/forgot-password"):
         return _forgot_page(_TOO_MANY, email=_form_email(), status=429)
     if path.startswith("/reset-password"):
-        return _page("Choose a new password", "", _ALT_TO_LOGIN, _TOO_MANY, status=429)
+        return _page("Choose a new password", "", _ALT_TO_LOGIN, _TOO_MANY, status=429, pixel=False)
     return _login_page(_TOO_MANY, email=_form_email(), status=429)
 
 
@@ -739,7 +745,12 @@ def init_accounts(server):
                                 email=email, name=name, status=400)
         _start_session(user)
         _notify_signup_async(user)
-        return flask.redirect("/")
+        resp = flask.redirect("/")
+        # Meta Pixel CompleteRegistration on the page this lands on -- see
+        # tracking.SIGNUP_EVENT_COOKIE.
+        resp.set_cookie(tracking.SIGNUP_EVENT_COOKIE, "1", max_age=600, path="/", samesite="Lax",
+                        secure=server.config["SESSION_COOKIE_SECURE"], httponly=False)
+        return resp
 
     @server.route("/login", methods=["GET", "POST"])
     @limiter.limit("10 per minute", methods=post_only)
