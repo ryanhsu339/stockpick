@@ -73,8 +73,10 @@ from thirteenf import (
     _top_managers_snapshot_index,
     fetch_manager_comparison,
     fetch_manager_comparison_by_cik,
+    fetch_manager_comparison_for_period,
     latest_13f_filing_date,
     load_top_buys,
+    quarter_ends_back,
     search_managers,
 )
 from congress_trades import (
@@ -2472,6 +2474,19 @@ def _manager_tracker_children():
                     ],
                 ),
                 _watchlist_add_button("watchlist-add-manager"),
+                # Past quarters for the loaded manager -- see
+                # sync_manager_quarter_options/load_manager_quarter.
+                # marginLeft auto pushes it to the row's right end.
+                html.Div(
+                    id="manager-quarter-wrap",
+                    style={"marginLeft": "auto"},
+                    children=[
+                        html.Label("Quarter"),
+                        dcc.Dropdown(id="manager-quarter", options=[], value=None, clearable=False,
+                                     searchable=False, placeholder="—",
+                                     style={"width": "190px", "color": "var(--text)"}),
+                    ],
+                ),
             ],
         ),
         dcc.Loading(
@@ -2493,7 +2508,7 @@ def _manager_tracker_children():
                 html.Div(
                     style={"flex": "1 1 420px", "minWidth": "0"},
                     children=[
-                        html.H3("Top Increases This Quarter", style=_HEADER_STYLE),
+                        html.H3("Top Increases This Quarter", id="manager-increases-heading", style=_HEADER_STYLE),
                         html.P(_MANAGER_NOTE, style={**_PARA_STYLE, "fontSize": "13px"}),
                         html.Div(id="increases-table-container"),
                     ],
@@ -2501,7 +2516,7 @@ def _manager_tracker_children():
                 html.Div(
                     style={"flex": "1 1 420px", "minWidth": "0"},
                     children=[
-                        html.H3("Top Decreases This Quarter", style=_HEADER_STYLE),
+                        html.H3("Top Decreases This Quarter", id="manager-decreases-heading", style=_HEADER_STYLE),
                         html.P(_MANAGER_NOTE, style={**_PARA_STYLE, "fontSize": "13px"}),
                         html.Div(id="decreases-table-container"),
                     ],
@@ -6342,7 +6357,8 @@ def generate_manager(_n_submit, query):
     decreases = [_manager_row_to_record(r, companies) for r in result["top_decreases"]]
     all_positions = [_all_positions_row_to_record(r, companies) for r in result["all_positions"]]
     meta = {"cik": result["cik"], "name": result["resolved_name"],
-            "truncated": result.get("positions_truncated", False)}
+            "truncated": result.get("positions_truncated", False),
+            "latest_period": result["latest_period"], "period": result["latest_period"]}
     return (status, _build_delta_bar_list(increases, True), _build_delta_bar_list(decreases, False),
             all_positions[:_POSITIONS_PAGE_SIZE], None, None,
             all_positions, min(_POSITIONS_PAGE_SIZE, len(all_positions)), not all_positions, meta,
@@ -6401,7 +6417,8 @@ def select_manager_candidate(candidate_clicks, suggestion_clicks, top_buy_manage
     decreases = [_manager_row_to_record(r, companies) for r in result["top_decreases"]]
     all_positions = [_all_positions_row_to_record(r, companies) for r in result["all_positions"]]
     meta = {"cik": result["cik"], "name": result["resolved_name"],
-            "truncated": result.get("positions_truncated", False)}
+            "truncated": result.get("positions_truncated", False),
+            "latest_period": result["latest_period"], "period": result["latest_period"]}
     # Setting manager-input's value below re-triggers update_manager_suggestions
     # (it watches that same value) — this flag tells that callback to skip
     # showing a dropdown for this one programmatic change, not real typing.
@@ -6410,6 +6427,103 @@ def select_manager_candidate(candidate_clicks, suggestion_clicks, top_buy_manage
             result["resolved_name"], True,
             all_positions, min(_POSITIONS_PAGE_SIZE, len(all_positions)), not all_positions, meta,
             _manager_summary_tiles(all_positions), scroll)
+
+
+def _quarter_option_label(iso):
+    """"2025-12-31" -> "Q4 2025 (Dec 31)"."""
+    try:
+        d = date.fromisoformat(iso)
+    except (TypeError, ValueError):
+        return iso
+    return f"Q{(d.month - 1) // 3 + 1} {d.year} ({d:%b} {d.day})"
+
+
+_MANAGER_QUARTERS_BACK = 8
+
+
+# The quarter dropdown follows whichever manager is loaded: their latest
+# quarter and the seven before it, with the one on screen selected.
+@app.callback(
+    Output("manager-quarter", "options"),
+    Output("manager-quarter", "value"),
+    Input("manager-positions-meta", "data"),
+)
+def sync_manager_quarter_options(meta):
+    if not meta or not meta.get("latest_period"):
+        return [], None
+    options = [{"label": _quarter_option_label(q), "value": q}
+               for q in quarter_ends_back(meta["latest_period"], _MANAGER_QUARTERS_BACK)]
+    return options, meta.get("period") or meta["latest_period"]
+
+
+# Picking a quarter reloads the same results area for that quarter vs the
+# one before it. Its latest quarter goes through the usual path (the
+# top-managers snapshot, when the manager's in it); an earlier one is a live
+# SEC fetch the first time (~1s, ~15s for the very largest filers), then
+# cached -- see thirteenf.fetch_manager_comparison_for_period.
+@app.callback(
+    Output("manager-status-msg", "children", allow_duplicate=True),
+    Output("increases-table-container", "children", allow_duplicate=True),
+    Output("decreases-table-container", "children", allow_duplicate=True),
+    Output("all-positions-table", "data", allow_duplicate=True),
+    Output("all-positions-full", "data", allow_duplicate=True),
+    Output("all-positions-visible-count", "data", allow_duplicate=True),
+    Output("download-positions-btn", "disabled", allow_duplicate=True),
+    Output("manager-positions-meta", "data", allow_duplicate=True),
+    Output("manager-summary-tiles", "children", allow_duplicate=True),
+    Output("manager-quarter", "value", allow_duplicate=True),
+    Input("manager-quarter", "value"),
+    State("manager-positions-meta", "data"),
+    prevent_initial_call=True,
+)
+def load_manager_quarter(period, meta):
+    # sync_manager_quarter_options setting the value for a freshly loaded
+    # manager lands here too -- that quarter is already on screen.
+    if not period or not meta or period == meta.get("period"):
+        raise PreventUpdate
+    try:
+        if period == meta.get("latest_period"):
+            result = fetch_manager_comparison_by_cik(meta["cik"], session=_session)
+        else:
+            result = fetch_manager_comparison_for_period(meta["cik"], period, session=_session)
+    except (FilingDataError, requests.RequestException) as e:
+        # Leave the current quarter's results up, and the dropdown on it.
+        status = (f"{_quarter_option_label(period)}: {e} Still showing "
+                  f"{_quarter_option_label(meta.get('period'))}.")
+        return (status, *[no_update] * 8, meta.get("period"))
+
+    # meta's name, not the result's: the snapshot and the raw filings
+    # capitalize some names differently ("BERKSHIRE HATHAWAY INC" vs
+    # "Berkshire Hathaway Inc"), which read as a different manager.
+    status = (f"Found: {meta.get('name') or result['resolved_name']} (CIK {result['cik']}) — "
+              f"{result['latest_period']} vs {result['previous_period']}")
+    companies = load_ticker_map(_session)
+    increases = [_manager_row_to_record(r, companies) for r in result["top_increases"]]
+    decreases = [_manager_row_to_record(r, companies) for r in result["top_decreases"]]
+    all_positions = [_all_positions_row_to_record(r, companies) for r in result["all_positions"]]
+    new_meta = {**meta, "truncated": result.get("positions_truncated", False), "period": period}
+    return (status, _build_delta_bar_list(increases, True), _build_delta_bar_list(decreases, False),
+            all_positions[:_POSITIONS_PAGE_SIZE], all_positions,
+            min(_POSITIONS_PAGE_SIZE, len(all_positions)), not all_positions, new_meta,
+            _manager_summary_tiles(all_positions), no_update)
+
+
+# "Top Increases (Q4 2025)" etc. -- names the quarter on screen.
+app.clientside_callback(
+    """
+    function(period) {
+        let suffix = "This Quarter";
+        if (period) {
+            const parts = period.split("-").map(Number);
+            suffix = "(Q" + (Math.floor((parts[1] - 1) / 3) + 1) + " " + parts[0] + ")";
+        }
+        return ["Top Increases " + suffix, "Top Decreases " + suffix];
+    }
+    """,
+    Output("manager-increases-heading", "children"),
+    Output("manager-decreases-heading", "children"),
+    Input("manager-quarter", "value"),
+)
 
 
 @app.callback(
@@ -6432,10 +6546,16 @@ def download_positions(_n_clicks, all_positions, manager_name, positions_meta):
     # truncated manager gets one real live fetch for the actual complete
     # list instead. Every other manager still exports the already-loaded
     # data with no extra fetch.
+    past_quarter = bool(positions_meta and positions_meta.get("period")
+                        and positions_meta["period"] != positions_meta.get("latest_period"))
     if positions_meta and positions_meta.get("truncated"):
         try:
-            result = fetch_manager_comparison_by_cik(
-                positions_meta["cik"], session=_session, skip_snapshot=True)
+            if past_quarter:
+                result = fetch_manager_comparison_for_period(
+                    positions_meta["cik"], positions_meta["period"], session=_session, full=True)
+            else:
+                result = fetch_manager_comparison_by_cik(
+                    positions_meta["cik"], session=_session, skip_snapshot=True)
         except (FilingDataError, requests.RequestException):
             pass  # fall back to the capped list below rather than failing the download
         else:
@@ -6445,7 +6565,8 @@ def download_positions(_n_clicks, all_positions, manager_name, positions_meta):
         return None
     csv_bytes = _table_dataframe(ALL_POSITIONS_COLUMNS, all_positions).to_csv(index=False).encode("utf-8")
     safe_name = re.sub(r"[^A-Za-z0-9]+", "_", manager_name or "manager").strip("_")
-    return dcc.send_bytes(csv_bytes, f"{safe_name}_all_positions.csv")
+    suffix = f"_{positions_meta['period']}" if past_quarter else ""
+    return dcc.send_bytes(csv_bytes, f"{safe_name}{suffix}_all_positions.csv")
 
 
 # Manager search hits SEC's live endpoint per query (unlike the company

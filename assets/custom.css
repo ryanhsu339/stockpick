@@ -973,6 +973,13 @@ details summary { cursor: pointer; color: var(--body-text); font-size: 13px; }
     border-radius: 50%;
     animation: spin 0.8s linear infinite;
 }
+/* Managers tab quarter dropdown: same 13px text as the manager name box
+   beside it (Dash's dropdown defaults to 16px) -- the closed control and
+   its open menu, which renders inside #manager-quarter-wrap. */
+#manager-quarter-wrap .dash-dropdown,
+#manager-quarter-wrap .dash-dropdown-content {
+    font-size: 13px;
+}
 /* Top Gainers/Losers: each card's dcc.Loading spinner sits at that card's
    bottom center (where scroll-triggered "load more" rows appear), not its
    middle -- see _movers_card. Targets only the overlay dcc.Loading adds

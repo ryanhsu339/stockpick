@@ -76,6 +76,13 @@ def _cache_db():
         "CREATE TABLE IF NOT EXISTS holdings_comparison ("
         "cik INTEGER PRIMARY KEY, data TEXT NOT NULL, built_at TEXT NOT NULL)"
     )
+    # Past quarters (see fetch_manager_comparison_for_period) -- a filed
+    # quarter's holdings don't change, so these keep far longer.
+    conn.execute(
+        "CREATE TABLE IF NOT EXISTS holdings_comparison_period ("
+        "cik INTEGER NOT NULL, period TEXT NOT NULL, data TEXT NOT NULL, built_at TEXT NOT NULL, "
+        "PRIMARY KEY (cik, period))"
+    )
     return conn
 
 
@@ -143,6 +150,33 @@ def _save_holdings_comparison_to_disk(cik, comparison):
             )
     except sqlite3.Error:
         pass  # best-effort -- an unwritable cache file shouldn't break the page
+
+
+PERIOD_CACHE_TTL_HOURS = 30 * 24
+
+
+def _load_period_comparison_from_disk(cik, period, max_age_hours=PERIOD_CACHE_TTL_HOURS):
+    try:
+        with _cache_db() as conn:
+            row = conn.execute(
+                "SELECT data, built_at FROM holdings_comparison_period WHERE cik = ? AND period = ?",
+                (cik, period),
+            ).fetchone()
+    except sqlite3.Error:
+        return None
+    return _cache_fresh_data(row, max_age_hours)
+
+
+def _save_period_comparison_to_disk(cik, period, comparison):
+    try:
+        with _cache_db() as conn:
+            conn.execute(
+                "INSERT INTO holdings_comparison_period (cik, period, data, built_at) VALUES (?, ?, ?, ?) "
+                "ON CONFLICT(cik, period) DO UPDATE SET data = excluded.data, built_at = excluded.built_at",
+                (cik, period, json.dumps(comparison), datetime.now(timezone.utc).isoformat()),
+            )
+    except sqlite3.Error:
+        pass  # best-effort, same as _save_holdings_comparison_to_disk
 
 
 class ManagerLookupError(Exception):
@@ -570,69 +604,11 @@ def _pct_change(cur, prev):
     return (cur - prev) / abs(prev) * 100
 
 
-def build_holdings_comparison(session, cik, top_n=10, skip_snapshot=False, adjust_splits=True):
-    """Compare the two most recent 13F-HR quarters for `cik`. Returns a
-    dict: {"latest_period", "previous_period", "manager_name",
-    "top_increases", "top_decreases", "all_positions"}.
-
-    top_increases/top_decreases rows: {"issuer", "cusip", "shares_m",
-    "prev_shares_m", "delta_shares_m", "delta_shares_value_m", "value_m",
-    "portfolio_pct", "delta_pct"}, ranked by delta_shares_value_m -- the
-    change in share count priced at the average of the previous and
-    current quarter's implied per-share price (or just the one available
-    endpoint price for a brand-new or fully-exited position), i.e. an
-    approximation of the dollar amount actually bought or sold. A
-    position's value/portfolio-weight can rise or fall purely from the
-    stock's price moving even with zero trading, so ranking by shares
-    isolates actual buying/selling activity -- but a raw share-count change
-    means nothing without knowing the stock's price (10,000 shares of a $5
-    stock vs. a $500 one are very different trades), so it's the per-share
-    price that puts every position's share change on the same ($) footing.
-    13F filings don't disclose intra-quarter trade dates/prices, so this is
-    necessarily an approximation rather than the actual dollars traded.
-
-    all_positions rows (every current-or-prior holding, sorted by
-    portfolio_pct descending): the same fields, plus "delta_shares_pct",
-    "share_price", "prev_share_price", "prev_value_m", "delta_value_pct",
-    and "prev_portfolio_pct". The delta_*_pct fields are relative percent
-    changes (None for a brand-new position, -100 for one fully exited).
-    "delta_pct" there is instead a percentage-POINT change in portfolio
-    allocation, not a relative percent change. share_price/prev_share_price
-    are None for a position with no shares held that quarter (brand-new or
-    fully-exited).
-
-    All percents are already-multiplied numbers, e.g. 1.57 for 1.57%;
-    shares/value (including delta_shares_m/delta_shares_value_m) are in
-    millions. Checks the repo-committed top-300-by-AUM snapshot first
-    (see build_top_managers) -- those need no live SEC round-trip at
-    all -- then the disk cache (see module notes above), so a repeat
-    lookup of any other manager, by anyone, still skips the several live
-    SEC round-trips and the XML parsing.
-
-    A snapshot entry's all_positions is capped at _MAX_SNAPSHOT_POSITIONS
-    (result["positions_truncated"] says whether this manager hit that
-    cap) so the precomputed file stays a sane size -- pass
-    skip_snapshot=True to bypass it and fetch the real, complete list
-    live instead (see dash_app.py's download_positions, which needs the
-    full list rather than the snapshot's capped one)."""
-    if not skip_snapshot:
-        snapshot_hit = top_managers_snapshot_entry(cik)
-        if snapshot_hit is not None:
-            return apply_split_adjustments(snapshot_hit, top_n=top_n) if adjust_splits else snapshot_hit
-
-    cached = _load_holdings_comparison_from_disk(cik)
-    if cached is not None:
-        return apply_split_adjustments(cached, top_n=top_n) if adjust_splits else cached
-
-    filings = list_13f_filings(session, cik, count=40)
-    if len(filings) < 2:
-        raise FilingDataError("Fewer than two quarterly 13F-HR filings found for this manager.")
-
-    latest_period, manager_name, latest_holdings = get_filing_holdings(
-        session, cik, filings[0]["accession"])
-    previous_period, _, previous_holdings = get_filing_holdings(
-        session, cik, filings[1]["accession"])
-
+def _compare_holdings(manager_name, latest_period, latest_holdings, previous_period,
+                      previous_holdings, top_n):
+    """The quarter-over-quarter comparison dict build_holdings_comparison
+    documents, from two quarters' get_filing_holdings results -- shared by
+    the latest-quarter path and fetch_manager_comparison_for_period."""
     latest_total = sum(h["value"] for h in latest_holdings.values())
     previous_total = sum(h["value"] for h in previous_holdings.values())
     if not latest_total or not previous_total:
@@ -712,6 +688,74 @@ def build_holdings_comparison(session, cik, top_n=10, skip_snapshot=False, adjus
         "top_decreases": top_decreases,
         "all_positions": all_positions,
     }
+    return result
+
+
+def build_holdings_comparison(session, cik, top_n=10, skip_snapshot=False, adjust_splits=True):
+    """Compare the two most recent 13F-HR quarters for `cik`. Returns a
+    dict: {"latest_period", "previous_period", "manager_name",
+    "top_increases", "top_decreases", "all_positions"}.
+
+    top_increases/top_decreases rows: {"issuer", "cusip", "shares_m",
+    "prev_shares_m", "delta_shares_m", "delta_shares_value_m", "value_m",
+    "portfolio_pct", "delta_pct"}, ranked by delta_shares_value_m -- the
+    change in share count priced at the average of the previous and
+    current quarter's implied per-share price (or just the one available
+    endpoint price for a brand-new or fully-exited position), i.e. an
+    approximation of the dollar amount actually bought or sold. A
+    position's value/portfolio-weight can rise or fall purely from the
+    stock's price moving even with zero trading, so ranking by shares
+    isolates actual buying/selling activity -- but a raw share-count change
+    means nothing without knowing the stock's price (10,000 shares of a $5
+    stock vs. a $500 one are very different trades), so it's the per-share
+    price that puts every position's share change on the same ($) footing.
+    13F filings don't disclose intra-quarter trade dates/prices, so this is
+    necessarily an approximation rather than the actual dollars traded.
+
+    all_positions rows (every current-or-prior holding, sorted by
+    portfolio_pct descending): the same fields, plus "delta_shares_pct",
+    "share_price", "prev_share_price", "prev_value_m", "delta_value_pct",
+    and "prev_portfolio_pct". The delta_*_pct fields are relative percent
+    changes (None for a brand-new position, -100 for one fully exited).
+    "delta_pct" there is instead a percentage-POINT change in portfolio
+    allocation, not a relative percent change. share_price/prev_share_price
+    are None for a position with no shares held that quarter (brand-new or
+    fully-exited).
+
+    All percents are already-multiplied numbers, e.g. 1.57 for 1.57%;
+    shares/value (including delta_shares_m/delta_shares_value_m) are in
+    millions. Checks the repo-committed top-300-by-AUM snapshot first
+    (see build_top_managers) -- those need no live SEC round-trip at
+    all -- then the disk cache (see module notes above), so a repeat
+    lookup of any other manager, by anyone, still skips the several live
+    SEC round-trips and the XML parsing.
+
+    A snapshot entry's all_positions is capped at _MAX_SNAPSHOT_POSITIONS
+    (result["positions_truncated"] says whether this manager hit that
+    cap) so the precomputed file stays a sane size -- pass
+    skip_snapshot=True to bypass it and fetch the real, complete list
+    live instead (see dash_app.py's download_positions, which needs the
+    full list rather than the snapshot's capped one)."""
+    if not skip_snapshot:
+        snapshot_hit = top_managers_snapshot_entry(cik)
+        if snapshot_hit is not None:
+            return apply_split_adjustments(snapshot_hit, top_n=top_n) if adjust_splits else snapshot_hit
+
+    cached = _load_holdings_comparison_from_disk(cik)
+    if cached is not None:
+        return apply_split_adjustments(cached, top_n=top_n) if adjust_splits else cached
+
+    filings = list_13f_filings(session, cik, count=40)
+    if len(filings) < 2:
+        raise FilingDataError("Fewer than two quarterly 13F-HR filings found for this manager.")
+
+    latest_period, manager_name, latest_holdings = get_filing_holdings(
+        session, cik, filings[0]["accession"])
+    previous_period, _, previous_holdings = get_filing_holdings(
+        session, cik, filings[1]["accession"])
+
+    result = _compare_holdings(manager_name, latest_period, latest_holdings,
+                               previous_period, previous_holdings, top_n)
     # Cached unadjusted, so a later split-factor update applies cleanly.
     _save_holdings_comparison_to_disk(cik, result)
     return apply_split_adjustments(result, top_n=top_n) if adjust_splits else result
@@ -1433,6 +1477,113 @@ def fetch_manager_comparison_by_cik(cik, session=None, user_agent=None, top_n=10
         raise FilingDataError(f"Invalid CIK: {cik!r}")
 
     result = build_holdings_comparison(session, cik, top_n=top_n, skip_snapshot=skip_snapshot)
+    result["cik"] = cik
+    result["resolved_name"] = result["manager_name"]
+    return result
+
+
+# ---------------------------------------------------------------------------
+# Past quarters: the Managers tab's quarter dropdown. Everything above
+# compares a manager's two most recent filings; these compare any earlier
+# quarter with the filing before it.
+# ---------------------------------------------------------------------------
+
+def quarter_ends_back(latest_period, count=8):
+    """ISO quarter-end dates from `latest_period` back, newest first:
+    "2026-06-30" -> ["2026-06-30", "2026-03-31", "2025-12-31", ...]."""
+    try:
+        d = date.fromisoformat(latest_period)
+    except (TypeError, ValueError):
+        return []
+    year, quarter = d.year, (d.month - 1) // 3 + 1
+    out = []
+    for _ in range(count):
+        month = quarter * 3
+        last_day = (date(year + (month == 12), month % 12 + 1, 1) - timedelta(days=1)).day
+        out.append(date(year, month, last_day).isoformat())
+        quarter -= 1
+        if quarter == 0:
+            year, quarter = year - 1, 4
+    return out
+
+
+# A filing's period of report never changes -- remembered per accession so
+# repeat quarter picks don't re-read primary docs.
+_filing_period_cache = {}
+
+
+def _filing_period(session, cik, accession):
+    key = (cik, accession)
+    if key not in _filing_period_cache:
+        primary = ET.fromstring(_get(session, f"{ARCHIVES_URL}/{cik}/{accession.replace('-', '')}"
+                                              "/primary_doc.xml").content)
+        raw = (primary.findtext(".//e:periodOfReport", namespaces={"e": "http://www.sec.gov/edgar/thirteenffiler"})
+               or "").strip()
+        try:
+            _filing_period_cache[key] = datetime.strptime(raw, "%m-%d-%Y").date().isoformat()
+        except ValueError:
+            _filing_period_cache[key] = raw or None
+    return _filing_period_cache[key]
+
+
+def _cap_positions(comparison):
+    """Same cap the top-managers snapshot uses, so a huge filer (BlackRock:
+    ~5,000 positions) doesn't ship its whole list to the browser; the CSV
+    export fetches the full list instead (full=True)."""
+    positions = comparison["all_positions"]
+    if len(positions) <= _MAX_SNAPSHOT_POSITIONS:
+        return {**comparison, "positions_truncated": False}
+    return {**comparison, "all_positions": positions[:_MAX_SNAPSHOT_POSITIONS], "positions_truncated": True}
+
+
+def fetch_manager_comparison_for_period(cik, period, session=None, top_n=10, full=False):
+    """Like fetch_manager_comparison_by_cik, but for the quarter ending
+    `period` (ISO date) compared with the filing before it, rather than the
+    two most recent. Raises FilingDataError if the manager has no 13F-HR for
+    that quarter (or none before it to compare against).
+
+    Always a live SEC fetch the first time (the top-managers snapshot only
+    covers the latest quarter), then cached on disk. all_positions is capped
+    like the snapshot's unless full=True. Split adjustments only exist for
+    the latest quarter pair (see apply_split_adjustments), so an older
+    quarter's share counts are as filed."""
+    try:
+        cik = int(cik)
+    except (TypeError, ValueError):
+        raise FilingDataError(f"Invalid CIK: {cik!r}")
+    session = session or requests.Session()
+
+    result = _load_period_comparison_from_disk(cik, period)
+    if result is None:
+        filings = list_13f_filings(session, cik, count=40)
+        # Filings are newest-filed first, so periods run roughly newest
+        # first too: take the first filing for `period` (a re-filed quarter's
+        # newest), then the first one after it for an earlier quarter.
+        target = previous = None
+        for f in filings:
+            fp = _filing_period(session, cik, f["accession"])
+            if not fp:
+                continue
+            if target is None:
+                if fp == period:
+                    target = f
+                elif fp < period:
+                    break
+            elif fp < period:
+                previous = f
+                break
+        if target is None:
+            raise FilingDataError(f"No 13F-HR filing found for the quarter ending {period}.")
+        if previous is None:
+            raise FilingDataError(f"No earlier 13F-HR filing to compare the quarter ending {period} against.")
+
+        latest_period, manager_name, latest_holdings = get_filing_holdings(session, cik, target["accession"])
+        previous_period, _, previous_holdings = get_filing_holdings(session, cik, previous["accession"])
+        result = _compare_holdings(manager_name, latest_period, latest_holdings,
+                                   previous_period, previous_holdings, top_n)
+        _save_period_comparison_to_disk(cik, period, result)
+
+    result = apply_split_adjustments(result if full else _cap_positions(result), top_n=top_n)
     result["cik"] = cik
     result["resolved_name"] = result["manager_name"]
     return result
