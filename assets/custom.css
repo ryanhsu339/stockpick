@@ -973,6 +973,21 @@ details summary { cursor: pointer; color: var(--body-text); font-size: 13px; }
     border-radius: 50%;
     animation: spin 0.8s linear infinite;
 }
+/* Top Gainers/Losers: each card's dcc.Loading spinner sits at that card's
+   bottom center (where scroll-triggered "load more" rows appear), not its
+   middle -- see _movers_card. Targets only the overlay dcc.Loading adds
+   while loading (absolutely positioned, centering set inline). */
+.movers-loading > div[style*="position: absolute"] {
+    align-items: flex-end !important;
+    padding-bottom: 18px;
+    box-sizing: border-box;
+    pointer-events: none;
+}
+/* Card-colored backdrop so the spinner reads cleanly over the last row. */
+.movers-loading > div[style*="position: absolute"] .spinner {
+    background: var(--card-bg);
+    box-shadow: 0 0 0 6px var(--card-bg);
+}
 @keyframes spin {
     to { transform: rotate(360deg); }
 }

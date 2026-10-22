@@ -1492,14 +1492,29 @@ def _movers_card(title, container_id):
     # Leaderboard (see _politician_tracker_children) -- the
     # movers-scroll-poll clientside callbacks below rely on the container's
     # parentElement being this card's own overflowY:auto div.
-    return html.Div(
-        style={"flex": "1 1 420px", "minWidth": "0", "backgroundColor": "var(--card-bg)",
-               "border": "1px solid var(--border)", "borderRadius": "14px",
-               "padding": "0 20px 16px", "maxHeight": "480px", "overflowY": "auto"},
-        children=[
-            html.H3(title, style=_STICKY_CARD_TITLE_STYLE),
-            html.Div(id=container_id),
-        ],
+    #
+    # Each card gets its own dcc.Loading (not one around both), so only the
+    # card whose rows are loading shows a spinner -- pinned to that card's
+    # bottom center by .movers-loading in custom.css, where a scroll-
+    # triggered "load more" adds rows. The Loading's own wrapper, not the
+    # card, is the positioning box: the card scrolls, and a spinner inside
+    # it would scroll away with the rows. overlay_style: same override as
+    # the Politicians tab's Recent Trades/Leaderboard, keeping already-
+    # visible rows from blacking out on every load-more.
+    return dcc.Loading(
+        custom_spinner=html.Div(className="spinner"),
+        overlay_style={"visibility": "visible"},
+        parent_className="movers-loading",
+        parent_style={"flex": "1 1 420px", "minWidth": "0"},
+        children=html.Div(
+            style={"backgroundColor": "var(--card-bg)", "border": "1px solid var(--border)",
+                   "borderRadius": "14px", "padding": "0 20px 16px", "maxHeight": "480px",
+                   "overflowY": "auto"},
+            children=[
+                html.H3(title, style=_STICKY_CARD_TITLE_STYLE),
+                html.Div(id=container_id),
+            ],
+        ),
     )
 
 
@@ -1572,20 +1587,12 @@ def _company_tracker_children():
         html.P(_MOVERS_NOTE, id="company-movers-note", style={**_PARA_STYLE, "fontSize": "13px"}),
         html.Div(
             id="company-movers-wrap",
-            children=dcc.Loading(
-                custom_spinner=html.Div(className="spinner"),
-                # Same overlay_style override (and reasoning) as the
-                # Politicians tab's Recent Trades/Leaderboard -- keeps
-                # already-visible rows from blacking out on every
-                # scroll-triggered "load more".
-                overlay_style={"visibility": "visible"},
-                children=html.Div(
-                    style={"display": "flex", "gap": "48px", "flexWrap": "wrap"},
-                    children=[
-                        _movers_card("Today's Top Gainers", "top-gainers-container"),
-                        _movers_card("Today's Top Losers", "top-losers-container"),
-                    ],
-                ),
+            children=html.Div(
+                style={"display": "flex", "gap": "48px", "flexWrap": "wrap"},
+                children=[
+                    _movers_card("Today's Top Gainers", "top-gainers-container"),
+                    _movers_card("Today's Top Losers", "top-losers-container"),
+                ],
             ),
         ),
         # Full, already-sorted lists live in the *-records stores; only a
