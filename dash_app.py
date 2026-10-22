@@ -2294,13 +2294,20 @@ _TOP_BUYS_SORTS = {
 _POL_MONEY_FORMAT = Format(precision=0, scheme=Scheme.fixed, group=True)
 _POL_COUNT_FORMAT = Format(precision=0, scheme=Scheme.fixed)
 
-POLITICIAN_MOVE_COLUMNS = [
-    {"name": "Ticker", "id": "ticker"},
-    {"name": "Type", "id": "transaction_type"},
-    {"name": "Date", "id": "transaction_date"},
-    {"name": "Amount Low ($)", "id": "amount_low", "type": "numeric", "format": _POL_MONEY_FORMAT},
-    {"name": "Amount High ($)", "id": "amount_high", "type": "numeric", "format": _POL_MONEY_FORMAT},
-]
+# Top Increases/Decreases: one "$1K – $15K" range column (amount_range, see
+# _politician_move_row_to_record) instead of separate low/high columns --
+# same format as the Most Recent Trades card.
+def _politician_move_columns(amount_label):
+    return [
+        {"name": "Ticker", "id": "ticker"},
+        {"name": "Type", "id": "transaction_type"},
+        {"name": "Date", "id": "transaction_date"},
+        {"name": amount_label, "id": "amount_range"},
+    ]
+
+
+POLITICIAN_INCREASE_COLUMNS = _politician_move_columns("Amount Bought ($)")
+POLITICIAN_DECREASE_COLUMNS = _politician_move_columns("Amount Sold ($)")
 POLITICIAN_POSITIONS_COLUMNS = [
     {"name": "Ticker", "id": "ticker"},
     {"name": "Est. Net Value ($)", "id": "net_estimated_value", "type": "numeric", "format": _POL_MONEY_FORMAT},
@@ -2313,8 +2320,7 @@ _POLITICIAN_COLUMN_WIDTHS = {
     "ticker": "90px",
     "transaction_type": "110px",
     "transaction_date": "100px",
-    "amount_low": "120px",
-    "amount_high": "120px",
+    "amount_range": "150px",
     "net_estimated_value": "130px",
     "total_bought": "120px",
     "total_sold": "110px",
@@ -2776,7 +2782,7 @@ def _politician_tracker_children(initial_pending=None):
                     style={"flex": "1 1 420px", "minWidth": "0"},
                     children=[
                         html.H3("Top Increases (Last 12 Months)", style=_HEADER_STYLE),
-                        dash_table.DataTable(id="politician-increases-table", columns=POLITICIAN_MOVE_COLUMNS,
+                        dash_table.DataTable(id="politician-increases-table", columns=POLITICIAN_INCREASE_COLUMNS,
                                               data=[], cell_selectable=False, **_POLITICIAN_TABLE_STYLE),
                     ],
                 ),
@@ -2784,7 +2790,7 @@ def _politician_tracker_children(initial_pending=None):
                     style={"flex": "1 1 420px", "minWidth": "0"},
                     children=[
                         html.H3("Top Decreases (Last 12 Months)", style=_HEADER_STYLE),
-                        dash_table.DataTable(id="politician-decreases-table", columns=POLITICIAN_MOVE_COLUMNS,
+                        dash_table.DataTable(id="politician-decreases-table", columns=POLITICIAN_DECREASE_COLUMNS,
                                               data=[], cell_selectable=False, **_POLITICIAN_TABLE_STYLE),
                     ],
                 ),
@@ -6662,8 +6668,7 @@ def _politician_move_row_to_record(t):
         "ticker": t["ticker"],
         "transaction_type": t["transaction_type"],
         "transaction_date": t["transaction_date"],
-        "amount_low": t["amount_low"],
-        "amount_high": t["amount_high"],
+        "amount_range": f"{_fmt_amount(t['amount_low'])} – {_fmt_amount(t['amount_high'])}",
     }
 
 
@@ -6798,7 +6803,8 @@ def _fmt_amount(v):
     if v is None:
         return "—"
     if v >= 1e6:
-        return f"${v / 1e6:.1f}M"
+        # "$1M"/"$5M", not "$1.0M" -- but keeps "$2.5M".
+        return f"${v / 1e6:.1f}".removesuffix(".0") + "M"
     if v >= 1e3:
         return f"${v / 1e3:.0f}K"
     return f"${v:,.0f}"
