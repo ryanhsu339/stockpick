@@ -6308,6 +6308,19 @@ def sort_top_buys(sort_key, records):
 _EMPTY_BAR_LIST = _build_delta_bar_list([], True)
 
 
+# Manager status line once a lookup succeeds: the fund's name at the
+# section heading's size (h3 in custom.css), then its CIK and the two
+# quarters compared at the line's usual size.
+_MANAGER_NAME_STYLE = {"fontSize": "20px", "fontWeight": "600", "letterSpacing": "-0.005em",
+                       "color": _HEADER_TEXT_COLOR}
+
+
+def _manager_found_status(name, result):
+    return [html.Span(name, style=_MANAGER_NAME_STYLE),
+            # Non-breaking space: "(CIK 1067983)" wraps as one piece on a phone.
+            html.Span(f" (CIK {result['cik']}) — {result['latest_period']} vs {result['previous_period']}")]
+
+
 @app.callback(
     Output("manager-status-msg", "children"),
     Output("increases-table-container", "children"),
@@ -6350,8 +6363,7 @@ def generate_manager(_n_submit, query):
         return (f"Network error talking to SEC EDGAR: {e}", _EMPTY_BAR_LIST, _EMPTY_BAR_LIST, [], None, None,
                 [], _POSITIONS_PAGE_SIZE, True, None, [])
 
-    status = (f"Found: {result['resolved_name']} (CIK {result['cik']}) — "
-              f"{result['latest_period']} vs {result['previous_period']}")
+    status = _manager_found_status(result["resolved_name"], result)
     companies = load_ticker_map(_session)
     increases = [_manager_row_to_record(r, companies) for r in result["top_increases"]]
     decreases = [_manager_row_to_record(r, companies) for r in result["top_decreases"]]
@@ -6410,8 +6422,7 @@ def select_manager_candidate(candidate_clicks, suggestion_clicks, top_buy_manage
         return (f"Network error talking to SEC EDGAR: {e}", _EMPTY_BAR_LIST, _EMPTY_BAR_LIST, [], None, None,
                 no_update, no_update, [], _POSITIONS_PAGE_SIZE, True, None, [], scroll)
 
-    status = (f"Found: {result['resolved_name']} (CIK {result['cik']}) — "
-              f"{result['latest_period']} vs {result['previous_period']}")
+    status = _manager_found_status(result["resolved_name"], result)
     companies = load_ticker_map(_session)
     increases = [_manager_row_to_record(r, companies) for r in result["top_increases"]]
     decreases = [_manager_row_to_record(r, companies) for r in result["top_decreases"]]
@@ -6495,8 +6506,7 @@ def load_manager_quarter(period, meta):
     # meta's name, not the result's: the snapshot and the raw filings
     # capitalize some names differently ("BERKSHIRE HATHAWAY INC" vs
     # "Berkshire Hathaway Inc"), which read as a different manager.
-    status = (f"Found: {meta.get('name') or result['resolved_name']} (CIK {result['cik']}) — "
-              f"{result['latest_period']} vs {result['previous_period']}")
+    status = _manager_found_status(meta.get("name") or result["resolved_name"], result)
     companies = load_ticker_map(_session)
     increases = [_manager_row_to_record(r, companies) for r in result["top_increases"]]
     decreases = [_manager_row_to_record(r, companies) for r in result["top_decreases"]]
