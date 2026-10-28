@@ -19,8 +19,6 @@ jobs:
 
       - run: pip install -r requirements.txt
 
-      - run: python build_congress_snapshot.py
-
       # Default --quarters-back 1: a filer only needs to show up in one
       # recent quarter's index to stay listed, so the daily run only
       # needs the current quarter, not a full rescan (see
@@ -29,10 +27,24 @@ jobs:
 
       - run: python build_ticker_map.py
 
+      # Last, and independent of the two above: it depends on the House and
+      # Senate disclosure sites, and when either refuses (the Senate site
+      # has been returning 403 since 2026-10-23), the other snapshots should
+      # still refresh. A failure here still fails the run, so it's visible.
+      - run: python build_congress_snapshot.py
+
+      # always(): commit whatever did refresh, even if a step above failed --
+      # the build scripts only write a file once it's fully built, so a
+      # failed step leaves its committed snapshot as it was.
       - name: Commit and push if changed
+        if: always()
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add data/congress_activity_summary.json data/congress_member_positions.json data/thirteenf_manager_directory.json data/ticker_map.json
-          git diff --cached --quiet || git commit -m "Refresh data snapshots"
+          git diff --cached --quiet && exit 0
+          git commit -m "Refresh data snapshots"
+          # Someone else may have pushed to main during the run (what failed
+          # the 2026-10-16 run); rebase this one data commit on top.
+          git pull --rebase origin main
           git push

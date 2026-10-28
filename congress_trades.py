@@ -664,7 +664,7 @@ def _member_positions_key(candidate):
 _MEMBER_POSITIONS_SNAPSHOT_PATH = Path(__file__).parent / "data" / "congress_member_positions.json"
 
 
-def build_all_member_positions(session=None, max_workers=10, top_n=10):
+def build_all_member_positions(session=None, max_workers=10, top_n=10, chambers=("house", "senate")):
     """Precompute fetch_politician_comparison_by_candidate for every current
     House member and senator (see build_congress_snapshot.py -- this is a
     CI-only batch job, never run from the live app; a single member's
@@ -674,9 +674,12 @@ def build_all_member_positions(session=None, max_workers=10, top_n=10):
     member with no parseable transactions, or whose fetch fails outright,
     is simply omitted -- load_member_positions_snapshot's caller treats a
     missing key as "no data for this member" rather than an error.
+    `chambers` limits it to one chamber (see build_congress_snapshot.py,
+    which keeps the previous Senate data when the Senate site refuses).
     """
     session = _session_with_ua(session)
-    candidates = list_all_house_members(session=session) + list_all_senators(session=session)
+    candidates = ((list_all_house_members(session=session) if "house" in chambers else [])
+                  + (list_all_senators(session=session) if "senate" in chambers else []))
 
     results = {}
     with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as pool:
@@ -911,7 +914,7 @@ def _parse_one_filing(row, session):
 
 
 def build_activity_summary(session=None, window_days=RECENT_ACTIVITY_WINDOW_DAYS,
-                            max_workers=5, force_refresh=False):
+                            max_workers=5, force_refresh=False, chambers=("house", "senate")):
     """Cross-chamber leaderboard data, built once and cached (this is
     expensive -- see the module notes above). Returns
     {'recent_trades': [...], 'leaderboard': [...]}, both flat lists of
@@ -947,7 +950,8 @@ def build_activity_summary(session=None, window_days=RECENT_ACTIVITY_WINDOW_DAYS
 
         session = _session_with_ua(session)
         cutoff = date.today() - timedelta(days=window_days)
-        filing_rows = _house_filing_rows_since(cutoff, session) + _senate_filing_rows_since(cutoff, session)
+        filing_rows = ((_house_filing_rows_since(cutoff, session) if "house" in chambers else [])
+                       + (_senate_filing_rows_since(cutoff, session) if "senate" in chambers else []))
 
         all_transactions = []
         with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as pool:

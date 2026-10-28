@@ -2358,6 +2358,24 @@ _POLITICIAN_FILTER_FIELDS = [field for field, _label in _POLITICIAN_POSITION_FIL
 # Cross-chamber summary tables (above the House/Senate nav): "member" is
 # the blue left-aligned column here instead of "ticker"/"issuer".
 _CHAMBER_LABELS = {"house": "House", "senate": "Senate"}
+# The daily refresh keeps the last good Senate data when the Senate's
+# disclosure site refuses it (see build_congress_snapshot.py) -- say so once
+# it's more than a couple of days behind the House data.
+_SENATE_STALE_AFTER_DAYS = 2
+
+
+def _senate_stale_note():
+    try:
+        as_of = date.fromisoformat(load_activity_summary_snapshot().get("senate_as_of") or "")
+    except (OSError, ValueError, TypeError):
+        return None
+    if (date.today() - as_of).days <= _SENATE_STALE_AFTER_DAYS:
+        return None
+    return html.P(f"Senate trades are as of {as_of:%b} {as_of.day}, {as_of.year}: the Senate's disclosure site "
+                  "isn't currently available for automated refresh. House trades are up to date.",
+                  style={**_PARA_STYLE, "fontSize": "13px", "color": "var(--text)"})
+
+
 _ACTIVITY_WINDOW_NOTE = (
     "Covers filings from roughly the last 6 months across every current House member and "
     "senator. Does not include activity before elected to office therefore portfolio values "
@@ -2694,6 +2712,7 @@ def _politician_tracker_children(initial_pending=None):
         html.P("Buy/sell activity disclosed by members of Congress under the STOCK Act "
                "(Periodic Transaction Reports).", style=_PARA_STYLE),
         html.P(_ACTIVITY_WINDOW_NOTE, style={**_PARA_STYLE, "fontSize": "13px"}),
+        _senate_stale_note(),
         dcc.Loading(
             custom_spinner=html.Div(className="spinner"),
             # dcc.Loading's default overlay_style hides its children
