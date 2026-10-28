@@ -140,7 +140,7 @@ _overview_cache = {}
 def fetch_ticker_overview(ticker):
     """Return a dict of yfinance's own overview stats for `ticker` (market
     cap, trailing P/E, trailing-twelve-month revenue, net margin, exchange,
-    sector, business summary, analyst price target and buy/hold/sell split,
+    sector, industry, business summary, analyst price target and buy/hold/sell split,
     last fiscal year-end as an ISO date) for the Company Tracker's KPI tiles
     and description. Individual
     fields come back None when yfinance doesn't have them for this ticker
@@ -174,6 +174,7 @@ def _fetch_ticker_overview_uncached(ticker):
         "exchange": info.get("fullExchangeName") or info.get("exchange"),
         "sector": info.get("sector"),
         "business_summary": info.get("longBusinessSummary"),
+        "industry": info.get("industry"),
         "current_price": info.get("currentPrice") or info.get("regularMarketPrice"),
         "target_mean_price": info.get("targetMeanPrice"),
         "fiscal_year_end": (date.fromtimestamp(info["lastFiscalYearEnd"]).isoformat()

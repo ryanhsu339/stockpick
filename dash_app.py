@@ -5533,13 +5533,20 @@ _NON_SENTENCE_END = re.compile(r"(?:Inc|Corp|Co|Ltd|Plc|Bros|Jr|Sr|St|Mr|Mrs|Dr|
 _DESCRIPTION_SHORT_CHARS = 220
 
 
-def _company_description(summary):
-    """Yahoo's business summary (often 1-2K characters) as its first
-    sentence or two, with the rest behind a native <details> "Read more"
-    toggle -- no callback needed to expand it. Empty when Yahoo has none."""
+def _company_description(summary, industry=None):
+    """Yahoo's industry ("Semiconductors"), then its business summary
+    (often 1-2K characters) as its first sentence or two, with the rest
+    behind a native <details> "Read more" toggle -- no callback needed to
+    expand it. Empty when Yahoo has neither (e.g. most funds)."""
     summary = (summary or "").strip()
+    industry_line = None
+    if industry:
+        industry_line = html.Div(
+            [html.Span("Industry", style=_KPI_TILE_LABEL_STYLE),
+             html.Span(industry, style={"fontSize": "14px", "color": "var(--text)"})],
+            style={"display": "flex", "alignItems": "baseline", "gap": "8px", "marginBottom": "6px"})
     if not summary:
-        return None
+        return html.Div(industry_line, style={"marginTop": "16px"}) if industry_line else None
     sentences, current = [], ""
     for chunk in re.split(r"(?<=\.)\s+(?=[A-Z])", summary):
         current = f"{current} {chunk}".strip()
@@ -5554,7 +5561,7 @@ def _company_description(summary):
     if len(short) < _DESCRIPTION_SHORT_CHARS and rest and len(short) + len(rest[0]) <= 360:
         short, rest = f"{short} {rest[0]}", rest[1:]
     style = {**_PARA_STYLE, "fontSize": "14px", "lineHeight": "1.6", "margin": "0", "maxWidth": "900px"}
-    children = [html.P(short, style=style)]
+    children = [industry_line, html.P(short, style=style)] if industry_line else [html.P(short, style=style)]
     if rest:
         children.append(html.Details(className="company-description-more", children=[
             html.Summary([html.Span("Read more", className="when-closed"),
@@ -5591,7 +5598,8 @@ def update_company_overview(store, rows_store):
     description = None
     if store:
         try:
-            description = _company_description(fetch_ticker_overview(store["ticker"]).get("business_summary"))
+            overview = fetch_ticker_overview(store["ticker"])
+            description = _company_description(overview.get("business_summary"), overview.get("industry"))
         except PriceDataError:
             pass
     return meta_text, title, kpi_label, tiles, kpi_label, description
