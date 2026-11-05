@@ -48,6 +48,7 @@ from dash.dash_table.Format import Format, Scheme, Sign
 from dash.exceptions import PreventUpdate
 
 import accounts
+from fund_holdings import fetch_top_holdings
 import seo_pages
 import tracking
 from company_growth_calc import (
@@ -66,7 +67,7 @@ from company_growth_calc import (
 )
 from stock_price import (HoldingsDataError, LIVE_RANGE_KEYS, PriceDataError, RANGE_KEYS, fetch_day_change_pcts,
                           fetch_day_movers, fetch_fund_name, fetch_earnings_history, fetch_previous_close,
-                          fetch_price_history, fetch_ticker_overview, fetch_top_holdings)
+                          fetch_price_history, fetch_ticker_overview)
 from thirteenf import (
     FilingDataError,
     ManagerLookupError,
@@ -4559,7 +4560,7 @@ def _run_company_lookup(query, years):
         # and falls through to price-only below.
         if isinstance(e, NoXbrlFactsError):
             try:
-                holdings_df = fetch_top_holdings(company["ticker"])
+                holdings_df = fetch_top_holdings(company["ticker"], session=_session)
             except HoldingsDataError:
                 holdings_df = None
             if holdings_df is not None:
@@ -4636,6 +4637,14 @@ def _run_company_lookup(query, years):
     return outputs, None
 
 
+def _fmt_as_of(iso_date):
+    try:
+        d = date.fromisoformat(iso_date)
+    except ValueError:
+        return iso_date
+    return f"{d:%b} {d.day}, {d.year}"
+
+
 def _run_etf_lookup(ticker, title=None, holdings_df=None):
     """ETFs/mutual funds don't have 10-K financials or a DCF to compute, so
     this skips the SEC pipeline entirely and shows top holdings instead.
@@ -4644,12 +4653,15 @@ def _run_etf_lookup(ticker, title=None, holdings_df=None):
     has it."""
     if holdings_df is None:
         try:
-            holdings_df = fetch_top_holdings(ticker)
+            holdings_df = fetch_top_holdings(ticker, session=_session)
         except HoldingsDataError as e:
             return _empty_company_outputs(f"{ticker}: {e}", mode="fund")
 
-    status = ("ETF/Fund: financials and DCF valuation aren't available for funds (no 10-K/XBRL data); "
-              "showing top holdings instead.")
+    # as_of is set only for holdings from an SEC filing (see fund_holdings),
+    # which can be months older than Yahoo's.
+    as_of = holdings_df.attrs.get("as_of")
+    source = f"showing top holdings as of {_fmt_as_of(as_of)}, from the fund's latest SEC filing." if as_of         else "showing top holdings instead."
+    status = f"ETF/Fund: financials and DCF valuation aren't available for funds (no 10-K/XBRL data); {source}"
     holdings_data = [
         {"symbol": r.symbol, "name": r.name, "holding_pct": round(r.holding_pct, 2)}
         for r in holdings_df.itertuples()
@@ -4844,7 +4856,7 @@ def _fast_lookup_query(triggered, n_submit_query, candidate_clicks, suggestion_c
     if triggered == holdings_table_id:
         if not active_cell or active_cell.get("column_id") != "symbol" or not holdings_data:
             return None
-        return holdings_data[active_cell["row"]]["symbol"]
+        return holdings_data[active_cell["row"]]["symbol"] or None
     if isinstance(triggered, dict):
         if not any(candidate_clicks or []) and not any(suggestion_clicks or []):
             return None
@@ -5012,6 +5024,8 @@ def select_company_candidate(candidate_clicks, suggestion_clicks, active_cell, h
         if not active_cell or active_cell.get("column_id") != "symbol":
             raise PreventUpdate
         ticker = holdings_data[active_cell["row"]]["symbol"]
+        if not ticker:  # a holding from an SEC filing with no matching ticker
+            raise PreventUpdate
     else:
         if not any(candidate_clicks) and not any(suggestion_clicks):
             raise PreventUpdate  # fires with all-zero clicks whenever the button list re-renders
@@ -5069,6 +5083,8 @@ def select_company_candidate_2(candidate_clicks, suggestion_clicks, active_cell,
         if not active_cell or active_cell.get("column_id") != "symbol":
             raise PreventUpdate
         ticker = holdings_data[active_cell["row"]]["symbol"]
+        if not ticker:  # a holding from an SEC filing with no matching ticker
+            raise PreventUpdate
     else:
         if not any(candidate_clicks) and not any(suggestion_clicks):
             raise PreventUpdate
