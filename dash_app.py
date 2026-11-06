@@ -2372,8 +2372,7 @@ def _senate_stale_note():
         return None
     if (date.today() - as_of).days <= _SENATE_STALE_AFTER_DAYS:
         return None
-    return html.P(f"Senate trades are as of {as_of:%b} {as_of.day}, {as_of.year}: the Senate's disclosure site "
-                  "isn't currently available for automated refresh. House trades are up to date.",
+    return html.P(f"Senate trades as of {as_of:%b} {as_of.day}, {as_of.year}",
                   style={**_PARA_STYLE, "fontSize": "13px", "color": "var(--text)"})
 
 
