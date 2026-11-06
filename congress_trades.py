@@ -454,7 +454,15 @@ def list_all_senators(session=None, years_back=4, force_refresh=False):
     if force_refresh:
         _senate_index_cache = None
     session = _session_with_ua(session)
-    roster = _scan_senate_roster(session, years_back=years_back)
+    try:
+        roster = _scan_senate_roster(session, years_back=years_back)
+    except (PoliticianDataError, requests.RequestException):
+        # The Senate site refuses automated access (see build_congress_snapshot):
+        # the senators the positions snapshot has are the ones with data to show.
+        positions = load_member_positions_snapshot()
+        roster = [v["candidate"] for k, v in positions.items() if k.startswith("senate|")]
+        if not roster:
+            raise
     roster.sort(key=lambda c: (c["first"].lower(), c["last"].lower()))
     return roster
 
