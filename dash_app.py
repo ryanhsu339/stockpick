@@ -2799,8 +2799,6 @@ def _politician_tracker_children(initial_pending=None):
     value = initial_pending if initial_pending else default_value
     return [
         html.H2("Politician Tracker", style=_HEADER_STYLE),
-        html.P("Buy/sell activity disclosed by members of Congress under the STOCK Act "
-               "(Periodic Transaction Reports).", style=_PARA_STYLE),
         html.P(_ACTIVITY_WINDOW_NOTE, style={**_PARA_STYLE, "fontSize": "13px"}),
         _senate_stale_note(),
         dcc.Loading(
