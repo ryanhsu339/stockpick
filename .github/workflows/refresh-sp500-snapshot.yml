@@ -1,0 +1,36 @@
+name: Refresh S&P 500 snapshot
+
+# Weekly rather than with the daily snapshots: it costs one Yahoo request per
+# company, and index membership and industries rarely change.
+on:
+  schedule:
+    - cron: "0 12 * * 1"  # Mondays, 12:00 UTC (before the US open)
+  workflow_dispatch: {}
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - run: pip install -r requirements.txt
+
+      - run: python build_sp500_snapshot.py
+
+      - name: Commit and push if changed
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add data/sp500_constituents.json
+          git diff --cached --quiet && exit 0
+          git commit -m "Refresh S&P 500 snapshot"
+          # The daily snapshot job may have pushed to main during the run;
+          # rebase this one data commit on top.
+          git pull --rebase origin main
+          git push

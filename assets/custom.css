@@ -396,13 +396,13 @@ a:hover { color: var(--text); }
     #stock-header > * {
         grid-column: 1 / -1;
     }
-    /* Page heading, movers cards and the "Look Up a Stock" heading stay
-       on top, ahead of the toggle/search/name reorder below. */
+    /* Page heading, overview, movers cards and the "Look Up a Stock" heading
+       stay on top, ahead of the toggle/search/name reorder below. */
     #company-main-heading {
-        order: -6;
+        order: -7;
     }
-    #company-movers-note {
-        order: -5;
+    #market-overview-card {
+        order: -6;
     }
     #company-movers-wrap {
         order: -4;
@@ -994,6 +994,154 @@ details summary { cursor: pointer; color: var(--body-text); font-size: 13px; }
 .movers-loading > div[style*="position: absolute"] .spinner {
     background: var(--card-bg);
     box-shadow: 0 0 0 6px var(--card-bg);
+}
+/* Held open while the overview's text loads, so the page doesn't jump as much. */
+.market-overview-body {
+    min-height: 52px;
+}
+/* S&P 500 industry heatmap -- see _build_sp500_heatmap. Tile colors are fixed
+   in both themes (with white text), so only the chrome around them follows
+   the theme. The legend's stops match _HEATMAP_*_RGB in dash_app.py. */
+.heatmap-card-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    gap: 8px 24px;
+    flex-wrap: wrap;
+    margin-bottom: 12px;
+}
+.heatmap-legend {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px;
+    color: var(--body-text);
+}
+.heatmap-legend-bar {
+    width: 120px;
+    height: 8px;
+    border-radius: 2px;
+    background: linear-gradient(to right, rgb(194, 70, 58), rgb(58, 58, 55), rgb(27, 125, 81));
+}
+.heatmap-body {
+    position: relative;
+    min-height: 560px;
+    margin-top: 12px;
+}
+.heatmap-empty {
+    padding-top: 260px;
+    text-align: center;
+}
+.heatmap-map {
+    position: relative;
+    height: 560px;
+    overflow: hidden;
+}
+.heatmap-sector {
+    position: absolute;
+    display: flex;
+    flex-direction: column;
+    padding: 0 3px 3px 0;
+    box-sizing: border-box;
+}
+.heatmap-sector-label {
+    flex: 0 0 18px;
+    font-size: 11px;
+    line-height: 18px;
+    font-weight: 600;
+    color: var(--body-text);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.heatmap-sector-body {
+    position: relative;
+    flex: 1 1 auto;
+}
+.heatmap-tile {
+    position: absolute;
+    box-sizing: border-box;
+    border: 1px solid var(--card-bg);
+    border-radius: 3px;
+    overflow: hidden;
+    color: #ffffff;
+    container-type: size;
+}
+.heatmap-tile:hover {
+    border-color: var(--text);
+}
+.heatmap-tile-text {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    padding: 2px 4px;
+    box-sizing: border-box;
+    text-align: center;
+    line-height: 1.2;
+}
+/* Tiles only show what fits: nothing, then the %, then the name too, then
+   both larger. */
+.heatmap-tile-name,
+.heatmap-tile-pct {
+    display: none;
+}
+.heatmap-tile-name {
+    font-size: 11px;
+    max-height: calc(100% - 16px);
+    /* Whole lines only, so a name that doesn't fit never shows half a line. */
+    max-height: round(down, calc(100% - 16px), 1.2em);
+    overflow: hidden;
+}
+.heatmap-tile-pct {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px;
+    font-weight: 600;
+}
+@container (min-width: 46px) and (min-height: 18px) {
+    .heatmap-tile-pct { display: block; }
+}
+@container (min-width: 76px) and (min-height: 44px) {
+    .heatmap-tile-name { display: block; }
+}
+@container (min-width: 130px) and (min-height: 80px) {
+    .heatmap-tile-name { font-size: 13px; }
+    .heatmap-tile-pct { font-size: 14px; }
+}
+.heatmap-tooltip {
+    position: fixed;
+    z-index: 1000;
+    max-width: 280px;
+    padding: 8px 10px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: var(--card-bg);
+    color: var(--text);
+    font-size: 12px;
+    line-height: 1.5;
+    white-space: pre-line;
+    pointer-events: none;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);
+}
+.heatmap-tooltip::first-line {
+    font-weight: 600;
+}
+@media (max-width: 768px) {
+    /* Keeps the desktop layout's proportions and pans sideways inside the
+       card: squeezed to a phone's width, too few tiles could fit a label. */
+    .heatmap-body {
+        min-height: 480px;
+        overflow-x: auto;
+    }
+    .heatmap-map {
+        height: 480px;
+        width: 860px;
+    }
+    .heatmap-empty {
+        padding-top: 220px;
+    }
 }
 @keyframes spin {
     to { transform: rotate(360deg); }

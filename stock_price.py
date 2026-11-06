@@ -8,10 +8,13 @@ since it's a different data source with its own failure modes (Yahoo
 symbols can differ slightly from SEC tickers, e.g. share classes).
 """
 
+import json
 import threading
 import time
 from concurrent.futures import ThreadPoolExecutor
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
+from pathlib import Path
+from zoneinfo import ZoneInfo
 
 import yfinance as yf
 from yfinance.data import YfData
@@ -465,3 +468,90 @@ def fetch_day_movers(kind, count=100):
     movers.sort(key=lambda m: m["change_pct"], reverse=(kind == "gainers"))
     _movers_cache[kind] = (time.time(), movers)
     return movers
+
+
+# Written by build_sp500_snapshot.py: one {symbol, sector, industry} per
+# company in the index.
+SP500_SNAPSHOT_PATH = Path(__file__).parent / "data" / "sp500_constituents.json"
+_QUOTE_URL = "https://query1.finance.yahoo.com/v7/finance/quote"
+_QUOTE_BATCH_SIZE = 200
+_SP500_QUOTE_FIELDS = "marketCap,regularMarketChangePercent,regularMarketPrice,floatShares"
+_SP500_CACHE_TTL = 600
+_sp500_cache = None
+_MARKET_TZ = ZoneInfo("America/New_York")
+
+
+def _sp500_index_weight(quote):
+    """A stock's float-adjusted market cap as of the previous close, the same
+    basis the index weights by: a cap that already includes today's move would
+    overweight the day's winners. Uses the full market cap if Yahoo has no float."""
+    cap = quote["marketCap"]
+    if quote.get("floatShares") and quote.get("regularMarketPrice"):
+        cap = min(cap, quote["floatShares"] * quote["regularMarketPrice"])
+    return cap / (1 + quote["regularMarketChangePercent"] / 100)
+
+
+def _session_over_before(fetched_at, now):
+    """Whether no US session has run since `fetched_at` (a timestamp), so
+    quotes fetched then are still the latest. `now` is an aware datetime in
+    _MARKET_TZ. Holidays and early closes count as normal sessions, which only
+    costs a few needless refreshes. The session runs to 16:15 here, not 16:00,
+    so the last fetch of the day picks up the closing auction's final prices."""
+    market_open = now.replace(hour=9, minute=30, second=0, microsecond=0)
+    close = now.replace(hour=16, minute=15, second=0, microsecond=0)
+    if now.weekday() < 5 and market_open <= now < close:
+        return False
+    while close.weekday() >= 5 or close > now:
+        close -= timedelta(days=1)
+    return fetched_at >= close.timestamp()
+
+
+def fetch_sp500_industry_returns():
+    """Return one dict per Yahoo industry in the S&P 500 (sector, industry,
+    avg_change_pct, weight_pct, count), largest first. avg_change_pct is the
+    average of today's % change (or the last session's) across its stocks,
+    weighted by _sp500_index_weight; weight_pct is its share of the index's
+    total weight. Raises PriceDataError if the constituents snapshot or Yahoo's
+    quotes can't be read."""
+    global _sp500_cache
+    if _sp500_cache and (time.time() - _sp500_cache[0] < _SP500_CACHE_TTL
+                         or _session_over_before(_sp500_cache[0], datetime.now(_MARKET_TZ))):
+        return _sp500_cache[1]
+    try:
+        companies = json.loads(SP500_SNAPSHOT_PATH.read_text(encoding="utf-8"))
+        # Yahoo's quote endpoint is the one call that returns these fields for
+        # hundreds of symbols at once; yfinance has no public wrapper for it,
+        # so it goes through the same authenticated YfData session yfinance uses.
+        quotes = {}
+        for i in range(0, len(companies), _QUOTE_BATCH_SIZE):
+            symbols = ",".join(c["symbol"] for c in companies[i:i + _QUOTE_BATCH_SIZE])
+            response = YfData().get(_QUOTE_URL, params={"symbols": symbols,
+                                                        "fields": _SP500_QUOTE_FIELDS})
+            for q in response.json()["quoteResponse"]["result"]:
+                quotes[q["symbol"]] = q
+    except Exception as e:
+        raise PriceDataError(f"Could not fetch S&P 500 quotes: {e}") from e
+
+    groups = {}
+    for c in companies:
+        q = quotes.get(c["symbol"]) or {}
+        if q.get("marketCap") and q.get("regularMarketChangePercent") is not None:
+            groups.setdefault((c["sector"], c["industry"]), []).append(
+                (_sp500_index_weight(q), q["regularMarketChangePercent"]))
+    if not groups:
+        raise PriceDataError("Yahoo returned no usable S&P 500 quotes")
+
+    total_cap = sum(cap for stocks in groups.values() for cap, _ in stocks)
+    industries = [
+        {
+            "sector": sector,
+            "industry": industry,
+            "avg_change_pct": sum(cap * pct for cap, pct in stocks) / sum(cap for cap, _ in stocks),
+            "weight_pct": sum(cap for cap, _ in stocks) / total_cap * 100,
+            "count": len(stocks),
+        }
+        for (sector, industry), stocks in groups.items()
+    ]
+    industries.sort(key=lambda row: row["weight_pct"], reverse=True)
+    _sp500_cache = (time.time(), industries)
+    return industries

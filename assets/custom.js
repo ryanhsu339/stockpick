@@ -435,3 +435,36 @@ document.addEventListener("focusin", function (e) {
         }
     });
 })();
+
+// Hover tooltip for the S&P 500 heatmap's tiles, whose details live in their
+// aria-label (see _build_heatmap_tile). Listens on document since the tiles
+// are rebuilt by a callback; a tap fires mousemove too, so this also works on
+// phones, where it's the only way to read a tile too small to label.
+(function () {
+    var tooltip = null;
+    function hide() {
+        if (tooltip) tooltip.style.display = "none";
+    }
+    document.addEventListener("mousemove", function (event) {
+        var tile = event.target.closest ? event.target.closest(".heatmap-tile") : null;
+        if (!tile) {
+            hide();
+            return;
+        }
+        if (!tooltip) {
+            tooltip = document.createElement("div");
+            tooltip.className = "heatmap-tooltip";
+            document.body.appendChild(tooltip);
+        }
+        tooltip.textContent = tile.getAttribute("aria-label");
+        tooltip.style.display = "block";
+        // Flip to the cursor's other side rather than run off the viewport.
+        var box = tooltip.getBoundingClientRect();
+        var left = event.clientX + 14, top = event.clientY + 14;
+        if (left + box.width > window.innerWidth - 8) left = Math.max(8, event.clientX - box.width - 14);
+        if (top + box.height > window.innerHeight - 8) top = Math.max(8, event.clientY - box.height - 14);
+        tooltip.style.left = left + "px";
+        tooltip.style.top = top + "px";
+    }, {passive: true});
+    document.addEventListener("scroll", hide, {capture: true, passive: true});
+})();

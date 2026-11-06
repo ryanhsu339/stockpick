@@ -67,7 +67,7 @@ from company_growth_calc import (
 )
 from stock_price import (HoldingsDataError, LIVE_RANGE_KEYS, PriceDataError, RANGE_KEYS, fetch_day_change_pcts,
                           fetch_day_movers, fetch_fund_name, fetch_earnings_history, fetch_previous_close,
-                          fetch_price_history, fetch_ticker_overview)
+                          fetch_price_history, fetch_sp500_industry_returns, fetch_ticker_overview)
 from thirteenf import (
     FilingDataError,
     ManagerLookupError,
@@ -1521,6 +1521,65 @@ def _movers_card(title, container_id):
     )
 
 
+_OVERVIEW_CARD_STYLE = {"backgroundColor": "var(--card-bg)", "border": "1px solid var(--border)",
+                        "borderRadius": "14px", "padding": "16px 20px", "marginTop": "40px", "marginBottom": "24px"}
+_OVERVIEW_LABEL = "Daily Overview:"
+_HEATMAP_CARD_STYLE = {"backgroundColor": "var(--card-bg)", "border": "1px solid var(--border)",
+                       "borderRadius": "14px", "padding": "0 20px 16px", "marginTop": "48px"}
+_HEATMAP_TITLE = "Today's Return by S&P 500 Industry"
+# Below this, an "industry" is mostly one company's own news -- unless it's
+# too big a part of the index to leave out (Apple alone is Consumer Electronics).
+_INDUSTRY_MIN_STOCKS = 3
+_INDUSTRY_EXEMPT_WEIGHT_PCT = 0.5
+_HEATMAP_NOTE = ("Each tile is an industry, sized by its share of the index's float-adjusted market cap. "
+                 "Color and % show the average return of its stocks today, weighted the same way. "
+                 f"Industries with fewer than {_INDUSTRY_MIN_STOCKS} stocks aren't shown unless they're "
+                 f"at least {_INDUSTRY_EXEMPT_WEIGHT_PCT}% of the index.")
+
+
+def _overview_card():
+    # Filled by load_day_movers, from the same data as the cards below it.
+    return html.Div(
+        id="market-overview-card",
+        style=_OVERVIEW_CARD_STYLE,
+        children=dcc.Loading(
+            custom_spinner=html.Div(className="spinner"),
+            overlay_style={"visibility": "visible"},
+            children=html.Div(id="market-overview-container", className="market-overview-body"),
+        ),
+    )
+
+
+def _heatmap_card():
+    # Same dcc.Loading spinner as the movers cards, centered here since the
+    # map doesn't grow. Filled by load_day_movers.
+    return html.Div(
+        className="heatmap-card",
+        style=_HEATMAP_CARD_STYLE,
+        children=[
+            html.Div(
+                className="heatmap-card-head",
+                children=[
+                    html.Div([
+                        html.H3(_HEATMAP_TITLE, style={**_HEADER_STYLE, "padding": "16px 0 4px", "margin": "0"}),
+                        html.P(_HEATMAP_NOTE, style={**_PARA_STYLE, "fontSize": "13px", "margin": "0"}),
+                    ]),
+                    html.Div(
+                        className="heatmap-legend",
+                        children=[html.Span(f"-{_HEATMAP_COLOR_LIMIT}%"), html.Div(className="heatmap-legend-bar"),
+                                  html.Span(f"+{_HEATMAP_COLOR_LIMIT}%")],
+                    ),
+                ],
+            ),
+            dcc.Loading(
+                custom_spinner=html.Div(className="spinner"),
+                overlay_style={"visibility": "visible"},
+                children=html.Div(id="sp500-heatmap-container", className="heatmap-body"),
+            ),
+        ],
+    )
+
+
 def _section_loading_overlay(overlay_id):
     """A spinner covering one section of the Companies tab while a newly
     picked stock's data for it loads -- shown/hidden by the
@@ -1549,9 +1608,22 @@ def _company_panel_skeleton():
         style=_APP_CONTENT_STYLE,
         children=[
             html.H2("Stock Tracker", style=_HEADER_STYLE),
-            html.P(_MOVERS_NOTE, style={**_PARA_STYLE, "fontSize": "13px"}),
+            html.Div(
+                style=_OVERVIEW_CARD_STYLE,
+                children=html.Div(className="market-overview-body skeleton-spinner-wrap",
+                                  children=html.Div(className="spinner")),
+            ),
             html.Div(style={"display": "flex", "gap": "48px", "flexWrap": "wrap"},
                      children=[card("Today's Top Gainers"), card("Today's Top Losers")]),
+            html.P(_MOVERS_NOTE, style={**_PARA_STYLE, "fontSize": "13px"}),
+            html.Div(
+                className="heatmap-card",
+                style=_HEATMAP_CARD_STYLE,
+                children=[html.H3(_HEATMAP_TITLE, style={**_HEADER_STYLE, "padding": "16px 0 4px", "margin": "0"}),
+                          html.P(_HEATMAP_NOTE, style={**_PARA_STYLE, "fontSize": "13px", "margin": "0"}),
+                          html.Div(className="heatmap-body skeleton-spinner-wrap",
+                                   children=html.Div(className="spinner"))],
+            ),
             html.Hr(style=_SECTION_DIVIDER_STYLE),
             html.H3("Look Up a Stock", style=_LOOKUP_HEADING_STYLE),
             html.Div(
@@ -1587,16 +1659,20 @@ def _company_tracker_children():
         dcc.Store(id="ticker-store"),
         dcc.Store(id="ticker-store-2"),
         html.H2("Stock Tracker", id="company-main-heading", style=_HEADER_STYLE),
-        html.P(_MOVERS_NOTE, id="company-movers-note", style={**_PARA_STYLE, "fontSize": "13px"}),
+        _overview_card(),
         html.Div(
             id="company-movers-wrap",
-            children=html.Div(
-                style={"display": "flex", "gap": "48px", "flexWrap": "wrap"},
-                children=[
-                    _movers_card("Today's Top Gainers", "top-gainers-container"),
-                    _movers_card("Today's Top Losers", "top-losers-container"),
-                ],
-            ),
+            children=[
+                html.Div(
+                    style={"display": "flex", "gap": "48px", "flexWrap": "wrap"},
+                    children=[
+                        _movers_card("Today's Top Gainers", "top-gainers-container"),
+                        _movers_card("Today's Top Losers", "top-losers-container"),
+                    ],
+                ),
+                html.P(_MOVERS_NOTE, id="company-movers-note", style={**_PARA_STYLE, "fontSize": "13px"}),
+                _heatmap_card(),
+            ],
         ),
         # Full, already-sorted lists live in the *-records stores; only a
         # growing prefix gets built into rows -- see load_day_movers/
@@ -1866,7 +1942,21 @@ _ACTIVITY_PAGE_SIZE = 30
 # mechanism as _ACTIVITY_PAGE_SIZE above, starting at a top-10.
 _MOVERS_PAGE_SIZE = 10
 _MOVERS_FETCH_COUNT = 100
-_MOVERS_NOTE = "Today's biggest moves among US-listed stocks with a market cap of roughly $2B+"
+_MOVERS_NOTE = "Today's biggest moves among US-listed stocks with a market cap of roughly $2B+. Up to 10min lag"
+# A move this big (in %, either way) gets a tile's full red/green; smaller
+# ones fade toward the neutral midpoint. Fixed rather than scaled to the day's
+# range, so a quiet day reads as quiet. Also labels the legend, whose gradient
+# in custom.css uses the same three colors.
+_HEATMAP_COLOR_LIMIT = 3
+_HEATMAP_NEUTRAL_RGB = (58, 58, 55)
+_HEATMAP_UP_RGB = (27, 125, 81)
+_HEATMAP_DOWN_RGB = (194, 70, 58)
+# Proportions the tiles are laid out for (custom.css's desktop .heatmap-body
+# height against the content width), since they're positioned in % and stretch
+# with the card. _HEATMAP_SECTOR_LABEL_HEIGHT matches .heatmap-sector-label.
+_HEATMAP_LAYOUT_WIDTH = 1120
+_HEATMAP_LAYOUT_HEIGHT = 560
+_HEATMAP_SECTOR_LABEL_HEIGHT = 18
 
 _FILTER_PANEL_STYLE = {
     "minWidth": "180px", "maxWidth": "180px",
@@ -5204,6 +5294,8 @@ _MOVERS_EMPTY_MSG_STYLE = {"color": "var(--body-text)", "fontSize": "13px", "mar
     Output("top-losers-records", "data"),
     Output("top-gainers-container", "children"),
     Output("top-losers-container", "children"),
+    Output("sp500-heatmap-container", "children"),
+    Output("market-overview-container", "children"),
     Input("company-panel", "children"),
     prevent_initial_call=True,
 )
@@ -5220,17 +5312,200 @@ def load_day_movers(_panel_children):
     # Every callback response costs the Dash renderer ~0.15-0.2s of
     # main-thread work on this (large) panel regardless of payload size,
     # and those two extra round trips landed right as the price chart's
-    # own response did -- measured delaying the chart by ~0.6s on open.
+    # own response did -- measured delaying the chart by ~0.6s on open. The
+    # S&P 500 heatmap and the overview ride along in this response for the
+    # same reason.
     def fetch(kind):
         try:
             return fetch_day_movers(kind, count=_MOVERS_FETCH_COUNT)
         except PriceDataError:
             return []
 
-    with concurrent.futures.ThreadPoolExecutor(max_workers=2) as pool:
-        gainers, losers = pool.map(fetch, ["gainers", "losers"])
+    def fetch_industries():
+        try:
+            return fetch_sp500_industry_returns()
+        except PriceDataError:
+            return []
+
+    with concurrent.futures.ThreadPoolExecutor(max_workers=3) as pool:
+        gainers_future = pool.submit(fetch, "gainers")
+        losers_future = pool.submit(fetch, "losers")
+        industries_future = pool.submit(fetch_industries)
+        gainers, losers, industries = gainers_future.result(), losers_future.result(), industries_future.result()
     return (gainers, losers, _render_mover_rows(_MOVERS_PAGE_SIZE, gainers, "gainers"),
-            _render_mover_rows(_MOVERS_PAGE_SIZE, losers, "losers"))
+            _render_mover_rows(_MOVERS_PAGE_SIZE, losers, "losers"), _build_sp500_heatmap(industries),
+            _build_market_overview(gainers, losers, industries))
+
+
+def _overview_name(text):
+    return html.Span(text, style=_HEADER_STYLE)
+
+
+def _overview_pct(pct, text=None):
+    """`text` (default: `pct` with its sign) colored by `pct`'s direction,
+    left uncolored if it rounds to no move at all."""
+    style = {} if abs(pct) < 0.005 else {"color": "var(--up)" if pct > 0 else "var(--down)"}
+    return html.Span(text or f"{pct:+.2f}%", style=style)
+
+
+def _top_movers_phrase(movers, verb):
+    def label(mover):
+        return [_overview_name(mover["name"]), " (", _overview_name(mover["symbol"]), ", ",
+                _overview_pct(mover["change_pct"]), ")"]
+    phrase = [*label(movers[0]), f" {verb} the most"]
+    return [*phrase, ", followed by ", *label(movers[1])] if len(movers) > 1 else phrase
+
+
+def _shown_industries(industries):
+    return [row for row in industries
+            if row["count"] >= _INDUSTRY_MIN_STOCKS or row["weight_pct"] >= _INDUSTRY_EXEMPT_WEIGHT_PCT]
+
+
+def _build_market_overview(gainers, losers, industries):
+    """The day in a few sentences, from the same rows as the movers cards and
+    the heatmap. Worded from the numbers alone, since nothing here knows why a
+    stock moved; a source that failed to load just drops its sentences."""
+    sentences = []
+    shown = _shown_industries(industries)
+    if shown:
+        # Every industry counts toward the overall average, shown or not, so
+        # it keeps tracking the index.
+        total_weight = sum(row["weight_pct"] for row in industries)
+        average = sum(row["avg_change_pct"] * row["weight_pct"] for row in industries) / total_weight
+        move = (["were flat"] if abs(average) < 0.005
+                else ["rose " if average > 0 else "fell ", _overview_pct(average, f"{abs(average):.2f}%")])
+        higher = sum(row["avg_change_pct"] > 0 for row in shown)
+        sentences.append(["S&P 500 stocks ", *move, " on average, with ",
+                          f"{higher} of {len(shown)} industries up."])
+        strongest = max(shown, key=lambda row: row["avg_change_pct"])
+        weakest = min(shown, key=lambda row: row["avg_change_pct"])
+        sentences.append([_overview_name(strongest["industry"]), " was the strongest industry (",
+                          _overview_pct(strongest["avg_change_pct"]), ") and ",
+                          _overview_name(weakest["industry"]), " the weakest (",
+                          _overview_pct(weakest["avg_change_pct"]), ")."])
+    if gainers:
+        sentences.append(["Among US-listed stocks, ", *_top_movers_phrase(gainers, "gained"), "."])
+    if losers:
+        sentences.append(["On the downside, ", *_top_movers_phrase(losers, "fell"), "."])
+    if not sentences:
+        return html.P("Couldn't load today's overview right now -- try again shortly.", style=_MOVERS_EMPTY_MSG_STYLE)
+    children = [html.Span(_OVERVIEW_LABEL, style={**_HEADER_STYLE, "fontSize": "15px", "display": "block",
+                                                    "marginBottom": "4px"})]
+    for sentence in sentences:
+        children += [*sentence, " "]
+    return html.P(children[:-1], style={**_PARA_STYLE, "fontSize": "13px", "margin": "0"})
+
+
+def _squarify(weights, x, y, width, height):
+    """Lay `weights` (largest first) out as treemap rectangles filling the
+    given box -- (x, y, width, height) per weight, in the same order. Each
+    pass fills one row along the box's shorter side, adding tiles for as long
+    as that keeps them closer to square (Bruls et al.'s squarified layout)."""
+    scale = width * height / sum(weights)
+    areas = [w * scale for w in weights]
+    rects, start = [], 0
+    while start < len(areas):
+        side = min(width, height)
+
+        def worst_ratio(row):
+            total = sum(row)
+            return max(side * side * max(row) / (total * total), total * total / (side * side * min(row)))
+
+        end = start + 1
+        while end < len(areas) and worst_ratio(areas[start:end + 1]) <= worst_ratio(areas[start:end]):
+            end += 1
+        row = areas[start:end]
+        thickness = sum(row) / side
+        offset = 0
+        for area in row:
+            length = area / thickness
+            if width >= height:
+                rects.append((x, y + offset, thickness, length))
+            else:
+                rects.append((x + offset, y, length, thickness))
+            offset += length
+        if width >= height:
+            x, width = x + thickness, width - thickness
+        else:
+            y, height = y + thickness, height - thickness
+        start = end
+    return rects
+
+
+def _heatmap_color(pct):
+    strength = min(abs(pct) / _HEATMAP_COLOR_LIMIT, 1)
+    target = _HEATMAP_UP_RGB if pct >= 0 else _HEATMAP_DOWN_RGB
+    channels = (round(n + (t - n) * strength) for n, t in zip(_HEATMAP_NEUTRAL_RGB, target))
+    return "rgb({},{},{})".format(*channels)
+
+
+def _percent_box(rect, parent_width, parent_height):
+    x, y, width, height = rect
+    return {"left": f"{x / parent_width * 100:.3f}%", "top": f"{y / parent_height * 100:.3f}%",
+            "width": f"{width / parent_width * 100:.3f}%", "height": f"{height / parent_height * 100:.3f}%"}
+
+
+def _build_heatmap_tile(row, rect, parent_width, parent_height):
+    pct_label = f"{row['avg_change_pct']:+.2f}%"
+    stocks = f"{row['count']} stock{'' if row['count'] == 1 else 's'}"
+    details = (f"{row['industry']}\n{pct_label} float-adjusted weighted return\n"
+               f"{row['weight_pct']:.2f}% of S&P 500 float-adjusted market cap\n{stocks} · {row['sector']}")
+    # Which labels show is decided by the tile's rendered size (container
+    # queries in custom.css); every tile's details are in its hover tooltip
+    # (custom.js reads aria-label), which also covers the ones too small to label.
+    return html.Div(
+        className="heatmap-tile",
+        role="img",
+        style={**_percent_box(rect, parent_width, parent_height),
+               "backgroundColor": _heatmap_color(row["avg_change_pct"])},
+        **{"aria-label": details},
+        children=html.Div(
+            className="heatmap-tile-text",
+            children=[html.Span(row["industry"], className="heatmap-tile-name"),
+                      html.Span(pct_label, className="heatmap-tile-pct")],
+        ),
+    )
+
+
+def _build_sp500_heatmap(industries):
+    """Treemap of `industries` (fetch_sp500_industry_returns), grouped into
+    labeled sectors. Built from positioned divs, not a Plotly treemap: the
+    app loads Plotly's basic bundle, which has no treemap trace (see
+    _PLOTLY_BASIC_VERSION), and this one chart isn't worth the full bundle."""
+    industries = _shown_industries(industries)
+    if not industries:
+        return html.P("Couldn't load the S&P 500 heatmap right now -- try again shortly.",
+                      className="heatmap-empty", style=_MOVERS_EMPTY_MSG_STYLE)
+    sectors = {}
+    for row in industries:
+        sectors.setdefault(row["sector"], []).append(row)
+    ordered = sorted(sectors.items(), key=lambda item: -sum(row["weight_pct"] for row in item[1]))
+    sector_weights = [sum(row["weight_pct"] for row in rows) for _, rows in ordered]
+    sector_rects = _squarify(sector_weights, 0, 0, _HEATMAP_LAYOUT_WIDTH, _HEATMAP_LAYOUT_HEIGHT)
+    # Every sector's label strip takes the same height, which costs a short
+    # sector a bigger share of its area. Grow each sector by what its label
+    # takes so tile areas stay comparable across sectors; a few passes since
+    # that reshapes the layout it was measured from.
+    for _ in range(4):
+        sector_rects = _squarify(
+            [weight * rect[3] / (rect[3] - _HEATMAP_SECTOR_LABEL_HEIGHT)
+             for weight, rect in zip(sector_weights, sector_rects)],
+            0, 0, _HEATMAP_LAYOUT_WIDTH, _HEATMAP_LAYOUT_HEIGHT)
+    blocks = []
+    for (sector, rows), rect in zip(ordered, sector_rects):
+        body_width, body_height = rect[2], rect[3] - _HEATMAP_SECTOR_LABEL_HEIGHT
+        tile_rects = _squarify([row["weight_pct"] for row in rows], 0, 0, body_width, body_height)
+        blocks.append(html.Div(
+            className="heatmap-sector",
+            style=_percent_box(rect, _HEATMAP_LAYOUT_WIDTH, _HEATMAP_LAYOUT_HEIGHT),
+            children=[
+                html.Div(sector, className="heatmap-sector-label"),
+                html.Div(className="heatmap-sector-body",
+                         children=[_build_heatmap_tile(row, tile_rect, body_width, body_height)
+                                   for row, tile_rect in zip(rows, tile_rects)]),
+            ],
+        ))
+    return html.Div(className="heatmap-map", children=blocks)
 
 
 def _render_mover_rows(visible_count, records, kind):
