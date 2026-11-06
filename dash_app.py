@@ -2799,7 +2799,7 @@ def _politician_tracker_children(initial_pending=None):
     value = initial_pending if initial_pending else default_value
     return [
         html.H2("Politician Tracker", style=_HEADER_STYLE),
-        html.P(_ACTIVITY_WINDOW_NOTE, style={**_PARA_STYLE, "fontSize": "13px"}),
+        html.P(_ACTIVITY_WINDOW_NOTE, style={**_PARA_STYLE, "fontSize": "13px", "marginTop": "32px"}),
         _senate_stale_note(),
         dcc.Loading(
             custom_spinner=html.Div(className="spinner"),
@@ -5348,7 +5348,7 @@ def _overview_pct(pct, text=None):
 
 def _top_movers_phrase(movers, verb):
     def label(mover):
-        return [_overview_name(mover["name"]), " (", _overview_name(mover["symbol"]), ", ",
+        return [f"{mover['name']} (", _overview_name(mover["symbol"]), ", ",
                 _overview_pct(mover["change_pct"]), ")"]
     phrase = [*label(movers[0]), f" {verb} the most"]
     return [*phrase, ", followed by ", *label(movers[1])] if len(movers) > 1 else phrase
