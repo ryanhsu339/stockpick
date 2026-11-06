@@ -5446,8 +5446,8 @@ def _percent_box(rect, parent_width, parent_height):
 def _build_heatmap_tile(row, rect, parent_width, parent_height):
     pct_label = f"{row['avg_change_pct']:+.2f}%"
     stocks = f"{row['count']} stock{'' if row['count'] == 1 else 's'}"
-    details = (f"{row['industry']}\n{pct_label} float-adjusted weighted return\n"
-               f"{row['weight_pct']:.2f}% of S&P 500 float-adjusted market cap\n{stocks} · {row['sector']}")
+    details = (f"{row['industry']}\n{pct_label} return\n"
+               f"{row['weight_pct']:.2f}% of S&P 500 market cap\n{stocks} · {row['sector']}")
     # Which labels show is decided by the tile's rendered size (container
     # queries in custom.css); every tile's details are in its hover tooltip
     # (custom.js reads aria-label), which also covers the ones too small to label.
