@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """Regenerate data/sp500_constituents.json, the repo-committed snapshot of
 which companies are in the S&P 500 and each one's sector/industry, that
-stock_price.fetch_sp500_industry_returns reads at request time. Run daily by
-the scheduled GitHub Action alongside the other data snapshots.
+stock_price.fetch_sp500_industry_returns reads at request time. Run weekly by
+its own scheduled GitHub Action.
 
 Membership is scraped from Wikipedia's maintained table, since S&P doesn't
 publish it for free. Sector and industry come from Yahoo, the same `info`
@@ -86,7 +86,7 @@ def main():
         fetched[symbol] = _fetch_classification(symbol)
 
     # A company Yahoo still won't classify keeps its last known one, so a bad
-    # response for it doesn't drop it from the map until tomorrow's run.
+    # response for it doesn't drop it from the map until next week's run.
     companies, kept, dropped = [], [], []
     for symbol in symbols:
         company = fetched[symbol] or previous.get(symbol)

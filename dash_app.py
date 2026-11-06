@@ -1521,11 +1521,33 @@ def _movers_card(title, container_id):
     )
 
 
+_OVERVIEW_CARD_STYLE = {"backgroundColor": "var(--card-bg)", "border": "1px solid var(--border)",
+                        "borderRadius": "14px", "padding": "16px 20px", "marginTop": "40px", "marginBottom": "24px"}
+_OVERVIEW_LABEL = "Daily Overview:"
 _HEATMAP_CARD_STYLE = {"backgroundColor": "var(--card-bg)", "border": "1px solid var(--border)",
                        "borderRadius": "14px", "padding": "0 20px 16px", "marginTop": "48px"}
 _HEATMAP_TITLE = "Today's Return by S&P 500 Industry"
-_HEATMAP_NOTE = ("Each tile is an industry, sized by its share of the index's market cap. "
-                 "Color and % show the average return of its stocks today, with each stock counted equally.")
+# Below this, an "industry" is mostly one company's own news -- unless it's
+# too big a part of the index to leave out (Apple alone is Consumer Electronics).
+_INDUSTRY_MIN_STOCKS = 3
+_INDUSTRY_EXEMPT_WEIGHT_PCT = 0.5
+_HEATMAP_NOTE = ("Each tile is an industry, sized by its share of the index's float-adjusted market cap. "
+                 "Color and % show the average return of its stocks today, weighted the same way. "
+                 f"Industries with fewer than {_INDUSTRY_MIN_STOCKS} stocks aren't shown unless they're "
+                 f"at least {_INDUSTRY_EXEMPT_WEIGHT_PCT}% of the index.")
+
+
+def _overview_card():
+    # Filled by load_day_movers, from the same data as the cards below it.
+    return html.Div(
+        id="market-overview-card",
+        style=_OVERVIEW_CARD_STYLE,
+        children=dcc.Loading(
+            custom_spinner=html.Div(className="spinner"),
+            overlay_style={"visibility": "visible"},
+            children=html.Div(id="market-overview-container", className="market-overview-body"),
+        ),
+    )
 
 
 def _heatmap_card():
@@ -1586,9 +1608,14 @@ def _company_panel_skeleton():
         style=_APP_CONTENT_STYLE,
         children=[
             html.H2("Stock Tracker", style=_HEADER_STYLE),
-            html.P(_MOVERS_NOTE, style={**_PARA_STYLE, "fontSize": "13px"}),
+            html.Div(
+                style=_OVERVIEW_CARD_STYLE,
+                children=html.Div(className="market-overview-body skeleton-spinner-wrap",
+                                  children=html.Div(className="spinner")),
+            ),
             html.Div(style={"display": "flex", "gap": "48px", "flexWrap": "wrap"},
                      children=[card("Today's Top Gainers"), card("Today's Top Losers")]),
+            html.P(_MOVERS_NOTE, style={**_PARA_STYLE, "fontSize": "13px"}),
             html.Div(
                 className="heatmap-card",
                 style=_HEATMAP_CARD_STYLE,
@@ -1632,7 +1659,7 @@ def _company_tracker_children():
         dcc.Store(id="ticker-store"),
         dcc.Store(id="ticker-store-2"),
         html.H2("Stock Tracker", id="company-main-heading", style=_HEADER_STYLE),
-        html.P(_MOVERS_NOTE, id="company-movers-note", style={**_PARA_STYLE, "fontSize": "13px"}),
+        _overview_card(),
         html.Div(
             id="company-movers-wrap",
             children=[
@@ -1643,6 +1670,7 @@ def _company_tracker_children():
                         _movers_card("Today's Top Losers", "top-losers-container"),
                     ],
                 ),
+                html.P(_MOVERS_NOTE, id="company-movers-note", style={**_PARA_STYLE, "fontSize": "13px"}),
                 _heatmap_card(),
             ],
         ),
@@ -1914,7 +1942,7 @@ _ACTIVITY_PAGE_SIZE = 30
 # mechanism as _ACTIVITY_PAGE_SIZE above, starting at a top-10.
 _MOVERS_PAGE_SIZE = 10
 _MOVERS_FETCH_COUNT = 100
-_MOVERS_NOTE = "Today's biggest moves among US-listed stocks with a market cap of roughly $2B+"
+_MOVERS_NOTE = "Today's biggest moves among US-listed stocks with a market cap of roughly $2B+. Up to 10min lag"
 # A move this big (in %, either way) gets a tile's full red/green; smaller
 # ones fade toward the neutral midpoint. Fixed rather than scaled to the day's
 # range, so a quiet day reads as quiet. Also labels the legend, whose gradient
@@ -5267,6 +5295,7 @@ _MOVERS_EMPTY_MSG_STYLE = {"color": "var(--body-text)", "fontSize": "13px", "mar
     Output("top-gainers-container", "children"),
     Output("top-losers-container", "children"),
     Output("sp500-heatmap-container", "children"),
+    Output("market-overview-container", "children"),
     Input("company-panel", "children"),
     prevent_initial_call=True,
 )
@@ -5284,7 +5313,8 @@ def load_day_movers(_panel_children):
     # main-thread work on this (large) panel regardless of payload size,
     # and those two extra round trips landed right as the price chart's
     # own response did -- measured delaying the chart by ~0.6s on open. The
-    # S&P 500 heatmap rides along in this response for the same reason.
+    # S&P 500 heatmap and the overview ride along in this response for the
+    # same reason.
     def fetch(kind):
         try:
             return fetch_day_movers(kind, count=_MOVERS_FETCH_COUNT)
@@ -5303,7 +5333,67 @@ def load_day_movers(_panel_children):
         industries_future = pool.submit(fetch_industries)
         gainers, losers, industries = gainers_future.result(), losers_future.result(), industries_future.result()
     return (gainers, losers, _render_mover_rows(_MOVERS_PAGE_SIZE, gainers, "gainers"),
-            _render_mover_rows(_MOVERS_PAGE_SIZE, losers, "losers"), _build_sp500_heatmap(industries))
+            _render_mover_rows(_MOVERS_PAGE_SIZE, losers, "losers"), _build_sp500_heatmap(industries),
+            _build_market_overview(gainers, losers, industries))
+
+
+def _overview_name(text):
+    return html.Span(text, style=_HEADER_STYLE)
+
+
+def _overview_pct(pct, text=None):
+    """`text` (default: `pct` with its sign) colored by `pct`'s direction,
+    left uncolored if it rounds to no move at all."""
+    style = {} if abs(pct) < 0.005 else {"color": "var(--up)" if pct > 0 else "var(--down)"}
+    return html.Span(text or f"{pct:+.2f}%", style=style)
+
+
+def _top_movers_phrase(movers, verb):
+    def label(mover):
+        return [_overview_name(mover["name"]), " (", _overview_name(mover["symbol"]), ", ",
+                _overview_pct(mover["change_pct"]), ")"]
+    phrase = [*label(movers[0]), f" {verb} the most"]
+    return [*phrase, ", followed by ", *label(movers[1])] if len(movers) > 1 else phrase
+
+
+def _shown_industries(industries):
+    return [row for row in industries
+            if row["count"] >= _INDUSTRY_MIN_STOCKS or row["weight_pct"] >= _INDUSTRY_EXEMPT_WEIGHT_PCT]
+
+
+def _build_market_overview(gainers, losers, industries):
+    """The day in a few sentences, from the same rows as the movers cards and
+    the heatmap. Worded from the numbers alone, since nothing here knows why a
+    stock moved; a source that failed to load just drops its sentences."""
+    sentences = []
+    shown = _shown_industries(industries)
+    if shown:
+        # Every industry counts toward the overall average, shown or not, so
+        # it keeps tracking the index.
+        total_weight = sum(row["weight_pct"] for row in industries)
+        average = sum(row["avg_change_pct"] * row["weight_pct"] for row in industries) / total_weight
+        move = (["were flat"] if abs(average) < 0.005
+                else ["rose " if average > 0 else "fell ", _overview_pct(average, f"{abs(average):.2f}%")])
+        higher = sum(row["avg_change_pct"] > 0 for row in shown)
+        sentences.append(["S&P 500 stocks ", *move, " on average, with ",
+                          f"{higher} of {len(shown)} industries up."])
+        strongest = max(shown, key=lambda row: row["avg_change_pct"])
+        weakest = min(shown, key=lambda row: row["avg_change_pct"])
+        sentences.append([_overview_name(strongest["industry"]), " was the strongest industry (",
+                          _overview_pct(strongest["avg_change_pct"]), ") and ",
+                          _overview_name(weakest["industry"]), " the weakest (",
+                          _overview_pct(weakest["avg_change_pct"]), ")."])
+    if gainers:
+        sentences.append(["Among US-listed stocks, ", *_top_movers_phrase(gainers, "gained"), "."])
+    if losers:
+        sentences.append(["On the downside, ", *_top_movers_phrase(losers, "fell"), "."])
+    if not sentences:
+        return html.P("Couldn't load today's overview right now -- try again shortly.", style=_MOVERS_EMPTY_MSG_STYLE)
+    children = [html.Span(_OVERVIEW_LABEL, style={**_HEADER_STYLE, "fontSize": "15px", "display": "block",
+                                                    "marginBottom": "4px"})]
+    for sentence in sentences:
+        children += [*sentence, " "]
+    return html.P(children[:-1], style={**_PARA_STYLE, "fontSize": "13px", "margin": "0"})
 
 
 def _squarify(weights, x, y, width, height):
@@ -5358,8 +5448,8 @@ def _percent_box(rect, parent_width, parent_height):
 def _build_heatmap_tile(row, rect, parent_width, parent_height):
     pct_label = f"{row['avg_change_pct']:+.2f}%"
     stocks = f"{row['count']} stock{'' if row['count'] == 1 else 's'}"
-    details = (f"{row['industry']}\n{pct_label} average return\n"
-               f"{row['weight_pct']:.2f}% of S&P 500 market cap\n{stocks} · {row['sector']}")
+    details = (f"{row['industry']}\n{pct_label} float-adjusted weighted return\n"
+               f"{row['weight_pct']:.2f}% of S&P 500 float-adjusted market cap\n{stocks} · {row['sector']}")
     # Which labels show is decided by the tile's rendered size (container
     # queries in custom.css); every tile's details are in its hover tooltip
     # (custom.js reads aria-label), which also covers the ones too small to label.
@@ -5382,6 +5472,7 @@ def _build_sp500_heatmap(industries):
     labeled sectors. Built from positioned divs, not a Plotly treemap: the
     app loads Plotly's basic bundle, which has no treemap trace (see
     _PLOTLY_BASIC_VERSION), and this one chart isn't worth the full bundle."""
+    industries = _shown_industries(industries)
     if not industries:
         return html.P("Couldn't load the S&P 500 heatmap right now -- try again shortly.",
                       className="heatmap-empty", style=_MOVERS_EMPTY_MSG_STYLE)

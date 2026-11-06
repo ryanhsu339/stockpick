@@ -396,13 +396,13 @@ a:hover { color: var(--text); }
     #stock-header > * {
         grid-column: 1 / -1;
     }
-    /* Page heading, movers cards and the "Look Up a Stock" heading stay
-       on top, ahead of the toggle/search/name reorder below. */
+    /* Page heading, overview, movers cards and the "Look Up a Stock" heading
+       stay on top, ahead of the toggle/search/name reorder below. */
     #company-main-heading {
-        order: -6;
+        order: -7;
     }
-    #company-movers-note {
-        order: -5;
+    #market-overview-card {
+        order: -6;
     }
     #company-movers-wrap {
         order: -4;
@@ -995,6 +995,10 @@ details summary { cursor: pointer; color: var(--body-text); font-size: 13px; }
     background: var(--card-bg);
     box-shadow: 0 0 0 6px var(--card-bg);
 }
+/* Held open while the overview's text loads, so the page doesn't jump as much. */
+.market-overview-body {
+    min-height: 52px;
+}
 /* S&P 500 industry heatmap -- see _build_sp500_heatmap. Tile colors are fixed
    in both themes (with white text), so only the chrome around them follows
    the theme. The legend's stops match _HEATMAP_*_RGB in dash_app.py. */
@@ -1087,6 +1091,8 @@ details summary { cursor: pointer; color: var(--body-text); font-size: 13px; }
 .heatmap-tile-name {
     font-size: 11px;
     max-height: calc(100% - 16px);
+    /* Whole lines only, so a name that doesn't fit never shows half a line. */
+    max-height: round(down, calc(100% - 16px), 1.2em);
     overflow: hidden;
 }
 .heatmap-tile-pct {
