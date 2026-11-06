@@ -33,6 +33,11 @@ jobs:
       # still refresh. A failure here still fails the run, so it's visible.
       - run: python build_congress_snapshot.py
 
+      # always(): a Congress failure above shouldn't keep this one from
+      # refreshing -- it depends on neither of those disclosure sites.
+      - run: python build_sp500_snapshot.py
+        if: always()
+
       # always(): commit whatever did refresh, even if a step above failed --
       # the build scripts only write a file once it's fully built, so a
       # failed step leaves its committed snapshot as it was.
@@ -41,7 +46,7 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add data/congress_activity_summary.json data/congress_member_positions.json data/thirteenf_manager_directory.json data/ticker_map.json
+          git add data/congress_activity_summary.json data/congress_member_positions.json data/sp500_constituents.json data/thirteenf_manager_directory.json data/ticker_map.json
           git diff --cached --quiet && exit 0
           git commit -m "Refresh data snapshots"
           # Someone else may have pushed to main during the run (what failed
