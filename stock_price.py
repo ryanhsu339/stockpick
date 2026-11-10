@@ -478,6 +478,10 @@ _QUOTE_BATCH_SIZE = 200
 _SP500_QUOTE_FIELDS = "marketCap,regularMarketChangePercent,regularMarketPrice,floatShares"
 _SP500_CACHE_TTL = 600
 _sp500_cache = None
+# Not in the index, but quoted in the same requests for the Companies tab's
+# ticker bar (oil, natural gas, gold, silver and copper ETFs), which costs no
+# extra calls while the total stays within the same batches.
+SP500_EXTRA_SYMBOLS = ("USO", "UNG", "GLD", "SLV", "CPER")
 _MARKET_TZ = ZoneInfo("America/New_York")
 
 
@@ -506,32 +510,53 @@ def _session_over_before(fetched_at, now):
     return fetched_at >= close.timestamp()
 
 
-def fetch_sp500_industry_returns():
-    """Return one dict per Yahoo industry in the S&P 500 (sector, industry,
-    avg_change_pct, weight_pct, count), largest first. avg_change_pct is the
-    average of today's % change (or the last session's) across its stocks,
-    weighted by _sp500_index_weight; weight_pct is its share of the index's
-    total weight. Raises PriceDataError if the constituents snapshot or Yahoo's
-    quotes can't be read."""
+def us_market_session_active(grace_minutes=0):
+    """Whether a regular US session is running now -- to 16:15, as
+    _session_over_before has it -- or ended within the last `grace_minutes`.
+    Holidays count as normal weekdays."""
+    now = datetime.now(_MARKET_TZ)
+    start = now.replace(hour=9, minute=30, second=0, microsecond=0)
+    end = now.replace(hour=16, minute=15, second=0, microsecond=0) + timedelta(minutes=grace_minutes)
+    return now.weekday() < 5 and start <= now < end
+
+
+def fetch_sp500_quotes():
+    """Return (companies, quotes): the constituents snapshot's
+    {symbol, sector, industry} rows, and Yahoo's quote dict per symbol for
+    those plus SP500_EXTRA_SYMBOLS. Cached, and not refetched once a session
+    has closed (_session_over_before). Raises PriceDataError if the snapshot or
+    Yahoo's quotes can't be read."""
     global _sp500_cache
     if _sp500_cache and (time.time() - _sp500_cache[0] < _SP500_CACHE_TTL
                          or _session_over_before(_sp500_cache[0], datetime.now(_MARKET_TZ))):
         return _sp500_cache[1]
     try:
         companies = json.loads(SP500_SNAPSHOT_PATH.read_text(encoding="utf-8"))
+        symbols = [c["symbol"] for c in companies] + list(SP500_EXTRA_SYMBOLS)
         # Yahoo's quote endpoint is the one call that returns these fields for
         # hundreds of symbols at once; yfinance has no public wrapper for it,
         # so it goes through the same authenticated YfData session yfinance uses.
         quotes = {}
-        for i in range(0, len(companies), _QUOTE_BATCH_SIZE):
-            symbols = ",".join(c["symbol"] for c in companies[i:i + _QUOTE_BATCH_SIZE])
-            response = YfData().get(_QUOTE_URL, params={"symbols": symbols,
+        for i in range(0, len(symbols), _QUOTE_BATCH_SIZE):
+            response = YfData().get(_QUOTE_URL, params={"symbols": ",".join(symbols[i:i + _QUOTE_BATCH_SIZE]),
                                                         "fields": _SP500_QUOTE_FIELDS})
             for q in response.json()["quoteResponse"]["result"]:
                 quotes[q["symbol"]] = q
     except Exception as e:
         raise PriceDataError(f"Could not fetch S&P 500 quotes: {e}") from e
+    if not quotes:
+        raise PriceDataError("Yahoo returned no S&P 500 quotes")
+    _sp500_cache = (time.time(), (companies, quotes))
+    return companies, quotes
 
+
+def fetch_sp500_industry_returns():
+    """Return one dict per Yahoo industry in the S&P 500 (sector, industry,
+    avg_change_pct, weight_pct, count), largest first. avg_change_pct is the
+    average of today's % change (or the last session's) across its stocks,
+    weighted by _sp500_index_weight; weight_pct is its share of the index's
+    total weight. Raises PriceDataError if the quotes can't be read."""
+    companies, quotes = fetch_sp500_quotes()
     groups = {}
     for c in companies:
         q = quotes.get(c["symbol"]) or {}
@@ -553,5 +578,4 @@ def fetch_sp500_industry_returns():
         for (sector, industry), stocks in groups.items()
     ]
     industries.sort(key=lambda row: row["weight_pct"], reverse=True)
-    _sp500_cache = (time.time(), industries)
     return industries

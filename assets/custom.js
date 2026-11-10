@@ -437,7 +437,7 @@ document.addEventListener("focusin", function (e) {
 })();
 
 // Hover tooltip for the S&P 500 heatmap's tiles, whose details live in their
-// aria-label (see _build_heatmap_tile). Listens on document since the tiles
+// aria-label (see _heatmap_tile). Listens on document since the tiles
 // are rebuilt by a callback; a tap fires mousemove too, so this also works on
 // phones, where it's the only way to read a tile too small to label.
 (function () {
@@ -467,4 +467,142 @@ document.addEventListener("focusin", function (e) {
         tooltip.style.top = top + "px";
     }, {passive: true});
     document.addEventListener("scroll", hide, {capture: true, passive: true});
+})();
+
+// Builds the Companies tab's ticker bar and S&P 500 heatmap from the data
+// load_day_movers sends (_market_ticker_views, _sp500_heatmap_data), as plain
+// elements rather than Dash components -- see the clientside callbacks there.
+(function () {
+    function el(tag, className, text) {
+        var node = document.createElement(tag);
+        node.className = className;
+        if (text !== undefined) node.textContent = text;
+        return node;
+    }
+
+    function message(className, text) {
+        var p = el("p", className, text);
+        p.style.cssText = "color: var(--body-text); font-size: 13px; margin: 8px 0;";
+        return p;
+    }
+
+    window.renderMarketTicker = function (container, views) {
+        if (!container) return;
+        if (!views || !views.length) {
+            container.replaceChildren(el("p", "market-ticker-empty",
+                "Couldn't load market prices right now -- try again shortly."));
+            return;
+        }
+        // Every view twice, so there's always more bar to the right while it
+        // slides; the slider below jumps back to the start once it reaches
+        // the copy of the first view, which looks the same.
+        var track = el("div", "market-ticker-track");
+        track.id = "market-ticker-track";
+        [false, true].forEach(function (copy) {
+            views.forEach(function (view) {
+                var node = el("div", "market-ticker-view");
+                if (copy) node.setAttribute("aria-hidden", "true");
+                node.appendChild(el("span", "market-ticker-label", view.title));
+                view.items.forEach(function (item) {
+                    var entry = el("span", "market-ticker-item");
+                    entry.appendChild(el("span", "market-ticker-symbol", item.label));
+                    entry.appendChild(el("span", "market-ticker-change market-ticker-" + item.direction, item.change));
+                    node.appendChild(entry);
+                });
+                track.appendChild(node);
+            });
+        });
+        container.replaceChildren(track);
+    };
+
+    window.renderSp500Heatmap = function (container, sectors) {
+        if (!container) return;
+        if (!sectors || !sectors.length) {
+            container.replaceChildren(message("heatmap-empty",
+                "Couldn't load the S&P 500 heatmap right now -- try again shortly."));
+            return;
+        }
+        var map = el("div", "heatmap-map");
+        sectors.forEach(function (sector) {
+            var block = el("div", "heatmap-sector");
+            Object.assign(block.style, sector.box);
+            block.appendChild(el("div", "heatmap-sector-label", sector.name));
+            var body = el("div", "heatmap-sector-body");
+            sector.tiles.forEach(function (tile) {
+                var node = el("div", "heatmap-tile");
+                node.setAttribute("role", "img");
+                node.setAttribute("aria-label", tile.details);
+                Object.assign(node.style, tile.box);
+                node.style.backgroundColor = tile.color;
+                var text = el("div", "heatmap-tile-text");
+                text.appendChild(el("span", "heatmap-tile-name", tile.name));
+                text.appendChild(el("span", "heatmap-tile-pct", tile.pct));
+                node.appendChild(text);
+                body.appendChild(node);
+            });
+            block.appendChild(body);
+            map.appendChild(block);
+        });
+        container.replaceChildren(map);
+    };
+})();
+
+// Slides the Companies tab's ticker bar (see renderMarketTicker above) one view at
+// a time: a 14s slide to the next view, then a 3s pause. The track holds every
+// view twice, so on reaching the copy of the first view it jumps back to the
+// real one unseen. Waits while the tab is hidden or reduced motion is on.
+// load_day_movers replaces the track on each refresh; the new one picks up at
+// the view the old one was on, rather than jumping back to the start.
+(function () {
+    var SLIDE_MS = 14000, PAUSE_MS = 3000;
+    var reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
+    var track = null, index = 0, timer = null;
+
+    function moveTo(el, x, animate) {
+        el.style.transition = animate ? "transform " + SLIDE_MS + "ms ease-in-out" : "none";
+        el.style.transform = "translateX(" + (-x) + "px)";
+    }
+
+    function adopt(current) {
+        var oldCount = track ? track.querySelectorAll(".market-ticker-view").length : 0;
+        var views = current ? current.querySelectorAll(".market-ticker-view") : [];
+        // Same views as before: stay on the one showing (folding a pending
+        // wrap onto the real first view). Different ones: start over.
+        index = views.length && views.length === oldCount ? index % (views.length / 2) : 0;
+        track = current;
+        if (track) moveTo(track, views.length ? views[index].offsetLeft : 0, false);
+    }
+
+    new MutationObserver(function () {
+        var current = document.getElementById("market-ticker-track");
+        if (current !== track) adopt(current);
+    }).observe(document.body, {childList: true, subtree: true});
+
+    function step() {
+        var current = document.getElementById("market-ticker-track");
+        if (current !== track) {
+            adopt(current);
+        } else if (track && track.offsetParent && !reducedMotion.matches) {
+            var views = track.querySelectorAll(".market-ticker-view");
+            var count = views.length / 2;
+            if (count > 1) {
+                index += 1;
+                moveTo(track, views[index].offsetLeft, true);
+                if (index === count) {
+                    var wrapping = track;
+                    setTimeout(function () {
+                        if (track === wrapping) {
+                            moveTo(wrapping, 0, false);
+                            index = 0;
+                        }
+                    }, SLIDE_MS);
+                }
+                timer = setTimeout(step, SLIDE_MS + PAUSE_MS);
+                return;
+            }
+        }
+        timer = setTimeout(step, PAUSE_MS);
+    }
+
+    timer = setTimeout(step, PAUSE_MS);
 })();

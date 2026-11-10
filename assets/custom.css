@@ -399,6 +399,9 @@ a:hover { color: var(--text); }
     /* Page heading, overview, movers cards and the "Look Up a Stock" heading
        stay on top, ahead of the toggle/search/name reorder below. */
     #company-main-heading {
+        order: -8;
+    }
+    #market-ticker {
         order: -7;
     }
     #market-overview-card {
@@ -666,13 +669,6 @@ a:hover { color: var(--text); }
         margin-top: 8px !important;
     }
 
-    /* Valuation starts collapsed on mobile behind this "+" -- see
-       valuation-toggle in dash_app.py. "button." for specificity over
-       the base display:none rule, which comes later in this file. */
-    button.valuation-toggle {
-        display: inline-flex;
-    }
-
     /* Analyst Rating tile's "· N analysts" pushed its sub-line onto a
        second row in the half-width mobile tile. */
     .kpi-analyst-count {
@@ -758,9 +754,10 @@ p  { line-height: 1.55; text-wrap: pretty; }
     overflow: hidden;
 }
 
-/* Valuation section toggle: mobile-only (shown by the @media block above). */
-.valuation-toggle {
-    display: none;
+/* The "+"/"−" beside a collapsible section's heading: Valuation
+   (valuation-toggle) and the S&P 500 heatmap (heatmap-toggle). */
+.section-toggle {
+    display: inline-flex;
     align-items: center;
     justify-content: center;
     width: 28px;
@@ -995,11 +992,83 @@ details summary { cursor: pointer; color: var(--body-text); font-size: 13px; }
     background: var(--card-bg);
     box-shadow: 0 0 0 6px var(--card-bg);
 }
+/* Ticker bar above the overview -- built by custom.js's renderMarketTicker,
+   which also slides the track one view at a time. */
+.market-ticker {
+    margin-top: 40px;
+    height: 44px;
+    overflow: hidden;
+    background: var(--card-bg);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+}
+#market-ticker-container {
+    height: 100%;
+}
+.market-ticker-track {
+    /* Positioned so each view's offsetLeft is measured from the track. */
+    position: relative;
+    display: flex;
+    width: max-content;
+    height: 100%;
+}
+.market-ticker-view {
+    display: flex;
+    align-items: center;
+    gap: 28px;
+    padding: 0 28px 0 18px;
+    border-right: 1px solid var(--border);
+    white-space: nowrap;
+}
+.market-ticker-label {
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--body-text);
+}
+.market-ticker-item {
+    display: inline-flex;
+    align-items: baseline;
+    gap: 8px;
+}
+.market-ticker-symbol {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text);
+}
+.market-ticker-change {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 13px;
+    color: var(--body-text);
+}
+.market-ticker-up {
+    color: var(--up);
+}
+.market-ticker-down {
+    color: var(--down);
+}
+.market-ticker-empty {
+    margin: 0;
+    padding: 0 18px;
+    line-height: 42px;
+    font-size: 13px;
+    color: var(--body-text);
+}
+@media (prefers-reduced-motion: reduce) {
+    /* No sliding (custom.js checks this too): scroll it by hand instead. */
+    .market-ticker {
+        overflow-x: auto;
+    }
+    .market-ticker-view[aria-hidden] {
+        display: none;
+    }
+}
 /* Held open while the overview's text loads, so the page doesn't jump as much. */
 .market-overview-body {
     min-height: 52px;
 }
-/* S&P 500 industry heatmap -- see _build_sp500_heatmap. Tile colors are fixed
+/* S&P 500 industry heatmap -- see _sp500_heatmap_data. Tile colors are fixed
    in both themes (with white text), so only the chrome around them follows
    the theme. The legend's stops match _HEATMAP_*_RGB in dash_app.py. */
 .heatmap-card-head {

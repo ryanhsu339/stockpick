@@ -67,7 +67,8 @@ from company_growth_calc import (
 )
 from stock_price import (HoldingsDataError, LIVE_RANGE_KEYS, PriceDataError, RANGE_KEYS, fetch_day_change_pcts,
                           fetch_day_movers, fetch_fund_name, fetch_earnings_history, fetch_previous_close,
-                          fetch_price_history, fetch_sp500_industry_returns, fetch_ticker_overview)
+                          fetch_price_history, fetch_sp500_industry_returns, fetch_sp500_quotes,
+                          fetch_ticker_overview, us_market_session_active)
 from thirteenf import (
     FilingDataError,
     ManagerLookupError,
@@ -1163,11 +1164,9 @@ def _financials_valuation_blocks(suffix):
         # (see _financials_valuation_blocks' caller) actually kicking in.
         style={"flex": "1", "minWidth": "280px"},
         children=[
-            # The chart itself is only built where it's shown (see
-            # _dcf_chart_view): always on desktop, but on mobile only once
-            # the Valuation section is opened (valuation-toggle) -- a
-            # Plotly chart costs real main-thread time on a phone even
-            # while hidden. update_dcf writes the figure into
+            # The chart itself is only built once the Valuation section is
+            # opened (see _dcf_chart_view and valuation-toggle) -- a Plotly
+            # chart costs real main-thread time even while hidden. update_dcf writes the figure into
             # dcf-chart-store rather than straight into the Graph, so it
             # never has to target a component that may not exist yet.
             dcc.Store(id=f"dcf-chart-store{suffix}"),
@@ -1423,10 +1422,9 @@ def _financials_valuation_blocks(suffix):
                 # Section heading + description only once, on the primary panel
                 # -- in Compare mode the second panel stacks right below it
                 # (see _company_tracker_children) under the same heading.
-                # On mobile the whole section starts collapsed to just this
-                # heading, opened by valuation-toggle (hidden on desktop, see
-                # .valuation-toggle in custom.css) -- the clientside
-                # callbacks after _dcf_chart_view show/hide dcf-body below.
+                # The whole section starts collapsed to just this heading,
+                # opened by valuation-toggle -- the clientside callbacks
+                # after _dcf_chart_view show/hide dcf-body below.
                 # dcf-wrap itself isn't toggled since generate already uses
                 # its style to hide the whole section for funds.
                 *([
@@ -1434,7 +1432,7 @@ def _financials_valuation_blocks(suffix):
                         style={"display": "flex", "alignItems": "center", "gap": "10px", "marginTop": "40px"},
                         children=[
                             html.H3("Valuation", style={**_HEADER_STYLE, "margin": "0"}),
-                            html.Button("+", id="valuation-toggle", n_clicks=0, className="valuation-toggle",
+                            html.Button("+", id="valuation-toggle", n_clicks=0, className="section-toggle",
                                         title="Show valuation"),
                         ],
                     ),
@@ -1446,7 +1444,7 @@ def _financials_valuation_blocks(suffix):
                 # The "-2" copy is only ever built once Compare mode is on
                 # (see build_compare_panels), so it starts out visible.
                 dcc.Interval(id=f"dcf-price-refresh{suffix}", interval=60000, n_intervals=0),
-                html.Div(id=f"dcf-body{suffix}", children=[
+                html.Div(id=f"dcf-body{suffix}", style={"display": "none"}, children=[
                 *([
                     html.P("A simple discounted cash flow model: projects Free Cash Flow forward at the "
                            "growth rate below, discounts each year back to present value, and adds a "
@@ -1522,7 +1520,7 @@ def _movers_card(title, container_id):
 
 
 _OVERVIEW_CARD_STYLE = {"backgroundColor": "var(--card-bg)", "border": "1px solid var(--border)",
-                        "borderRadius": "14px", "padding": "16px 20px", "marginTop": "40px", "marginBottom": "24px"}
+                        "borderRadius": "14px", "padding": "16px 20px", "marginTop": "16px", "marginBottom": "24px"}
 _OVERVIEW_LABEL = "Daily Overview:"
 _HEATMAP_CARD_STYLE = {"backgroundColor": "var(--card-bg)", "border": "1px solid var(--border)",
                        "borderRadius": "14px", "padding": "0 20px 16px", "marginTop": "48px"}
@@ -1535,6 +1533,34 @@ _HEATMAP_NOTE = ("Each tile is an industry, sized by its share of the index's fl
                  "Color and % show the average return of its stocks today, weighted the same way. "
                  f"Industries with fewer than {_INDUSTRY_MIN_STOCKS} stocks aren't shown unless they're "
                  f"at least {_INDUSTRY_EXEMPT_WEIGHT_PCT}% of the index.")
+
+
+# Ticker bar above the overview: one view per group, slid through in turn by
+# custom.js. Sector names are GICS's; each maps to the Yahoo sector our
+# constituents snapshot uses for it.
+_TICKER_MAG7 = ("AAPL", "MSFT", "GOOGL", "AMZN", "NVDA", "META", "TSLA")
+# Must match stock_price.SP500_EXTRA_SYMBOLS, which is what gets quoted.
+_TICKER_COMMODITIES = (("Oil", "USO"), ("Natural Gas", "UNG"), ("Gold", "GLD"), ("Silver", "SLV"),
+                       ("Copper", "CPER"))
+_TICKER_SECTORS = (
+    ("Information Technology", "Technology"),
+    ("Financials", "Financial Services"),
+    ("Health Care", "Healthcare"),
+    ("Consumer Discretionary", "Consumer Cyclical"),
+    ("Communication Services", "Communication Services"),
+    ("Industrials", "Industrials"),
+    ("Consumer Staples", "Consumer Defensive"),
+    ("Energy", "Energy"),
+    ("Utilities", "Utilities"),
+    ("Real Estate", "Real Estate"),
+)
+_TICKER_STOCKS_PER_SECTOR = 7
+
+
+def _market_ticker_bar():
+    # load_day_movers fills the store, and custom.js builds the bar from it.
+    return html.Div(id="market-ticker", className="market-ticker",
+                    children=[dcc.Store(id="market-ticker-data"), html.Div(id="market-ticker-container")])
 
 
 def _overview_card():
@@ -1550,32 +1576,42 @@ def _overview_card():
     )
 
 
+def _heatmap_heading(toggle):
+    return html.Div(style={"display": "flex", "alignItems": "center", "gap": "10px", "paddingTop": "16px"},
+                    children=[html.H3(_HEATMAP_TITLE, style={**_HEADER_STYLE, "margin": "0"}), toggle])
+
+
 def _heatmap_card():
+    # Starts collapsed to its heading: heatmap-toggle opens it, and custom.js
+    # only builds the map while it's open. load_day_movers fills the store
+    # either way, since the ticker bar's quotes come from the same request.
     # Same dcc.Loading spinner as the movers cards, centered here since the
-    # map doesn't grow. Filled by load_day_movers.
+    # map doesn't grow.
     return html.Div(
         className="heatmap-card",
         style=_HEATMAP_CARD_STYLE,
         children=[
-            html.Div(
-                className="heatmap-card-head",
-                children=[
-                    html.Div([
-                        html.H3(_HEATMAP_TITLE, style={**_HEADER_STYLE, "padding": "16px 0 4px", "margin": "0"}),
+            _heatmap_heading(html.Button("+", id="heatmap-toggle", n_clicks=0, className="section-toggle",
+                                         title="Show heatmap")),
+            html.Div(id="heatmap-body-wrap", style={"display": "none"}, children=[
+                html.Div(
+                    className="heatmap-card-head",
+                    children=[
                         html.P(_HEATMAP_NOTE, style={**_PARA_STYLE, "fontSize": "13px", "margin": "0"}),
-                    ]),
-                    html.Div(
-                        className="heatmap-legend",
-                        children=[html.Span(f"-{_HEATMAP_COLOR_LIMIT}%"), html.Div(className="heatmap-legend-bar"),
-                                  html.Span(f"+{_HEATMAP_COLOR_LIMIT}%")],
-                    ),
-                ],
-            ),
-            dcc.Loading(
-                custom_spinner=html.Div(className="spinner"),
-                overlay_style={"visibility": "visible"},
-                children=html.Div(id="sp500-heatmap-container", className="heatmap-body"),
-            ),
+                        html.Div(
+                            className="heatmap-legend",
+                            children=[html.Span(f"-{_HEATMAP_COLOR_LIMIT}%"), html.Div(className="heatmap-legend-bar"),
+                                      html.Span(f"+{_HEATMAP_COLOR_LIMIT}%")],
+                        ),
+                    ],
+                ),
+                dcc.Loading(
+                    custom_spinner=html.Div(className="spinner"),
+                    overlay_style={"visibility": "visible"},
+                    children=[dcc.Store(id="sp500-heatmap-data"),
+                              html.Div(id="sp500-heatmap-container", className="heatmap-body")],
+                ),
+            ]),
         ],
     )
 
@@ -1608,6 +1644,7 @@ def _company_panel_skeleton():
         style=_APP_CONTENT_STYLE,
         children=[
             html.H2("Stock Tracker", style=_HEADER_STYLE),
+            html.Div(className="market-ticker"),
             html.Div(
                 style=_OVERVIEW_CARD_STYLE,
                 children=html.Div(className="market-overview-body skeleton-spinner-wrap",
@@ -1619,10 +1656,7 @@ def _company_panel_skeleton():
             html.Div(
                 className="heatmap-card",
                 style=_HEATMAP_CARD_STYLE,
-                children=[html.H3(_HEATMAP_TITLE, style={**_HEADER_STYLE, "padding": "16px 0 4px", "margin": "0"}),
-                          html.P(_HEATMAP_NOTE, style={**_PARA_STYLE, "fontSize": "13px", "margin": "0"}),
-                          html.Div(className="heatmap-body skeleton-spinner-wrap",
-                                   children=html.Div(className="spinner"))],
+                children=_heatmap_heading(html.Button("+", className="section-toggle")),
             ),
             html.Hr(style=_SECTION_DIVIDER_STYLE),
             html.H3("Look Up a Stock", style=_LOOKUP_HEADING_STYLE),
@@ -1659,6 +1693,7 @@ def _company_tracker_children():
         dcc.Store(id="ticker-store"),
         dcc.Store(id="ticker-store-2"),
         html.H2("Stock Tracker", id="company-main-heading", style=_HEADER_STYLE),
+        _market_ticker_bar(),
         _overview_card(),
         html.Div(
             id="company-movers-wrap",
@@ -1683,6 +1718,7 @@ def _company_tracker_children():
         dcc.Store(id="top-losers-records", data=[]),
         dcc.Store(id="top-losers-visible-count", data=_MOVERS_PAGE_SIZE),
         dcc.Interval(id="top-losers-scroll-poll", interval=1200, n_intervals=0),
+        dcc.Interval(id="market-refresh", interval=_MARKET_REFRESH_MS, n_intervals=0),
         html.Hr(id="lookup-stock-divider", style=_SECTION_DIVIDER_STYLE),
         html.H3("Look Up a Stock", id="lookup-stock-heading", style=_LOOKUP_HEADING_STYLE),
         # stock-header-{meta,name,price,change} start as placeholder/blank
@@ -1942,6 +1978,9 @@ _ACTIVITY_PAGE_SIZE = 30
 # mechanism as _ACTIVITY_PAGE_SIZE above, starting at a top-10.
 _MOVERS_PAGE_SIZE = 10
 _MOVERS_FETCH_COUNT = 100
+# How often an open Companies tab reloads its market data (see load_day_movers),
+# matching the S&P 500 quotes' cache so each reload can bring something new.
+_MARKET_REFRESH_MS = 10 * 60 * 1000
 _MOVERS_NOTE = "Today's biggest moves among US-listed stocks with a market cap of roughly $2B+. Up to 10min lag"
 # A move this big (in %, either way) gets a tile's full red/green; smaller
 # ones fade toward the neutral midpoint. Fixed rather than scaled to the day's
@@ -5292,12 +5331,24 @@ _MOVERS_EMPTY_MSG_STYLE = {"color": "var(--body-text)", "fontSize": "13px", "mar
     Output("top-losers-records", "data"),
     Output("top-gainers-container", "children"),
     Output("top-losers-container", "children"),
-    Output("sp500-heatmap-container", "children"),
+    Output("sp500-heatmap-data", "data"),
     Output("market-overview-container", "children"),
+    Output("market-ticker-data", "data"),
     Input("company-panel", "children"),
+    Input("market-refresh", "n_intervals"),
+    State("top-gainers-visible-count", "data"),
+    State("top-losers-visible-count", "data"),
     prevent_initial_call=True,
 )
-def load_day_movers(_panel_children):
+def load_day_movers(_panel_children, _refresh_ticks, gainers_visible, losers_visible):
+    # Also re-runs on market-refresh's ticks so an open tab stays current,
+    # but only during market hours: off hours nothing moves. The grace
+    # period lets the first tick after the session's cutoff bring in the
+    # final numbers. Refreshed movers keep however many rows were scrolled
+    # into view.
+    if ctx.triggered_id == "market-refresh" and \
+            not us_market_session_active(grace_minutes=_MARKET_REFRESH_MS // 60000):
+        raise PreventUpdate
     # Fires once the Companies panel itself exists (build_company_panel),
     # same as load_activity_summary does for the Politicians panel. Both
     # screens are fetched in parallel; either failing just leaves that
@@ -5311,28 +5362,96 @@ def load_day_movers(_panel_children):
     # main-thread work on this (large) panel regardless of payload size,
     # and those two extra round trips landed right as the price chart's
     # own response did -- measured delaying the chart by ~0.6s on open. The
-    # S&P 500 heatmap and the overview ride along in this response for the
-    # same reason.
+    # S&P 500 heatmap, the overview and the ticker bar ride along in this
+    # response for the same reason.
     def fetch(kind):
         try:
             return fetch_day_movers(kind, count=_MOVERS_FETCH_COUNT)
         except PriceDataError:
             return []
 
-    def fetch_industries():
+    def fetch_index():
+        # Both come from the same cached quotes, so this is one fetch.
         try:
-            return fetch_sp500_industry_returns()
+            return fetch_sp500_quotes(), fetch_sp500_industry_returns()
         except PriceDataError:
-            return []
+            return ([], {}), []
 
     with concurrent.futures.ThreadPoolExecutor(max_workers=3) as pool:
         gainers_future = pool.submit(fetch, "gainers")
         losers_future = pool.submit(fetch, "losers")
-        industries_future = pool.submit(fetch_industries)
-        gainers, losers, industries = gainers_future.result(), losers_future.result(), industries_future.result()
-    return (gainers, losers, _render_mover_rows(_MOVERS_PAGE_SIZE, gainers, "gainers"),
-            _render_mover_rows(_MOVERS_PAGE_SIZE, losers, "losers"), _build_sp500_heatmap(industries),
-            _build_market_overview(gainers, losers, industries))
+        index_future = pool.submit(fetch_index)
+        gainers, losers = gainers_future.result(), losers_future.result()
+        (companies, quotes), industries = index_future.result()
+    return (gainers, losers, _render_mover_rows(gainers_visible or _MOVERS_PAGE_SIZE, gainers, "gainers"),
+            _render_mover_rows(losers_visible or _MOVERS_PAGE_SIZE, losers, "losers"), _sp500_heatmap_data(industries),
+            _build_market_overview(gainers, losers, industries), _market_ticker_views(companies, quotes))
+
+
+# The ticker bar and heatmap are built in the browser (custom.js) from plain
+# data rather than as Dash components: as components they came to ~900, and
+# Dash re-checks every component on the page on each update, which froze the
+# tab for seconds on a refresh and kept it busy even when idle. These only
+# hand the data over; returning no_update leaves the container's prop alone.
+app.clientside_callback(
+    """function (views) {
+        window.renderMarketTicker(document.getElementById("market-ticker-container"), views);
+        return window.dash_clientside.no_update;
+    }""",
+    Output("market-ticker-container", "title"),
+    Input("market-ticker-data", "data"),
+    prevent_initial_call=True,
+)
+# The heatmap also opens and closes here (heatmap-toggle): it's only built
+# while open, and emptied again on close. Data that hasn't arrived yet (null,
+# unlike an empty list from a failed fetch) leaves it to the spinner.
+app.clientside_callback(
+    """function (sectors, nClicks) {
+        const open = (nClicks || 0) % 2 === 1;
+        const container = document.getElementById("sp500-heatmap-container");
+        if (open && sectors != null) window.renderSp500Heatmap(container, sectors);
+        else if (container) container.replaceChildren();
+        return [open ? {marginTop: "4px"} : {display: "none"}, open ? "\u2212" : "+",
+                open ? "Hide heatmap" : "Show heatmap"];
+    }""",
+    Output("heatmap-body-wrap", "style"),
+    Output("heatmap-toggle", "children"),
+    Output("heatmap-toggle", "title"),
+    Input("sp500-heatmap-data", "data"),
+    Input("heatmap-toggle", "n_clicks"),
+    prevent_initial_call=True,
+)
+
+
+def _ticker_change(pct):
+    """(text, direction) for a ticker item's % change."""
+    if abs(pct) < 0.005:
+        return f"{pct:+.2f}%", "flat"
+    return (f"\u25b2 {pct:+.2f}%", "up") if pct > 0 else (f"\u25bc {pct:+.2f}%", "down")
+
+
+def _market_ticker_views(companies, quotes):
+    """The ticker bar's views (Mag 7, commodities, then each sector's largest
+    stocks by market cap), from fetch_sp500_quotes, as [{title, items: [{label,
+    change, direction}]}] for custom.js's renderMarketTicker. A symbol Yahoo
+    didn't quote is left out, and a view left with nothing is dropped."""
+    def pct(symbol):
+        return (quotes.get(symbol) or {}).get("regularMarketChangePercent")
+
+    views = [("Mag 7", [(s, pct(s)) for s in _TICKER_MAG7]),
+             ("Commodities", [(f"{name} ({s})", pct(s)) for name, s in _TICKER_COMMODITIES])]
+    for title, yahoo_sector in _TICKER_SECTORS:
+        quoted = [c["symbol"] for c in companies
+                  if c["sector"] == yahoo_sector and pct(c["symbol"]) is not None and quotes[c["symbol"]].get("marketCap")]
+        largest = sorted(quoted, key=lambda s: quotes[s]["marketCap"], reverse=True)[:_TICKER_STOCKS_PER_SECTOR]
+        views.append((title, [(s, pct(s)) for s in largest]))
+    result = []
+    for title, items in views:
+        items = [dict(zip(("label", "change", "direction"), (label, *_ticker_change(p))))
+                 for label, p in items if p is not None]
+        if items:
+            result.append({"title": title, "items": items})
+    return result
 
 
 def _overview_name(text):
@@ -5443,37 +5562,28 @@ def _percent_box(rect, parent_width, parent_height):
             "width": f"{width / parent_width * 100:.3f}%", "height": f"{height / parent_height * 100:.3f}%"}
 
 
-def _build_heatmap_tile(row, rect, parent_width, parent_height):
+def _heatmap_tile(row, rect, parent_width, parent_height):
     pct_label = f"{row['avg_change_pct']:+.2f}%"
     stocks = f"{row['count']} stock{'' if row['count'] == 1 else 's'}"
-    details = (f"{row['industry']}\n{pct_label} return\n"
-               f"{row['weight_pct']:.2f}% of S&P 500 market cap\n{stocks} · {row['sector']}")
     # Which labels show is decided by the tile's rendered size (container
     # queries in custom.css); every tile's details are in its hover tooltip
-    # (custom.js reads aria-label), which also covers the ones too small to label.
-    return html.Div(
-        className="heatmap-tile",
-        role="img",
-        style={**_percent_box(rect, parent_width, parent_height),
-               "backgroundColor": _heatmap_color(row["avg_change_pct"])},
-        **{"aria-label": details},
-        children=html.Div(
-            className="heatmap-tile-text",
-            children=[html.Span(row["industry"], className="heatmap-tile-name"),
-                      html.Span(pct_label, className="heatmap-tile-pct")],
-        ),
-    )
+    # (custom.js shows its aria-label), which also covers the ones too small to label.
+    return {"name": row["industry"], "pct": pct_label, "color": _heatmap_color(row["avg_change_pct"]),
+            "box": _percent_box(rect, parent_width, parent_height),
+            "details": (f"{row['industry']}\n{pct_label} return\n"
+                        f"{row['weight_pct']:.2f}% of S&P 500 market cap\n{stocks} · {row['sector']}")}
 
 
-def _build_sp500_heatmap(industries):
+def _sp500_heatmap_data(industries):
     """Treemap of `industries` (fetch_sp500_industry_returns), grouped into
-    labeled sectors. Built from positioned divs, not a Plotly treemap: the
-    app loads Plotly's basic bundle, which has no treemap trace (see
-    _PLOTLY_BASIC_VERSION), and this one chart isn't worth the full bundle."""
+    labeled sectors, as [{name, box, tiles: [{name, pct, color, box, details}]}]
+    for custom.js's renderSp500Heatmap -- empty if there's nothing to show.
+    Positioned divs, not a Plotly treemap: the app loads Plotly's basic bundle,
+    which has no treemap trace (see _PLOTLY_BASIC_VERSION), and this one chart
+    isn't worth the full bundle."""
     industries = _shown_industries(industries)
     if not industries:
-        return html.P("Couldn't load the S&P 500 heatmap right now -- try again shortly.",
-                      className="heatmap-empty", style=_MOVERS_EMPTY_MSG_STYLE)
+        return []
     sectors = {}
     for row in industries:
         sectors.setdefault(row["sector"], []).append(row)
@@ -5493,17 +5603,10 @@ def _build_sp500_heatmap(industries):
     for (sector, rows), rect in zip(ordered, sector_rects):
         body_width, body_height = rect[2], rect[3] - _HEATMAP_SECTOR_LABEL_HEIGHT
         tile_rects = _squarify([row["weight_pct"] for row in rows], 0, 0, body_width, body_height)
-        blocks.append(html.Div(
-            className="heatmap-sector",
-            style=_percent_box(rect, _HEATMAP_LAYOUT_WIDTH, _HEATMAP_LAYOUT_HEIGHT),
-            children=[
-                html.Div(sector, className="heatmap-sector-label"),
-                html.Div(className="heatmap-sector-body",
-                         children=[_build_heatmap_tile(row, tile_rect, body_width, body_height)
-                                   for row, tile_rect in zip(rows, tile_rects)]),
-            ],
-        ))
-    return html.Div(className="heatmap-map", children=blocks)
+        blocks.append({"name": sector, "box": _percent_box(rect, _HEATMAP_LAYOUT_WIDTH, _HEATMAP_LAYOUT_HEIGHT),
+                       "tiles": [_heatmap_tile(row, tile_rect, body_width, body_height)
+                                 for row, tile_rect in zip(rows, tile_rects)]})
+    return blocks
 
 
 def _render_mover_rows(visible_count, records, kind):
@@ -6479,16 +6582,15 @@ def update_dcf_2(defaults, _n_clicks, _n_intervals, theme, mobile, *current_valu
     return (*input_outputs, data, columns, summary, banner, chart)
 
 
-def _valuation_open(n_clicks, mobile):
-    """Valuation is always open on desktop; on mobile it starts collapsed
-    and each tap of valuation-toggle flips it."""
-    return not mobile or (n_clicks or 0) % 2 == 1
+def _valuation_open(n_clicks):
+    """Valuation starts collapsed, and each click of valuation-toggle flips it."""
+    return (n_clicks or 0) % 2 == 1
 
 
-def _dcf_chart_view(figure, n_clicks, mobile, suffix):
+def _dcf_chart_view(figure, n_clicks, suffix):
     """The DCF chart, built only while the Valuation section is open --
     see dcf_chart_column in _financials_valuation_blocks."""
-    if not _valuation_open(n_clicks, mobile) or not figure:
+    if not _valuation_open(n_clicks) or not figure:
         return None
     return dcc.Graph(id=f"dcf-chart{suffix}", figure=figure, config={"displayModeBar": False})
 
@@ -6497,20 +6599,18 @@ def _dcf_chart_view(figure, n_clicks, mobile, suffix):
     Output("dcf-chart-holder", "children"),
     Input("dcf-chart-store", "data"),
     Input("valuation-toggle", "n_clicks"),
-    Input("viewport-is-mobile", "data"),
 )
-def update_dcf_chart_view(figure, n_clicks, mobile):
-    return _dcf_chart_view(figure, n_clicks, mobile, "")
+def update_dcf_chart_view(figure, n_clicks):
+    return _dcf_chart_view(figure, n_clicks, "")
 
 
 @app.callback(
     Output("dcf-chart-holder-2", "children"),
     Input("dcf-chart-store-2", "data"),
     Input("valuation-toggle", "n_clicks"),
-    Input("viewport-is-mobile", "data"),
 )
-def update_dcf_chart_view_2(figure, n_clicks, mobile):
-    return _dcf_chart_view(figure, n_clicks, mobile, "-2")
+def update_dcf_chart_view_2(figure, n_clicks):
+    return _dcf_chart_view(figure, n_clicks, "-2")
 
 
 # Shows/hides the Valuation section's body (everything under its heading)
@@ -6521,8 +6621,8 @@ def update_dcf_chart_view_2(figure, n_clicks, mobile):
 # only partly on the page.
 app.clientside_callback(
     """
-    function(nClicks, isMobile) {
-        const open = !isMobile || (nClicks || 0) % 2 === 1;
+    function(nClicks) {
+        const open = (nClicks || 0) % 2 === 1;
         return [open ? {} : {display: "none"}, open ? "\u2212" : "+",
                 open ? "Hide valuation" : "Show valuation"];
     }
@@ -6531,18 +6631,15 @@ app.clientside_callback(
     Output("valuation-toggle", "children"),
     Output("valuation-toggle", "title"),
     Input("valuation-toggle", "n_clicks"),
-    Input("viewport-is-mobile", "data"),
 )
 app.clientside_callback(
     """
-    function(nClicks, isMobile) {
-        const open = !isMobile || (nClicks || 0) % 2 === 1;
-        return open ? {} : {display: "none"};
+    function(nClicks) {
+        return (nClicks || 0) % 2 === 1 ? {} : {display: "none"};
     }
     """,
     Output("dcf-body-2", "style"),
     Input("valuation-toggle", "n_clicks"),
-    Input("viewport-is-mobile", "data"),
 )
 
 
