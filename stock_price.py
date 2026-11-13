@@ -582,7 +582,7 @@ def fetch_day_movers(kind, count=100):
 SP500_SNAPSHOT_PATH = Path(__file__).parent / "data" / "sp500_constituents.json"
 _QUOTE_URL = "https://query1.finance.yahoo.com/v7/finance/quote"
 _QUOTE_BATCH_SIZE = 200
-_SP500_QUOTE_FIELDS = "marketCap,regularMarketChangePercent,regularMarketPrice,floatShares"
+_SP500_QUOTE_FIELDS = "marketCap,regularMarketChangePercent,regularMarketPrice,floatShares,shortName,sharesOutstanding"
 _SP500_CACHE_TTL = 600
 _sp500_cache = None
 # Not in the index, but quoted in the same requests for the Companies tab's
@@ -655,6 +655,33 @@ def fetch_sp500_quotes():
         raise PriceDataError("Yahoo returned no S&P 500 quotes")
     _sp500_cache = (time.time(), (companies, quotes))
     return companies, quotes
+
+
+def fetch_sp500_stocks(industry=None):
+    """S&P 500 stocks -- every one, or just `industry`'s -- largest market
+    cap first: one {symbol, name, sector, industry, market_cap,
+    shares_outstanding, change_pct} per stock Yahoo quoted. From the same
+    cached quotes as the heatmap (fetch_sp500_quotes), so no extra requests.
+    Raises PriceDataError if the quotes can't be read."""
+    companies, quotes = fetch_sp500_quotes()
+    stocks = []
+    for c in companies:
+        if industry is not None and c["industry"] != industry:
+            continue
+        q = quotes.get(c["symbol"]) or {}
+        if not q.get("marketCap"):
+            continue
+        stocks.append({
+            "symbol": c["symbol"],
+            "name": q.get("shortName") or q.get("longName") or c["symbol"],
+            "sector": c["sector"],
+            "industry": c["industry"],
+            "market_cap": q["marketCap"],
+            "shares_outstanding": q.get("sharesOutstanding"),
+            "change_pct": q.get("regularMarketChangePercent"),
+        })
+    stocks.sort(key=lambda s: s["market_cap"], reverse=True)
+    return stocks
 
 
 def fetch_sp500_industry_returns():

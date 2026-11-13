@@ -68,6 +68,7 @@ from company_growth_calc import (
 from stock_price import (HoldingsDataError, LIVE_RANGE_KEYS, PriceDataError, RANGE_KEYS, fetch_day_change_pcts,
                           fetch_day_movers, fetch_fund_name, fetch_earnings_history, fetch_previous_close,
                           fetch_price_as_of, fetch_price_history, fetch_put_call_ratio, fetch_sp500_industry_returns, fetch_sp500_quotes,
+                          fetch_sp500_stocks,
                           fetch_ticker_overview, us_market_session_active)
 from thirteenf import (
     FilingDataError,
@@ -1622,6 +1623,79 @@ def _heatmap_heading(toggle):
                     children=[html.H3(_HEATMAP_TITLE, style={**_HEADER_STYLE, "margin": "0"}), toggle])
 
 
+_INDUSTRY_STOCKS_PAGE_SIZE = 20  # rows built per page; the card shows ~10 before scrolling
+_INDUSTRY_STOCKS_ALL_TITLE = "1 Day Return by Industry"
+_INDUSTRY_STOCKS_HINT = "Click an industry above to list its stocks."
+# (record key, header label, extra class) per sortable column, in table order.
+_INDUSTRY_STOCK_COLUMNS = (
+    ("symbol", "Ticker", ""),
+    ("name", "Company", ""),
+    ("market_cap", "Mkt Cap", "num"),
+    ("shares_outstanding", "Shares Out", "num industry-col-shares"),
+    ("change_pct", "Today", "num"),
+)
+_INDUSTRY_TEXT_COLUMNS = {"symbol", "name"}
+_INDUSTRY_STOCKS_DEFAULT_SORT = {"col": "market_cap", "desc": True}
+
+
+def _industry_sort_label(col, label, sort):
+    if sort.get("col") != col:
+        return label
+    return f"{label} {'▼' if sort.get('desc') else '▲'}"
+
+
+def _sort_industry_records(records, sort):
+    """`records` ordered by sort's column; rows missing that value go last
+    either way."""
+    col, desc = sort.get("col", "market_cap"), bool(sort.get("desc"))
+    present = [r for r in records if r.get(col) is not None]
+    missing = [r for r in records if r.get(col) is None]
+    key = (lambda r: str(r[col]).lower()) if col in _INDUSTRY_TEXT_COLUMNS else (lambda r: r[col])
+    return sorted(present, key=key, reverse=desc) + missing
+
+
+def _industry_stocks_table():
+    """Below the heatmap: the S&P 500's stocks, largest first -- or, once an
+    industry tile is clicked (custom.js's renderSp500Heatmap sets
+    sp500-industry-selected), just that industry's. Rows come in pages as the
+    card scrolls, like the movers cards; see load_industry_stocks."""
+    return html.Div(
+        className="industry-stocks",
+        children=[
+            dcc.Store(id="sp500-industry-selected", data=None),
+            dcc.Store(id="industry-stocks-records", data=[]),
+            dcc.Store(id="industry-stocks-visible-count", data=_INDUSTRY_STOCKS_PAGE_SIZE),
+            dcc.Store(id="industry-stocks-sort", data=_INDUSTRY_STOCKS_DEFAULT_SORT),
+            dcc.Interval(id="industry-stocks-scroll-poll", interval=1200, n_intervals=0),
+            html.Div(
+                className="industry-stocks-head",
+                children=[
+                    html.Div([html.Span(_INDUSTRY_STOCKS_ALL_TITLE, id="industry-stocks-title",
+                                        className="industry-stocks-title"),
+                              html.Span(_INDUSTRY_STOCKS_HINT, id="industry-stocks-subtitle",
+                                        className="industry-stocks-subtitle")]),
+                    html.Button("Show all", id="industry-stocks-clear", n_clicks=0,
+                                className="industry-stocks-clear", style={"display": "none"}),
+                ],
+            ),
+            html.Div(
+                className="industry-stocks-scroller",
+                children=[
+                    # Each header sorts by its column (change_industry_sort).
+                    html.Div(className="industry-row industry-row-head",
+                             children=[*(html.Button(_industry_sort_label(col, label, _INDUSTRY_STOCKS_DEFAULT_SORT),
+                                                     id={"type": "industry-sort", "col": col}, n_clicks=0,
+                                                     className=f"industry-sort {extra}".strip(),
+                                                     title=f"Sort by {label}")
+                                         for col, label, extra in _INDUSTRY_STOCK_COLUMNS),
+                                       html.Span("")]),
+                    html.Div(id="industry-stocks-container"),
+                ],
+            ),
+        ],
+    )
+
+
 def _heatmap_card():
     # Starts collapsed to its heading: heatmap-toggle opens it, and custom.js
     # only builds the map while it's open. load_day_movers fills the store
@@ -1652,6 +1726,7 @@ def _heatmap_card():
                     children=[dcc.Store(id="sp500-heatmap-data"),
                               html.Div(id="sp500-heatmap-container", className="heatmap-body")],
                 ),
+                _industry_stocks_table(),
             ]),
         ],
     )
@@ -5644,10 +5719,12 @@ def _heatmap_tile(row, rect, parent_width, parent_height):
     # Which labels show is decided by the tile's rendered size (container
     # queries in custom.css); every tile's details are in its hover tooltip
     # (custom.js shows its aria-label), which also covers the ones too small to label.
-    return {"name": row["industry"], "pct": pct_label, "color": _heatmap_color(row["avg_change_pct"]),
+    return {"name": row["industry"], "sector": row["sector"], "pct": pct_label,
+            "color": _heatmap_color(row["avg_change_pct"]),
             "box": _percent_box(rect, parent_width, parent_height),
             "details": (f"{row['industry']}\n{pct_label} return\n"
-                        f"{row['weight_pct']:.2f}% of S&P 500 market cap\n{stocks} · {row['sector']}")}
+                        f"{row['weight_pct']:.2f}% of S&P 500 market cap\n{stocks} · {row['sector']}\n"
+                        "Click to list its stocks")}
 
 
 def _sp500_heatmap_data(industries):
@@ -5809,6 +5886,175 @@ def select_mover(clicks, current_n_submit, current_value):
     # already-loaded ticker never fires update_company_suggestions, so a
     # leftover True would swallow the user's next real keystroke instead.
     return ticker, (current_n_submit or 0) + 1, ticker != current_value, "company"
+
+
+def _industry_stock_row(r, on_watchlist):
+    pct = r.get("change_pct")
+    up = (pct or 0) >= 0
+    return html.Div(
+        className="industry-row",
+        children=[
+            # A mover-row id, so select_mover loads it like a Top Gainers row.
+            html.Span(r["symbol"], id={"type": "mover-row", "kind": "industry", "ticker": r["symbol"]},
+                      n_clicks=0, className="industry-ticker", title=f"Look up {r['symbol']}"),
+            html.Span(r["name"], className="industry-name", title=r["name"]),
+            html.Span(_fmt_big_dollars(r.get("market_cap")) or "—", className="num"),
+            html.Span(_fmt_count(r["shares_outstanding"]) if r.get("shares_outstanding") else "—",
+                      className="num industry-col-shares"),
+            html.Span(f"{pct:+.2f}%" if pct is not None else "—",
+                      className="industry-pct " + ("industry-pct-up" if up else "industry-pct-down")),
+            html.Button("✓" if on_watchlist else "+",
+                        id={"type": "industry-watchlist", "ticker": r["symbol"]}, n_clicks=0,
+                        className="industry-watch" + (" on" if on_watchlist else ""),
+                        title=("Remove from" if on_watchlist else "Add to") + " watchlist"),
+        ],
+    )
+
+
+# The table's rows: the S&P 500 (largest first) or the clicked industry's,
+# from the heatmap's own cached quotes -- re-read whenever the heatmap data
+# refreshes (sp500-heatmap-data), so the two stay in step.
+@app.callback(
+    Output("industry-stocks-records", "data"),
+    Output("industry-stocks-visible-count", "data", allow_duplicate=True),
+    Output("industry-stocks-title", "children"),
+    Output("industry-stocks-subtitle", "children"),
+    Output("industry-stocks-clear", "style"),
+    Input("sp500-industry-selected", "data"),
+    Input("sp500-heatmap-data", "data"),
+    prevent_initial_call=True,
+)
+def load_industry_stocks(selected, _heatmap):
+    industry = (selected or {}).get("industry")
+    try:
+        records = fetch_sp500_stocks(industry)
+    except PriceDataError:
+        records = []
+    # A new selection starts back at the first page; a data refresh keeps
+    # however many rows were scrolled into view.
+    count = _INDUSTRY_STOCKS_PAGE_SIZE if ctx.triggered_id == "sp500-industry-selected" else no_update
+    if not industry:
+        return records, count, _INDUSTRY_STOCKS_ALL_TITLE, _INDUSTRY_STOCKS_HINT, {"display": "none"}
+    n = len(records)
+    subtitle = f"{selected.get('sector') or ''} · {n} stock{'' if n == 1 else 's'}".lstrip(" ·")
+    return records, count, industry, subtitle, {}
+
+
+@app.callback(
+    Output("industry-stocks-container", "children"),
+    Input("industry-stocks-visible-count", "data"),
+    Input("industry-stocks-records", "data"),
+    Input("industry-stocks-sort", "data"),
+    Input("watchlist-store", "data"),
+    prevent_initial_call=True,
+)
+def render_industry_stock_rows(visible_count, records, sort, items):
+    if not records:
+        return html.P("Couldn't load S&P 500 quotes right now -- try again shortly.", style=_MOVERS_EMPTY_MSG_STYLE)
+    watched = {str(i["key"]).upper() for i in items or [] if i.get("kind") == "company"}
+    ordered = _sort_industry_records(records, sort or _INDUSTRY_STOCKS_DEFAULT_SORT)
+    return [_industry_stock_row(r, r["symbol"].upper() in watched)
+            for r in ordered[:visible_count or _INDUSTRY_STOCKS_PAGE_SIZE]]
+
+
+# A header click sorts by that column: largest first for numbers, A-Z for
+# text; clicking the sorted column again flips it. Back to the first page.
+@app.callback(
+    Output("industry-stocks-sort", "data"),
+    Output("industry-stocks-visible-count", "data", allow_duplicate=True),
+    Input({"type": "industry-sort", "col": ALL}, "n_clicks"),
+    State("industry-stocks-sort", "data"),
+    prevent_initial_call=True,
+)
+def change_industry_sort(_clicks, sort):
+    if not ctx.triggered or not ctx.triggered[0]["value"]:
+        raise PreventUpdate
+    col = ctx.triggered_id["col"]
+    sort = sort or _INDUSTRY_STOCKS_DEFAULT_SORT
+    if sort.get("col") == col:
+        return {"col": col, "desc": not sort.get("desc")}, _INDUSTRY_STOCKS_PAGE_SIZE
+    return {"col": col, "desc": col not in _INDUSTRY_TEXT_COLUMNS}, _INDUSTRY_STOCKS_PAGE_SIZE
+
+
+@app.callback(
+    Output({"type": "industry-sort", "col": ALL}, "children"),
+    Input("industry-stocks-sort", "data"),
+    prevent_initial_call=True,
+)
+def update_industry_sort_labels(sort):
+    labels = {col: label for col, label, _ in _INDUSTRY_STOCK_COLUMNS}
+    return [_industry_sort_label(o["id"]["col"], labels[o["id"]["col"]], sort or {}) for o in ctx.outputs_list]
+
+
+# A new sort starts from the top of the table.
+app.clientside_callback(
+    """
+    function(_sort) {
+        var rows = document.getElementById("industry-stocks-container");
+        if (rows && rows.parentElement) rows.parentElement.scrollTop = 0;
+        return window.dash_clientside.no_update;
+    }
+    """,
+    Output("industry-stocks-scroll-poll", "disabled"),
+    Input("industry-stocks-sort", "data"),
+    prevent_initial_call=True,
+)
+
+
+@app.callback(
+    Output("watchlist-store", "data", allow_duplicate=True),
+    Input({"type": "industry-watchlist", "ticker": ALL}, "n_clicks"),
+    State("industry-stocks-records", "data"),
+    State("watchlist-store", "data"),
+    prevent_initial_call=True,
+)
+def toggle_watchlist_industry_stock(_clicks, records, items):
+    if not ctx.triggered or not ctx.triggered[0]["value"]:
+        raise PreventUpdate  # fires with all-zero clicks whenever the rows re-render
+    ticker = ctx.triggered_id["ticker"]
+    name = next((r["name"] for r in records or [] if r["symbol"] == ticker), ticker)
+    return _commit_watchlist(_toggle_watchlist_item(_watchlist_base(items), "company", ticker, name))
+
+
+# "Show all": back to the whole index, and the heatmap's tile un-highlighted
+# (selectHeatmapIndustry in custom.js also sets sp500-industry-selected).
+app.clientside_callback(
+    """
+    function(n) {
+        if (n) window.selectHeatmapIndustry(null);
+        return window.dash_clientside.no_update;
+    }
+    """,
+    Output("industry-stocks-clear", "title"),
+    Input("industry-stocks-clear", "n_clicks"),
+    prevent_initial_call=True,
+)
+
+# Infinite scroll -- same poll as the movers cards (the rows container's
+# parent is the scroller).
+app.clientside_callback(
+    """
+    function(_n_intervals, visibleCount, records) {
+        if (!records || !records.length || visibleCount >= records.length) {
+            return window.dash_clientside.no_update;
+        }
+        var container = document.getElementById("industry-stocks-container");
+        if (!container || container.children.length < visibleCount) {
+            return window.dash_clientside.no_update;
+        }
+        var scroller = container.parentElement;
+        if (scroller.clientHeight === 0 || scroller.scrollTop === 0) return window.dash_clientside.no_update;
+        var nearBottom = (scroller.scrollTop + scroller.clientHeight) >= (scroller.scrollHeight - 80);
+        if (nearBottom) return Math.min(visibleCount + %(page_size)d, records.length);
+        return window.dash_clientside.no_update;
+    }
+    """ % {"page_size": _INDUSTRY_STOCKS_PAGE_SIZE},
+    Output("industry-stocks-visible-count", "data", allow_duplicate=True),
+    Input("industry-stocks-scroll-poll", "n_intervals"),
+    State("industry-stocks-visible-count", "data"),
+    State("industry-stocks-records", "data"),
+    prevent_initial_call=True,
+)
 
 
 _EMPTY_PRICE_HEADER = ("", "", {}, "", "", "", "")
@@ -5977,7 +6223,7 @@ def _kpi_tile(label, value, sub=None, value_id=None, title=None):
     return tile
 
 
-def _fmt_contracts(n):
+def _fmt_count(n):
     """1250000 -> "1.25M", 1000000 -> "1M", 172506 -> "172.51K", 950 -> "950"."""
     for div, suffix in ((1e9, "B"), (1e6, "M"), (1e3, "K")):
         if n >= div:
@@ -5993,7 +6239,7 @@ def _put_call_tile(ticker):
     value = sub = None
     if pcr["ratio"] is not None:
         value = f"{pcr['ratio']:.2f}"
-        sub = f"{_fmt_contracts(pcr['call_oi'])} Calls vs {_fmt_contracts(pcr['put_oi'])} Puts"
+        sub = f"{_fmt_count(pcr['call_oi'])} Calls vs {_fmt_count(pcr['put_oi'])} Puts"
     return _kpi_tile("Put/Call Ratio", value, sub,
                      title="Put vs. call open interest, options expiring in the next 30 days")
 

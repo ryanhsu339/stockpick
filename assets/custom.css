@@ -1138,8 +1138,182 @@ details summary { cursor: pointer; color: var(--body-text); font-size: 13px; }
     color: #ffffff;
     container-type: size;
 }
+.heatmap-tile {
+    cursor: pointer;
+}
 .heatmap-tile:hover {
     border-color: var(--text);
+}
+/* The industry the table below is filtered to (see selectHeatmapIndustry). */
+.heatmap-tile.selected {
+    border: 2px solid var(--text);
+    box-shadow: inset 0 0 0 1px var(--card-bg);
+}
+.heatmap-tile:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: -2px;
+}
+
+/* Stocks table under the heatmap (_industry_stocks_table). */
+.industry-stocks {
+    margin-top: 20px;
+}
+.industry-stocks-head {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 8px;
+}
+.industry-stocks-title {
+    display: block;
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--text);
+}
+.industry-stocks-subtitle {
+    display: block;
+    font-size: 12px;
+    color: var(--body-text);
+    margin-top: 2px;
+}
+.industry-stocks-clear {
+    background: var(--card-bg);
+    color: var(--text);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 6px 12px;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    white-space: nowrap;
+}
+/* 8 rows tall, then scrolls (more rows load near the bottom): a 36px
+   header + 8 x 45px rows (32px + 8 x 43px on phones, below). */
+.industry-stocks-scroller {
+    max-height: 396px;
+    overflow-y: auto;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+}
+.industry-row {
+    display: grid;
+    grid-template-columns: 64px minmax(0, 1fr) 84px 92px 76px 32px;
+    gap: 12px;
+    align-items: center;
+    padding: 8px 12px;
+    border-bottom: 1px solid var(--border);
+    font-size: 13px;
+    color: var(--text);
+}
+#industry-stocks-container > .industry-row:last-child {
+    border-bottom: none;
+}
+.industry-row-head {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    background: var(--card-bg);
+    font-size: 11px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--body-text);
+    padding-top: 10px;
+    padding-bottom: 10px;
+}
+.industry-row .num {
+    text-align: right;
+    font-family: 'IBM Plex Mono', monospace;
+}
+.industry-row-head .num {
+    font-family: inherit;
+}
+/* Sortable column headers (change_industry_sort): plain header text that
+   happens to be a button. */
+.industry-sort {
+    background: none;
+    border: none;
+    padding: 0;
+    margin: 0;
+    font: inherit;
+    letter-spacing: inherit;
+    text-transform: inherit;
+    color: inherit;
+    text-align: left;
+    cursor: pointer;
+    white-space: nowrap;
+}
+.industry-sort.num {
+    text-align: right;
+}
+.industry-sort:hover {
+    color: var(--text);
+}
+.industry-ticker {
+    font-family: 'IBM Plex Mono', monospace;
+    font-weight: 500;
+    color: var(--security-text);
+    text-decoration: underline;
+    cursor: pointer;
+}
+.industry-name {
+    color: var(--body-text);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.industry-pct {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 12px;
+    font-weight: 600;
+    text-align: center;
+    padding: 3px 0;
+    border-radius: 4px;
+}
+.industry-pct-up {
+    color: var(--up);
+    background-color: rgba(76, 195, 138, 0.14);
+}
+.industry-pct-down {
+    color: var(--down);
+    background-color: rgba(229, 103, 90, 0.14);
+}
+.industry-watch {
+    width: 28px;
+    height: 28px;
+    padding: 0;
+    border-radius: 6px;
+    border: 1px solid var(--border);
+    background: var(--card-bg);
+    color: var(--text);
+    font-size: 15px;
+    line-height: 1;
+    cursor: pointer;
+}
+.industry-watch:hover {
+    border-color: var(--text);
+}
+.industry-watch.on {
+    color: var(--accent);
+    border-color: var(--accent);
+}
+@media (max-width: 768px) {
+    .industry-stocks-scroller {
+        max-height: 376px;
+    }
+    /* No room for Shares Out on a phone; the rest still fits. */
+    .industry-row {
+        grid-template-columns: 52px minmax(0, 1fr) 64px 68px 28px;
+        gap: 8px;
+        padding: 8px 10px;
+    }
+    .industry-col-shares {
+        display: none;
+    }
+    .industry-watch {
+        width: 26px;
+        height: 26px;
+    }
 }
 .heatmap-tile-text {
     display: flex;

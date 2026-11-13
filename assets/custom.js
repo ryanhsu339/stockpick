@@ -533,8 +533,12 @@ document.addEventListener("focusin", function (e) {
             var body = el("div", "heatmap-sector-body");
             sector.tiles.forEach(function (tile) {
                 var node = el("div", "heatmap-tile");
-                node.setAttribute("role", "img");
+                node.setAttribute("role", "button");
+                node.setAttribute("tabindex", "0");
                 node.setAttribute("aria-label", tile.details);
+                node.dataset.industry = tile.name;
+                node.dataset.sector = tile.sector || sector.name;
+                if (selectedIndustry === tile.name) node.classList.add("selected");
                 Object.assign(node.style, tile.box);
                 node.style.backgroundColor = tile.color;
                 var text = el("div", "heatmap-tile-text");
@@ -548,6 +552,44 @@ document.addEventListener("focusin", function (e) {
         });
         container.replaceChildren(map);
     };
+
+    // The industry the table under the heatmap is filtered to (null = the
+    // whole index). Kept here so a data refresh, which rebuilds the tiles,
+    // keeps its tile highlighted. Clicking the selected tile again, or the
+    // table's "Show all" button, clears it.
+    var selectedIndustry = null;
+    window.selectHeatmapIndustry = function (industry, sector) {
+        selectedIndustry = industry || null;
+        document.querySelectorAll(".heatmap-tile").forEach(function (node) {
+            node.classList.toggle("selected", node.dataset.industry === selectedIndustry);
+        });
+        var rows = document.getElementById("industry-stocks-container");
+        if (rows && rows.parentElement) rows.parentElement.scrollTop = 0;
+        window.dash_clientside.set_props("sp500-industry-selected",
+            {data: selectedIndustry ? {industry: selectedIndustry, sector: sector || null} : null});
+    };
+    function pick(tile) {
+        var industry = tile.dataset.industry;
+        window.selectHeatmapIndustry(industry === selectedIndustry ? null : industry, tile.dataset.sector);
+    }
+    document.addEventListener("click", function (event) {
+        if (!event.target.closest) return;
+        var tile = event.target.closest(".heatmap-tile");
+        if (tile) {
+            pick(tile);
+        } else if (selectedIndustry && !event.target.closest(".industry-stocks")) {
+            // A click anywhere else but the table (its tickers, watchlist
+            // and sort buttons) goes back to the whole index.
+            window.selectHeatmapIndustry(null);
+        }
+    });
+    document.addEventListener("keydown", function (event) {
+        if (event.key !== "Enter" && event.key !== " ") return;
+        var tile = event.target.closest ? event.target.closest(".heatmap-tile") : null;
+        if (!tile) return;
+        event.preventDefault();
+        pick(tile);
+    });
 })();
 
 // Slides the Companies tab's ticker bar (see renderMarketTicker above) one view at
