@@ -408,8 +408,14 @@ def build_price_figure(df, ticker, range_key, theme="dark", mobile=False, baseli
     colors = _chart_colors(theme)
     closes = df["Close"]
     volume = df["Volume"]
-    first, last = baseline or float(closes.iloc[0]), float(closes.iloc[-1])
-    up = last >= first
+    # 1D carries pre-market/after-hours bars, flagged by "Extended" (see
+    # stock_price.fetch_price_history). The line's up/down color follows
+    # the regular session, like the header's main price does.
+    extended = df["Extended"] if "Extended" in df.columns else pd.Series(False, index=df.index)
+    regular_closes = closes[~extended]
+    first = baseline or float(closes.iloc[0])
+    last = float(closes.iloc[-1])
+    up = (float(regular_closes.iloc[-1]) if len(regular_closes) else last) >= first
     color = _PRICE_UP_COLOR if up else _PRICE_DOWN_COLOR
     # A flat translucent fill read as a barely-there tint on the old light
     # card; against the dark card it needs more opacity to actually look
@@ -468,6 +474,24 @@ def build_price_figure(df, ticker, range_key, theme="dark", mobile=False, baseli
         legendrank=1,
         hovertemplate="%{y:$,.2f}<extra></extra>",
     ))
+    if extended.any():
+        # Pre-market/after-hours stretches: a muted line over the colored one,
+        # on a lightly shaded band. Each run keeps its neighboring regular
+        # bar so the muted line joins the session line without a gap.
+        joined = extended | extended.shift(1, fill_value=False) | extended.shift(-1, fill_value=False)
+        fig.add_trace(go.Scatter(
+            x=closes.index, y=closes.where(joined).values,
+            name="_extended",
+            mode="lines",
+            line=dict(width=2, color=colors["muted_text"]),
+            hoverinfo="skip",
+            showlegend=False,
+        ))
+        run_id = (extended != extended.shift()).cumsum()
+        for _, run in closes[extended].groupby(run_id[extended]):
+            fig.add_vrect(x0=run.index[0], x1=run.index[-1], fillcolor=colors["gridline"],
+                          opacity=0.6, line_width=0, layer="below")
+
     # Live-price marker at the latest point: a solid dot plus a translucent
     # halo behind it. The halo's opacity is animated client-side (see the
     # price-pulse-interval clientside callback) to read as a pulsing "live"
@@ -506,7 +530,9 @@ def build_price_figure(df, ticker, range_key, theme="dark", mobile=False, baseli
     # volume bars. rangebreaks removes that dead space so trading
     # days/hours sit contiguously.
     rangebreaks = [dict(bounds=["sat", "mon"])]
-    if range_key in ("1D", "5D"):
+    # 1D is a single day (now including pre/after-hours), so it has no
+    # overnight gap to remove.
+    if range_key == "5D":
         rangebreaks.append(dict(bounds=[16, 9.5], pattern="hour"))  # market close -> next open, ET
 
     # Ticker/price/change now live in the real HTML header above the chart
@@ -542,6 +568,9 @@ def build_price_figure(df, ticker, range_key, theme="dark", mobile=False, baseli
         # keeping it constant per ticker+range lets Plotly diff the traces
         # instead and animate between old/new points rather than popping.
         uirevision=f"{ticker}-{range_key}",
+        # Read by the scrub listeners in custom.js, so the header's change
+        # while scrubbing is measured from the same baseline as at rest.
+        meta={"baseline": baseline},
         # Plotly's hover box defaults to a light background with dark
         # text -- fine on the old light card, unreadable-low-contrast on
         # this dark one, so it needs its own explicit theme-matched styling.
@@ -1833,13 +1862,17 @@ def _company_tracker_children():
                 # position rather than a CSS reorder.
                 html.Div(
                     id="stock-header-price-inline",
-                    style={"display": "flex", "alignItems": "baseline", "gap": "12px", "marginBottom": "12px"},
+                    style={"display": "flex", "alignItems": "baseline", "flexWrap": "wrap",
+                           "gap": "4px 12px", "marginBottom": "12px"},
                     children=[
                         html.Span(id="stock-header-price",
                                   style={"fontFamily": "'IBM Plex Mono', monospace", "fontSize": "26px",
                                          "color": "var(--text)"}),
                         html.Span(id="stock-header-change",
                                   style={"fontFamily": "'IBM Plex Mono', monospace", "fontSize": "13px"}),
+                        # Pre-market/after-hours price and move (1D only).
+                        html.Span(id="stock-header-ext",
+                                  style={"fontFamily": "'IBM Plex Mono', monospace", "fontSize": "12px"}),
                     ],
                 ),
                 html.Div(
@@ -5735,7 +5768,30 @@ def select_mover(clicks, current_n_submit, current_value):
     return ticker, (current_n_submit or 0) + 1, ticker != current_value, "company"
 
 
-_EMPTY_PRICE_HEADER = ("", "", {}, "", "")
+_EMPTY_PRICE_HEADER = ("", "", {}, "", "", "")
+
+
+def _extended_hours_text(df, baseline):
+    """The header's "After hours"/"Pre-market" line when the latest 1D bar
+    is outside the regular session ("" otherwise): that price and its move
+    from the regular close (after hours) or the previous close (pre-market)."""
+    if "Extended" not in df.columns or not df["Extended"].iloc[-1]:
+        return ""
+    regular = df.loc[~df["Extended"], "Close"]
+    last = float(df["Close"].iloc[-1])
+    if len(regular) and df.index[-1] > regular.index[-1]:
+        label, ref = "After hours", float(regular.iloc[-1])
+    else:
+        label, ref = "Pre-market", baseline or float(df["Close"].iloc[0])
+    change = last - ref
+    pct = change / ref * 100 if ref else 0.0
+    sign, arrow = ("+", "▲") if change >= 0 else ("", "▼")
+    return [
+        html.Span(label, style={"color": "var(--body-text)", "marginRight": "6px"}),
+        html.Span(f"${last:,.2f}", style={"color": "var(--text)", "marginRight": "6px"}),
+        html.Span(f"{arrow} {sign}{change:,.2f} ({sign}{pct:.2f}%)",
+                  style={"color": "var(--up)" if change >= 0 else "var(--down)"}),
+    ]
 
 
 def _day_baseline(ticker, range_key, df):
@@ -5779,6 +5835,7 @@ app.clientside_callback(
     Output("stock-header-change", "style"),
     Output("stock-header-hi", "children"),
     Output("stock-header-lo", "children"),
+    Output("stock-header-ext", "children"),
     Input("ticker-store", "data"),
     Input("ticker-store-2", "data"),
     Input("compare-mode", "data"),
@@ -5802,17 +5859,26 @@ def update_price_chart(store, store2, is_compare, range_key, _n_intervals, theme
         except Exception as e:
             return empty_price_figure(f"Price data unavailable: {e}", theme=theme), *_EMPTY_PRICE_HEADER
         figure = build_compare_price_figure(df1, ticker, df2, ticker2, range_key, theme=theme, mobile=mobile)
-        return (figure, *_price_header_texts(_price_change_stats(df1, _day_baseline(ticker, range_key, df1))))
+        return (figure, *_price_header_texts(_price_change_stats(df1, _day_baseline(ticker, range_key, df1))), "")
 
     try:
-        df = fetch_price_history(ticker, range_key)
+        df = fetch_price_history(ticker, range_key, extended=True)
     except PriceDataError as e:
         return empty_price_figure(str(e), theme=theme), *_EMPTY_PRICE_HEADER
     except Exception as e:
         return empty_price_figure(f"Price data unavailable: {e}", theme=theme), *_EMPTY_PRICE_HEADER
     baseline = _day_baseline(ticker, range_key, df)
     figure = build_price_figure(df, ticker, range_key, theme=theme, mobile=mobile, baseline=baseline)
-    return (figure, *_price_header_texts(_price_change_stats(df, baseline)))
+    ext_text = _extended_hours_text(df, baseline)
+    regular = df[~df["Extended"]] if "Extended" in df.columns else df
+    if regular.empty:
+        # Before the open: only pre-market bars so far. The big number is
+        # the previous close; the pre-market line carries today's move.
+        if not baseline:
+            return (figure, *_price_header_texts(_price_change_stats(df)), ext_text)
+        return (figure, f"${baseline:,.2f}", "Previous close", {"color": "var(--body-text)"},
+                "—", "—", ext_text)
+    return (figure, *_price_header_texts(_price_change_stats(regular, baseline)), ext_text)
 
 
 _KPI_TILE_STYLE = {

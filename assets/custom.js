@@ -321,7 +321,10 @@ document.addEventListener("focusin", function (e) {
         if (!ys || idx >= ys.length) return true;
 
         const price = ys[idx];
-        const base = ys[0];
+        // The 1D chart's previous close (see build_price_figure's meta),
+        // else the window's first point -- same as the header at rest.
+        const meta = gd.layout.meta || {};
+        const base = meta.baseline || ys[0];
         const change = price - base;
         const pct = base ? (change / base * 100) : 0;
         const up = change >= 0;

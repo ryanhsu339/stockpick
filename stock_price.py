@@ -16,6 +16,7 @@ from datetime import date, datetime, timedelta
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
+import pandas as pd
 import yfinance as yf
 from yfinance.data import YfData
 
@@ -35,7 +36,11 @@ class HoldingsDataError(Exception):
 # "YTD" isn't one either (yfinance has "ytd" for calendar-quarter-based
 # tickers only), so it's built from Jan 1 of the current year instead.
 _RANGE_CONFIG = {
-    "1D": {"period": "1d", "interval": "5m"},
+    # Two days with pre/after-hours bars (same single request -- prepost is
+    # just a flag on Yahoo's chart call): before the open, today has only
+    # pre-market bars, so the second day keeps the last regular session in
+    # reach for callers that want regular hours only. See _select_session.
+    "1D": {"period": "2d", "interval": "5m", "prepost": True},
     "5D": {"period": "5d", "interval": "15m"},
     "1M": {"period": "1mo", "interval": "1d"},
     "3M": {"period": "3mo", "interval": "1d"},
@@ -66,11 +71,32 @@ _price_cache_lock = threading.Lock()
 _price_fetch_locks = {}
 
 
-def fetch_price_history(ticker, range_key):
+def fetch_price_history(ticker, range_key, extended=False):
     """Return a DataFrame with a DatetimeIndex and 'Close'/'Volume' columns
     for `ticker` over `range_key` (one of RANGE_KEYS). Raises PriceDataError
     if Yahoo Finance has no data for this ticker/range. Briefly cached --
-    see _price_cache."""
+    see _price_cache.
+
+    1D only: by default just the latest regular session's bars; with
+    `extended=True`, every bar of the latest trading day -- pre-market and
+    after-hours included -- plus a boolean 'Extended' column marking them."""
+    return _select_session(_fetch_price_history_cached(ticker, range_key), range_key, extended)
+
+
+def _select_session(df, range_key, extended):
+    if "Extended" not in df.columns:
+        return df[["Close", "Volume"]]
+    days = df.index.date
+    if extended:
+        return df[days == days[-1]]
+    regular = df[~df["Extended"]]
+    if regular.empty:
+        raise PriceDataError(f"No regular-session price data available ({range_key}).")
+    regular = regular[regular.index.date == regular.index[-1].date()]
+    return regular[["Close", "Volume"]]
+
+
+def _fetch_price_history_cached(ticker, range_key):
     key = (ticker.upper(), range_key)
     ttl = _PRICE_CACHE_TTL.get(range_key, _PRICE_CACHE_TTL_DEFAULT)
     with _price_cache_lock:
@@ -102,6 +128,8 @@ def _fetch_price_history_uncached(ticker, range_key):
         raise PriceDataError(f"Unknown range '{range_key}'.")
 
     kwargs = {"interval": config["interval"], "auto_adjust": True}
+    if config.get("prepost"):
+        kwargs["prepost"] = True
     if "years_back" in config:
         end = date.today()
         start = end - timedelta(days=365 * config["years_back"])
@@ -115,7 +143,8 @@ def _fetch_price_history_uncached(ticker, range_key):
         kwargs["period"] = config["period"]
 
     try:
-        df = yf.Ticker(ticker).history(**kwargs)
+        ticker_obj = yf.Ticker(ticker)
+        df = ticker_obj.history(**kwargs)
     except Exception as e:
         raise PriceDataError(f"Could not fetch price data for {ticker}: {e}") from e
 
@@ -129,7 +158,24 @@ def _fetch_price_history_uncached(ticker, range_key):
     if "Volume" not in df.columns:
         df = df.assign(Volume=None)
 
-    return df[["Close", "Volume"]]
+    if not config.get("prepost"):
+        return df[["Close", "Volume"]]
+    return df[["Close", "Volume"]].assign(Extended=_extended_mask(df.index, ticker_obj.history_metadata))
+
+
+def _extended_mask(index, metadata):
+    """True for bars outside each day's regular session, per Yahoo's own
+    tradingPeriods (so non-US exchanges' hours are right too). All False
+    when Yahoo doesn't say -- e.g. crypto, which has no pre/post sessions."""
+    periods = (metadata or {}).get("tradingPeriods")
+    mask = pd.Series(False, index=index)
+    if not isinstance(periods, pd.DataFrame) or not {"start", "end"} <= set(periods.columns):
+        return mask.values
+    for _, row in periods.iterrows():
+        start, end = row["start"], row["end"]
+        same_day = index.date == start.date()
+        mask[same_day & ((index < start) | (index >= end))] = True
+    return mask.values
 
 
 # fetch_ticker_overview results, briefly: the KPI tiles render once as soon
