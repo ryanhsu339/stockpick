@@ -232,6 +232,49 @@ def _fetch_ticker_overview_uncached(ticker):
     }
 
 
+# fetch_put_call_ratio results per ticker. Open interest is only updated
+# once a day (after the previous session settles), so an hour is plenty --
+# and it keeps this to a handful of Yahoo requests per ticker per hour.
+_PUT_CALL_CACHE_TTL = 3600
+_PUT_CALL_WINDOW_DAYS = 30
+_put_call_cache = {}
+
+
+def fetch_put_call_ratio(ticker):
+    """{"ratio", "call_oi", "put_oi"}: put/call open interest summed over
+    every option expiration in the next 30 days -- one Yahoo request for
+    the expiration list plus one per expiration (typically 4-8). All None
+    when the ticker has no listed options or Yahoo fails; never raises."""
+    key = ticker.upper()
+    cached = _put_call_cache.get(key)
+    if cached and time.time() - cached[0] < _PUT_CALL_CACHE_TTL:
+        return cached[1]
+    result = _fetch_put_call_ratio_uncached(ticker)
+    _put_call_cache[key] = (time.time(), result)
+    if len(_put_call_cache) > 200:
+        for stale in [k for k, (at, _) in _put_call_cache.items() if time.time() - at >= _PUT_CALL_CACHE_TTL]:
+            del _put_call_cache[stale]
+    return result
+
+
+def _fetch_put_call_ratio_uncached(ticker):
+    empty = {"ratio": None, "call_oi": None, "put_oi": None}
+    try:
+        ticker_obj = yf.Ticker(ticker)
+        horizon = date.today() + timedelta(days=_PUT_CALL_WINDOW_DAYS)
+        expirations = [e for e in ticker_obj.options if date.fromisoformat(e) <= horizon]
+        call_oi = put_oi = 0
+        for expiration in expirations:
+            chain = ticker_obj.option_chain(expiration)
+            call_oi += int(chain.calls["openInterest"].fillna(0).sum())
+            put_oi += int(chain.puts["openInterest"].fillna(0).sum())
+    except Exception:
+        return empty
+    if not call_oi:
+        return empty
+    return {"ratio": put_oi / call_oi, "call_oi": call_oi, "put_oi": put_oi}
+
+
 def _fetch_analyst_split(ticker_obj):
     """{"pct_buy", "pct_hold", "pct_sell"} (0-1 fractions) plus
     "rating_count" from Yahoo's current-month recommendation counts, with

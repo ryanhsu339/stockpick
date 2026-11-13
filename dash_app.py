@@ -67,7 +67,7 @@ from company_growth_calc import (
 )
 from stock_price import (HoldingsDataError, LIVE_RANGE_KEYS, PriceDataError, RANGE_KEYS, fetch_day_change_pcts,
                           fetch_day_movers, fetch_fund_name, fetch_earnings_history, fetch_previous_close,
-                          fetch_price_history, fetch_sp500_industry_returns, fetch_sp500_quotes,
+                          fetch_price_history, fetch_put_call_ratio, fetch_sp500_industry_returns, fetch_sp500_quotes,
                           fetch_ticker_overview, us_market_session_active)
 from thirteenf import (
     FilingDataError,
@@ -350,16 +350,24 @@ def _chart_colors(theme):
 
 
 _CHART_HEIGHT = 420
+# The stock price chart is shorter on desktop, where the KPI tiles sit
+# beside it and stretch to its height -- so the company name above, the
+# chart and all eight tiles fit in one screen. Phones keep the full height.
+_PRICE_CHART_HEIGHT_DESKTOP = 340
+
+
+def _price_chart_height(mobile):
+    return _CHART_HEIGHT if mobile else _PRICE_CHART_HEIGHT_DESKTOP
 _VOLUME_COLOR = "rgba(137,135,129,0.45)"  # muted ink, translucent — a neutral
                                            # magnitude cue that doesn't compete
                                            # with the price line's up/down color
 
 
-def empty_price_figure(message="Enter a ticker and click Generate to load a chart.", theme="dark"):
+def empty_price_figure(message="Enter a ticker and click Generate to load a chart.", theme="dark", mobile=False):
     colors = _chart_colors(theme)
     fig = go.Figure()
     fig.update_layout(
-        height=_CHART_HEIGHT,
+        height=_price_chart_height(mobile),
         paper_bgcolor=colors["surface"],
         plot_bgcolor=colors["surface"],
         margin=dict(l=20, r=20, t=20, b=20),
@@ -546,7 +554,7 @@ def build_price_figure(df, ticker, range_key, theme="dark", mobile=False, baseli
         # space -- shrinking it lets the plot itself use the full card
         # width instead of leaving a blank strip down the side.
         margin=dict(l=4, r=4, t=20, b=30) if mobile else dict(l=24, r=10, t=20, b=30),
-        height=_CHART_HEIGHT,
+        height=_price_chart_height(mobile),
         paper_bgcolor=colors["surface"],
         plot_bgcolor=colors["surface"],
         showlegend=False,
@@ -682,7 +690,7 @@ def build_compare_price_figure(df1, ticker1, df2, ticker2, range_key, theme="dar
         # same reasoning (no reserved axis-label space needed once the
         # labels themselves are hidden below).
         margin=dict(l=4, r=4, t=50, b=30) if mobile else dict(l=24, r=10, t=50, b=30),
-        height=_CHART_HEIGHT,
+        height=_price_chart_height(mobile),
         paper_bgcolor=colors["surface"],
         plot_bgcolor=colors["surface"],
         showlegend=True,
@@ -1849,100 +1857,121 @@ def _company_tracker_children():
         # just styled) so the mobile media query can break it out to the
         # full viewport width instead of sitting inset like everything
         # else on the page (see #stock-chart-card in custom.css).
+        # KPI tiles (1/3) and chart (2/3) side by side, so the numbers stay
+        # in view next to the chart. flex-basis in the same 2:1 ratio as
+        # flex-grow keeps that split exact; below ~880px of room they wrap
+        # and stack, as on mobile. row-reverse: tiles on the left when side
+        # by side, but the chart (first in the DOM) still comes first once
+        # they stack.
         html.Div(
-            id="stock-chart-card",
-            style={"backgroundColor": "var(--card-bg)", "border": "1px solid var(--border)",
-                   "borderRadius": "14px", "padding": "18px 20px 12px", "marginTop": "24px",
-                   "position": "relative"},
+            id="stock-chart-kpi-row",
+            style={"display": "flex", "flexDirection": "row-reverse", "flexWrap": "wrap", "gap": "16px",
+                   "alignItems": "stretch",
+                   "marginTop": "24px"},
             children=[
-                _section_loading_overlay("price-loading"),
-                # Right above the chart itself (not up in the page header)
-                # so the number you're looking at and the chart explaining
-                # it sit together -- same on mobile and desktop, a real DOM
-                # position rather than a CSS reorder.
                 html.Div(
-                    id="stock-header-price-inline",
-                    style={"display": "flex", "alignItems": "baseline", "flexWrap": "wrap",
-                           "gap": "4px 12px", "marginBottom": "12px"},
+                    id="stock-chart-card",
+                    style={"backgroundColor": "var(--card-bg)", "border": "1px solid var(--border)",
+                           "borderRadius": "14px", "padding": "18px 20px 12px",
+                           "position": "relative", "flex": "2 1 580px", "minWidth": "0"},
                     children=[
-                        html.Span(id="stock-header-price",
-                                  style={"fontFamily": "'IBM Plex Mono', monospace", "fontSize": "26px",
-                                         "color": "var(--text)"}),
-                        html.Span(id="stock-header-change",
-                                  style={"fontFamily": "'IBM Plex Mono', monospace", "fontSize": "13px"}),
-                        # Pre-market/after-hours price and move (1D only).
-                        html.Span(id="stock-header-ext",
-                                  style={"fontFamily": "'IBM Plex Mono', monospace", "fontSize": "12px"}),
-                    ],
-                ),
-                html.Div(
-                    id="stock-chart-header-row",
-                    style={"display": "flex", "justifyContent": "space-between", "alignItems": "center",
-                           "gap": "12px", "flexWrap": "wrap"},
-                    children=[
+                        _section_loading_overlay("price-loading"),
+                        # Right above the chart itself (not up in the page header)
+                        # so the number you're looking at and the chart explaining
+                        # it sit together -- same on mobile and desktop, a real DOM
+                        # position rather than a CSS reorder.
                         html.Div(
-                            style={"display": "flex", "gap": "18px", "fontSize": "12px",
-                                   "color": "var(--body-text)"},
+                            id="stock-header-price-inline",
+                            style={"display": "flex", "alignItems": "baseline", "flexWrap": "wrap",
+                                   "gap": "4px 12px", "marginBottom": "12px"},
                             children=[
-                                html.Span(["High ", html.Span(
-                                    id="stock-header-hi",
-                                    style={"fontFamily": "'IBM Plex Mono', monospace", "color": "var(--text)"})]),
-                                html.Span(["Low ", html.Span(
-                                    id="stock-header-lo",
-                                    style={"fontFamily": "'IBM Plex Mono', monospace", "color": "var(--text)"})]),
+                                html.Span(id="stock-header-price",
+                                          style={"fontFamily": "'IBM Plex Mono', monospace", "fontSize": "26px",
+                                                 "color": "var(--text)"}),
+                                html.Span(id="stock-header-change",
+                                          style={"fontFamily": "'IBM Plex Mono', monospace", "fontSize": "13px"}),
+                                # Pre-market/after-hours price and move (1D only).
+                                html.Span(id="stock-header-ext",
+                                          style={"fontFamily": "'IBM Plex Mono', monospace", "fontSize": "12px"}),
                             ],
                         ),
-                        dcc.Tabs(
-                            id="range-tabs",
-                            value="1D",
-                            mobile_breakpoint=0,
-                            style={**_NAV_CONTAINER_STYLE, "marginTop": "0"},
-                            children=[dcc.Tab(label=k, value=k, style=_NAV_TAB_STYLE,
-                                               selected_style=_NAV_TAB_SELECTED_STYLE)
-                                      for k in RANGE_KEYS],
+                        html.Div(
+                            id="stock-chart-header-row",
+                            style={"display": "flex", "justifyContent": "space-between", "alignItems": "center",
+                                   "gap": "12px", "flexWrap": "wrap"},
+                            children=[
+                                html.Div(
+                                    style={"display": "flex", "gap": "18px", "fontSize": "12px",
+                                           "color": "var(--body-text)"},
+                                    children=[
+                                        html.Span(["High ", html.Span(
+                                            id="stock-header-hi",
+                                            style={"fontFamily": "'IBM Plex Mono', monospace", "color": "var(--text)"})]),
+                                        html.Span(["Low ", html.Span(
+                                            id="stock-header-lo",
+                                            style={"fontFamily": "'IBM Plex Mono', monospace", "color": "var(--text)"})]),
+                                    ],
+                                ),
+                                dcc.Tabs(
+                                    id="range-tabs",
+                                    value="1D",
+                                    mobile_breakpoint=0,
+                                    style={**_NAV_CONTAINER_STYLE, "marginTop": "0"},
+                                    children=[dcc.Tab(label=k, value=k, style=_NAV_TAB_STYLE,
+                                                       selected_style=_NAV_TAB_SELECTED_STYLE)
+                                              for k in RANGE_KEYS],
+                                ),
+                            ],
+                        ),
+                        dcc.Interval(id="price-chart-refresh", interval=15000, n_intervals=0),
+                        # The ticks of price-chart-refresh that actually reach the
+                        # server -- see gate_price_chart_refresh.
+                        dcc.Store(id="price-chart-tick", data=None),
+                        # Drives the live-price dot's pulsing halo -- deliberately not
+                        # wired to update_price_chart; a clientside callback below
+                        # just tweaks the existing figure's marker opacity in place
+                        # (see build_price_figure) rather than round-tripping to the
+                        # server every ~1s.
+                        dcc.Interval(id="price-pulse-interval", interval=900, n_intervals=0),
+                        html.Div(id="price-pulse-sink", style={"display": "none"}),
+                        # No dcc.Loading here (unlike elsewhere in this app): its
+                        # spinner overlay would flash over the whole chart on every
+                        # 15s auto-refresh, which is the "blinks when it refreshes"
+                        # behavior -- the chart swap itself is fast enough not to
+                        # need loading feedback.
+                        html.Div(
+                            dcc.Graph(
+                                id="price-chart",
+                                figure=empty_price_figure(),
+                                config={"displayModeBar": False},
+                            ),
+                            style={"marginTop": "8px"},
                         ),
                     ],
                 ),
-                dcc.Interval(id="price-chart-refresh", interval=15000, n_intervals=0),
-                # The ticks of price-chart-refresh that actually reach the
-                # server -- see gate_price_chart_refresh.
-                dcc.Store(id="price-chart-tick", data=None),
-                # Drives the live-price dot's pulsing halo -- deliberately not
-                # wired to update_price_chart; a clientside callback below
-                # just tweaks the existing figure's marker opacity in place
-                # (see build_price_figure) rather than round-tripping to the
-                # server every ~1s.
-                dcc.Interval(id="price-pulse-interval", interval=900, n_intervals=0),
-                html.Div(id="price-pulse-sink", style={"display": "none"}),
-                # No dcc.Loading here (unlike elsewhere in this app): its
-                # spinner overlay would flash over the whole chart on every
-                # 15s auto-refresh, which is the "blinks when it refreshes"
-                # behavior -- the chart swap itself is fast enough not to
-                # need loading feedback.
+                # Filled in by update_company_overview once a ticker's loaded.
+                # Two columns of tiles; beside the chart, the rows stretch to its
+                # height (flex column + gridAutoRows 1fr).
                 html.Div(
-                    dcc.Graph(
-                        id="price-chart",
-                        figure=empty_price_figure(),
-                        config={"displayModeBar": False},
-                    ),
-                    style={"marginTop": "8px"},
+                    id="stock-kpi-wrap",
+                    style={"position": "relative", "minHeight": "80px", "flex": "1 1 290px", "minWidth": "0",
+                           "display": "flex", "flexDirection": "column"},
+                    children=[
+                        _section_loading_overlay("kpi-loading"),
+                        # Compare mode only (see render_compare_mode): in single
+                        # mode the page header already names the ticker, and
+                        # without it the top tiles line up with the chart card.
+                        html.Div(id="stock-kpi-label", style={**_KPI_SECTION_LABEL_STYLE, "display": "none"}),
+                        html.Div(id="stock-kpi-grid",
+                                 style={"display": "grid", "gridTemplateColumns": "repeat(2, minmax(0, 1fr))",
+                                        "gridAutoRows": "1fr", "gap": "10px", "flex": "1"}),
+                    ],
                 ),
             ],
         ),
-        # Filled in by update_company_overview once a ticker's loaded.
-        html.Div(
-            id="stock-kpi-wrap",
-            style={"marginTop": "20px", "position": "relative", "minHeight": "80px"},
-            children=[
-                _section_loading_overlay("kpi-loading"),
-                html.Div(id="stock-kpi-label", style=_KPI_SECTION_LABEL_STYLE),
-                html.Div(id="stock-kpi-grid",
-                         style={"display": "grid", "gridTemplateColumns": "repeat(auto-fit, minmax(150px,1fr))",
-                                "gap": "10px"}),
-                # What the company does -- see _company_description.
-                html.Div(id="stock-description"),
-            ],
-        ),
+        # What the company does -- see _company_description. Full width
+        # under the chart/KPI row rather than squeezed into the KPI column.
+        html.Div(id="stock-description"),
         # Compare mode's second ticker gets its own labeled KPI row right
         # below the first, rather than being squeezed beside it -- five
         # tiles per ticker is already a lot of horizontal room to share.
@@ -1954,7 +1983,9 @@ def _company_tracker_children():
             children=[
                 html.Div(id="stock-kpi-label-2", style=_KPI_SECTION_LABEL_STYLE),
                 html.Div(id="stock-kpi-grid-2",
-                         style={"display": "grid", "gridTemplateColumns": "repeat(auto-fit, minmax(150px,1fr))",
+                         # At most 4 per row (8 tiles -> an even 4x2), min 150px wide.
+                         style={"display": "grid",
+                                "gridTemplateColumns": "repeat(auto-fit, minmax(max(150px, calc((100% - 30px) / 4)), 1fr))",
                                 "gap": "10px"}),
             ],
         ),
@@ -4912,6 +4943,7 @@ def sync_compare_mode(tab_value):
     Output("compare-ticker-wrap", "style"),
     Output("compare-status-wrap", "style"),
     Output("stock-kpi-wrap-2", "style"),
+    Output("stock-kpi-label", "style"),
     Output("financials-col-2", "style"),
     Output("valuation-col-2", "style"),
     Output("dcf-company-label", "style"),
@@ -4928,7 +4960,9 @@ def render_compare_mode(is_compare):
     # Per-ticker labels over the stacked Valuation panels only matter once
     # there are two of them.
     label_style = _DCF_COMPANY_LABEL_STYLE if is_compare else _DCF_COMPANY_LABEL_HIDDEN_STYLE
-    return ticker_wrap_style, status_wrap_style, kpi_wrap_2_style, col2_style, valuation_2_style, label_style
+    kpi_label_style = _KPI_SECTION_LABEL_STYLE if is_compare else {**_KPI_SECTION_LABEL_STYLE, "display": "none"}
+    return (ticker_wrap_style, status_wrap_style, kpi_wrap_2_style, kpi_label_style, col2_style,
+            valuation_2_style, label_style)
 
 
 # Builds Compare mode's second Financials column and Valuation panel the
@@ -5846,7 +5880,7 @@ app.clientside_callback(
 )
 def update_price_chart(store, store2, is_compare, range_key, _n_intervals, theme, mobile):
     if not store:
-        return empty_price_figure(theme=theme), *_EMPTY_PRICE_HEADER
+        return empty_price_figure(theme=theme, mobile=mobile), *_EMPTY_PRICE_HEADER
     ticker = store["ticker"]
 
     if is_compare and store2:
@@ -5855,18 +5889,18 @@ def update_price_chart(store, store2, is_compare, range_key, _n_intervals, theme
             df1 = fetch_price_history(ticker, range_key)
             df2 = fetch_price_history(ticker2, range_key)
         except PriceDataError as e:
-            return empty_price_figure(str(e), theme=theme), *_EMPTY_PRICE_HEADER
+            return empty_price_figure(str(e), theme=theme, mobile=mobile), *_EMPTY_PRICE_HEADER
         except Exception as e:
-            return empty_price_figure(f"Price data unavailable: {e}", theme=theme), *_EMPTY_PRICE_HEADER
+            return empty_price_figure(f"Price data unavailable: {e}", theme=theme, mobile=mobile), *_EMPTY_PRICE_HEADER
         figure = build_compare_price_figure(df1, ticker, df2, ticker2, range_key, theme=theme, mobile=mobile)
         return (figure, *_price_header_texts(_price_change_stats(df1, _day_baseline(ticker, range_key, df1))), "")
 
     try:
         df = fetch_price_history(ticker, range_key, extended=True)
     except PriceDataError as e:
-        return empty_price_figure(str(e), theme=theme), *_EMPTY_PRICE_HEADER
+        return empty_price_figure(str(e), theme=theme, mobile=mobile), *_EMPTY_PRICE_HEADER
     except Exception as e:
-        return empty_price_figure(f"Price data unavailable: {e}", theme=theme), *_EMPTY_PRICE_HEADER
+        return empty_price_figure(f"Price data unavailable: {e}", theme=theme, mobile=mobile), *_EMPTY_PRICE_HEADER
     baseline = _day_baseline(ticker, range_key, df)
     figure = build_price_figure(df, ticker, range_key, theme=theme, mobile=mobile, baseline=baseline)
     ext_text = _extended_hours_text(df, baseline)
@@ -5893,7 +5927,7 @@ _KPI_TILE_VALUE_STYLE = {"fontFamily": "'IBM Plex Mono', monospace", "fontSize":
 _KPI_TILE_SUB_STYLE = {"fontSize": "12px", "color": "var(--body-text)"}
 
 
-def _kpi_tile(label, value, sub=None, value_id=None):
+def _kpi_tile(label, value, sub=None, value_id=None, title=None):
     value_span = html.Span(value if value is not None else "—", style=_KPI_TILE_VALUE_STYLE)
     if value_id:
         value_span.id = value_id
@@ -5903,7 +5937,31 @@ def _kpi_tile(label, value, sub=None, value_id=None):
     ]
     if sub is not None:
         children.append(html.Span(sub, style=_KPI_TILE_SUB_STYLE))
-    return html.Div(style=_KPI_TILE_STYLE, children=children)
+    tile = html.Div(style=_KPI_TILE_STYLE, children=children)
+    if title:
+        tile.title = title
+    return tile
+
+
+def _fmt_contracts(n):
+    """1250000 -> "1.25M", 1000000 -> "1M", 172506 -> "172.51K", 950 -> "950"."""
+    for div, suffix in ((1e9, "B"), (1e6, "M"), (1e3, "K")):
+        if n >= div:
+            return f"{n / div:.2f}".rstrip("0").rstrip(".") + suffix
+    return f"{n:,.0f}"
+
+
+def _put_call_tile(ticker):
+    """Put/call open-interest ratio over the next 30 days of expirations,
+    with the call and put contract counts underneath (see
+    stock_price.fetch_put_call_ratio)."""
+    pcr = fetch_put_call_ratio(ticker)
+    value = sub = None
+    if pcr["ratio"] is not None:
+        value = f"{pcr['ratio']:.2f}"
+        sub = f"{_fmt_contracts(pcr['call_oi'])} Calls vs {_fmt_contracts(pcr['put_oi'])} Puts"
+    return _kpi_tile("Put/Call Ratio", value, sub,
+                     title="Put vs. call open interest, options expiring in the next 30 days")
 
 
 def _analyst_tiles(overview):
@@ -5979,6 +6037,7 @@ def _company_overview_data(store, rows_store=None, suffix=""):
         _kpi_tile("Revenue TTM", _fmt_big_dollars(overview.get("revenue_ttm"))),
         _kpi_tile("Net Margin", f"{net_margin * 100:.1f}%" if net_margin is not None else None),
         _kpi_tile("ROIC", _roic_text(store, rows_store), value_id=f"kpi-roic{suffix}"),
+        _put_call_tile(ticker),
         *_analyst_tiles(overview),
     ]
     return meta_text, f"{ticker} — {title}", tiles
