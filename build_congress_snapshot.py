@@ -75,20 +75,34 @@ def _senate_count(positions):
     return sum(1 for k in positions if k.startswith("senate|"))
 
 
-def main():
-    prev_summary = _load_previous(ACTIVITY_SNAPSHOT_PATH, {})
-    prev_positions = _load_previous(MEMBER_POSITIONS_SNAPSHOT_PATH, {})
-    session = _session_with_ua(requests.Session())
-
-    senate_ok = _senate_reachable(session)
-    chambers = ("house", "senate") if senate_ok else ("house",)
-
+def _build(session, chambers):
     # max_workers above the library defaults (5 and 10, both sized for
     # production's 512MB instance) is safe here -- this runs on a CI
     # runner with far more memory headroom, and finishing faster matters
     # more than peak memory for a one-shot job.
     summary = build_activity_summary(session=session, force_refresh=True, max_workers=15, chambers=chambers)
     positions = build_all_member_positions(session=session, max_workers=20, chambers=chambers)
+    return summary, positions
+
+
+def main():
+    prev_summary = _load_previous(ACTIVITY_SNAPSHOT_PATH, {})
+    prev_positions = _load_previous(MEMBER_POSITIONS_SNAPSHOT_PATH, {})
+    session = _session_with_ua(requests.Session())
+
+    senate_ok = _senate_reachable(session)
+    summary = positions = None
+    if senate_ok:
+        # The disclaimer page can load while the search endpoint behind it
+        # still refuses -- that used to crash the whole run (no House
+        # refresh, no warning). Fall back to a House-only build instead.
+        try:
+            summary, positions = _build(session, ("house", "senate"))
+        except (PoliticianDataError, requests.RequestException) as e:
+            print(f"Senate eFD site failed partway through the build: {e}")
+            senate_ok = False
+    if not senate_ok:
+        summary, positions = _build(session, ("house",))
 
     if senate_ok and _senate_count(positions) < _MIN_SENATE_FRACTION * _senate_count(prev_positions):
         print(f"Senate refresh looks partial ({_senate_count(positions)} senators vs "
