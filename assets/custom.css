@@ -357,6 +357,7 @@ a:hover { color: var(--text); }
         pointer-events: none !important;
     }
     #stock-header-price-inline,
+    #stock-header-asof,
     #stock-chart-header-row {
         padding-left: 12px;
         padding-right: 12px;

@@ -65,6 +65,9 @@ _PRICE_CACHE_TTL = {"1D": 15, "5D": 15}
 _PRICE_CACHE_TTL_DEFAULT = 300
 _PRICE_CACHE_MAX = 500
 _price_cache = {}  # (TICKER, range_key) -> (fetched_at, DataFrame)
+# (TICKER, range_key) -> {"as_of", "currency"} from the same Yahoo response
+# as that key's cached DataFrame -- see fetch_price_as_of.
+_price_meta = {}
 _price_cache_lock = threading.Lock()
 # One lock per key, so concurrent requests for the same ticker/range wait
 # for a single in-flight Yahoo fetch instead of each making their own.
@@ -81,6 +84,15 @@ def fetch_price_history(ticker, range_key, extended=False):
     `extended=True`, every bar of the latest trading day -- pre-market and
     after-hours included -- plus a boolean 'Extended' column marking them."""
     return _select_session(_fetch_price_history_cached(ticker, range_key), range_key, extended)
+
+
+def fetch_price_as_of(ticker, range_key):
+    """{"as_of", "currency"} for the last fetch_price_history(ticker,
+    range_key): the time of the regular session's latest trade (a tz-aware
+    Timestamp in the exchange's zone -- the time of the header's main price)
+    and the quote currency. No extra request: both come with the price
+    data. Either can be None."""
+    return _price_meta.get((ticker.upper(), range_key)) or {"as_of": None, "currency": None}
 
 
 def _select_session(df, range_key, extended):
@@ -147,6 +159,12 @@ def _fetch_price_history_uncached(ticker, range_key):
         df = ticker_obj.history(**kwargs)
     except Exception as e:
         raise PriceDataError(f"Could not fetch price data for {ticker}: {e}") from e
+    try:
+        meta = ticker_obj.history_metadata or {}
+        _price_meta[(ticker.upper(), range_key)] = {"as_of": meta.get("regularMarketTime"),
+                                                    "currency": meta.get("currency")}
+    except Exception:
+        pass
 
     if df is None or df.empty or "Close" not in df.columns:
         raise PriceDataError(f"No price data available for {ticker} ({range_key}).")

@@ -67,7 +67,7 @@ from company_growth_calc import (
 )
 from stock_price import (HoldingsDataError, LIVE_RANGE_KEYS, PriceDataError, RANGE_KEYS, fetch_day_change_pcts,
                           fetch_day_movers, fetch_fund_name, fetch_earnings_history, fetch_previous_close,
-                          fetch_price_history, fetch_put_call_ratio, fetch_sp500_industry_returns, fetch_sp500_quotes,
+                          fetch_price_as_of, fetch_price_history, fetch_put_call_ratio, fetch_sp500_industry_returns, fetch_sp500_quotes,
                           fetch_ticker_overview, us_market_session_active)
 from thirteenf import (
     FilingDataError,
@@ -602,6 +602,10 @@ def build_price_figure(df, ticker, range_key, theme="dark", mobile=False, baseli
             spikesnap="data" if mobile else "cursor",
             spikedash="dot", spikethickness=1, spikecolor=colors["muted_text"],
             rangebreaks=rangebreaks,
+            # 1D: 12-hour times ("9:30 AM"). A custom format also drops
+            # Plotly's own date line under the first tick -- the as-of line
+            # in the price header carries the date now.
+            **({"tickformat": "%-I:%M %p"} if range_key == "1D" else {}),
             # dragmode=False (below) only turns off the drag-to-zoom
             # rectangle tool -- a raw touch-drag on mobile still panned the
             # axes underneath the hover crosshair, since nothing had told
@@ -1895,6 +1899,11 @@ def _company_tracker_children():
                                           style={"fontFamily": "'IBM Plex Mono', monospace", "fontSize": "12px"}),
                             ],
                         ),
+                        # "Nov 13, 11:29 AM UTC-5 · USD" -- when the price above is
+                        # from (see _price_as_of_text).
+                        html.Div(id="stock-header-asof", className="collapse-when-empty",
+                                 style={"fontSize": "12px", "color": "var(--body-text)",
+                                        "marginTop": "-8px", "marginBottom": "12px"}),
                         html.Div(
                             id="stock-chart-header-row",
                             style={"display": "flex", "justifyContent": "space-between", "alignItems": "center",
@@ -5802,7 +5811,29 @@ def select_mover(clicks, current_n_submit, current_value):
     return ticker, (current_n_submit or 0) + 1, ticker != current_value, "company"
 
 
-_EMPTY_PRICE_HEADER = ("", "", {}, "", "", "")
+_EMPTY_PRICE_HEADER = ("", "", {}, "", "", "", "")
+
+
+def _price_as_of_text(ticker, range_key):
+    """"Nov 13, 11:29 AM UTC-5 · USD": the time of the header's main price
+    (the regular session's latest trade) in the exchange's time zone, and
+    the quote currency. "" when Yahoo didn't say."""
+    meta = fetch_price_as_of(ticker, range_key)
+    as_of, currency = meta.get("as_of"), meta.get("currency")
+    if as_of is None:
+        return currency or ""
+    try:
+        ts = pd.Timestamp(as_of)
+        offset = ts.utcoffset()
+    except (TypeError, ValueError):
+        return currency or ""
+    text = f"{ts:%b} {ts.day}, {ts.hour % 12 or 12}:{ts:%M} {'AM' if ts.hour < 12 else 'PM'}"
+    if offset is not None:
+        minutes = int(offset.total_seconds() // 60)
+        sign = "+" if minutes >= 0 else "-"
+        hours, mins = divmod(abs(minutes), 60)
+        text += f" UTC{sign}{hours}" + (f":{mins:02d}" if mins else "")
+    return f"{text} · {currency}" if currency else text
 
 
 def _extended_hours_text(df, baseline):
@@ -5870,6 +5901,7 @@ app.clientside_callback(
     Output("stock-header-hi", "children"),
     Output("stock-header-lo", "children"),
     Output("stock-header-ext", "children"),
+    Output("stock-header-asof", "children"),
     Input("ticker-store", "data"),
     Input("ticker-store-2", "data"),
     Input("compare-mode", "data"),
@@ -5893,7 +5925,8 @@ def update_price_chart(store, store2, is_compare, range_key, _n_intervals, theme
         except Exception as e:
             return empty_price_figure(f"Price data unavailable: {e}", theme=theme, mobile=mobile), *_EMPTY_PRICE_HEADER
         figure = build_compare_price_figure(df1, ticker, df2, ticker2, range_key, theme=theme, mobile=mobile)
-        return (figure, *_price_header_texts(_price_change_stats(df1, _day_baseline(ticker, range_key, df1))), "")
+        return (figure, *_price_header_texts(_price_change_stats(df1, _day_baseline(ticker, range_key, df1))), "",
+                _price_as_of_text(ticker, range_key))
 
     try:
         df = fetch_price_history(ticker, range_key, extended=True)
@@ -5904,15 +5937,16 @@ def update_price_chart(store, store2, is_compare, range_key, _n_intervals, theme
     baseline = _day_baseline(ticker, range_key, df)
     figure = build_price_figure(df, ticker, range_key, theme=theme, mobile=mobile, baseline=baseline)
     ext_text = _extended_hours_text(df, baseline)
+    as_of_text = _price_as_of_text(ticker, range_key)
     regular = df[~df["Extended"]] if "Extended" in df.columns else df
     if regular.empty:
         # Before the open: only pre-market bars so far. The big number is
         # the previous close; the pre-market line carries today's move.
         if not baseline:
-            return (figure, *_price_header_texts(_price_change_stats(df)), ext_text)
+            return (figure, *_price_header_texts(_price_change_stats(df)), ext_text, as_of_text)
         return (figure, f"${baseline:,.2f}", "Previous close", {"color": "var(--body-text)"},
-                "—", "—", ext_text)
-    return (figure, *_price_header_texts(_price_change_stats(regular, baseline)), ext_text)
+                "—", "—", ext_text, as_of_text)
+    return (figure, *_price_header_texts(_price_change_stats(regular, baseline)), ext_text, as_of_text)
 
 
 _KPI_TILE_STYLE = {
