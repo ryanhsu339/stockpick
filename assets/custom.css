@@ -982,6 +982,28 @@ details summary { cursor: pointer; color: var(--body-text); font-size: 13px; }
    bottom center (where scroll-triggered "load more" rows appear), not its
    middle -- see _movers_card. Targets only the overlay dcc.Loading adds
    while loading (absolutely positioned, centering set inline). */
+/* Top Gainers/Losers rows (_build_mover_row): the company name sits right of
+   the ticker on desktop, keeping each row one line tall; phones stack it
+   under the ticker, where there's no width to spare. */
+.mover-id {
+    display: flex;
+    align-items: baseline;
+    gap: 10px;
+    min-width: 0;
+}
+.mover-id > :first-child {
+    flex: 0 0 auto;
+}
+.mover-id > :last-child {
+    min-width: 0;
+}
+@media (max-width: 768px) {
+    .mover-id {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 2px;
+    }
+}
 .movers-loading > div[style*="position: absolute"] {
     align-items: flex-end !important;
     padding-bottom: 18px;
@@ -1096,16 +1118,17 @@ details summary { cursor: pointer; color: var(--body-text); font-size: 13px; }
 }
 .heatmap-body {
     position: relative;
-    min-height: 560px;
+    min-height: 440px;
     margin-top: 12px;
 }
 .heatmap-empty {
-    padding-top: 260px;
+    padding-top: 200px;
     text-align: center;
 }
 .heatmap-map {
     position: relative;
-    height: 560px;
+    /* Must match _HEATMAP_LAYOUT_HEIGHT (the tiles' layout proportions). */
+    height: 440px;
     overflow: hidden;
 }
 .heatmap-sector {
@@ -1303,9 +1326,15 @@ details summary { cursor: pointer; color: var(--body-text); font-size: 13px; }
     }
     /* No room for Shares Out on a phone; the rest still fits. */
     .industry-row {
-        grid-template-columns: 52px minmax(0, 1fr) 64px 68px 28px;
-        gap: 8px;
-        padding: 8px 10px;
+        grid-template-columns: 48px minmax(0, 1fr) 68px 60px 26px;
+        gap: 6px;
+        padding: 8px 8px;
+    }
+    /* Smaller header text, so "Company" and a sort arrow fit the narrow
+       columns. */
+    .industry-row-head {
+        font-size: 10px;
+        letter-spacing: 0.02em;
     }
     .industry-col-shares {
         display: none;
@@ -1375,16 +1404,17 @@ details summary { cursor: pointer; color: var(--body-text); font-size: 13px; }
 @media (max-width: 768px) {
     /* Keeps the desktop layout's proportions and pans sideways inside the
        card: squeezed to a phone's width, too few tiles could fit a label. */
+    /* Same proportions as desktop's layout (1120 x 440). */
     .heatmap-body {
-        min-height: 480px;
+        min-height: 340px;
         overflow-x: auto;
     }
     .heatmap-map {
-        height: 480px;
+        height: 340px;
         width: 860px;
     }
     .heatmap-empty {
-        padding-top: 220px;
+        padding-top: 150px;
     }
 }
 @keyframes spin {

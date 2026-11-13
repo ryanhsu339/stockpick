@@ -1625,7 +1625,7 @@ def _heatmap_heading(toggle):
 
 _INDUSTRY_STOCKS_PAGE_SIZE = 20  # rows built per page; the card shows ~10 before scrolling
 _INDUSTRY_STOCKS_ALL_TITLE = "1 Day Return by Industry"
-_INDUSTRY_STOCKS_HINT = "Click an industry above to list its stocks."
+_INDUSTRY_STOCKS_HINT = "Click an industry above to list its S&P 500 stocks."
 # (record key, header label, extra class) per sortable column, in table order.
 _INDUSTRY_STOCK_COLUMNS = (
     ("symbol", "Ticker", ""),
@@ -1678,19 +1678,30 @@ def _industry_stocks_table():
                                 className="industry-stocks-clear", style={"display": "none"}),
                 ],
             ),
-            html.Div(
-                className="industry-stocks-scroller",
-                children=[
-                    # Each header sorts by its column (change_industry_sort).
-                    html.Div(className="industry-row industry-row-head",
-                             children=[*(html.Button(_industry_sort_label(col, label, _INDUSTRY_STOCKS_DEFAULT_SORT),
-                                                     id={"type": "industry-sort", "col": col}, n_clicks=0,
-                                                     className=f"industry-sort {extra}".strip(),
-                                                     title=f"Sort by {label}")
-                                         for col, label, extra in _INDUSTRY_STOCK_COLUMNS),
-                                       html.Span("")]),
-                    html.Div(id="industry-stocks-container"),
-                ],
+            # Same spinner as the movers cards (see _movers_card): pinned to
+            # the table's bottom center by .movers-loading in custom.css while
+            # rows load, e.g. the next page as it scrolls. The Loading's own
+            # wrapper, not the scroller, positions it, so it doesn't scroll
+            # away with the rows; overlay_style keeps the rows already shown
+            # from blacking out meanwhile.
+            dcc.Loading(
+                custom_spinner=html.Div(className="spinner"),
+                overlay_style={"visibility": "visible"},
+                parent_className="movers-loading",
+                children=html.Div(
+                    className="industry-stocks-scroller",
+                    children=[
+                        # Each header sorts by its column (change_industry_sort).
+                        html.Div(className="industry-row industry-row-head",
+                                 children=[*(html.Button(_industry_sort_label(col, label, _INDUSTRY_STOCKS_DEFAULT_SORT),
+                                                         id={"type": "industry-sort", "col": col}, n_clicks=0,
+                                                         className=f"industry-sort {extra}".strip(),
+                                                         title=f"Sort by {label}")
+                                             for col, label, extra in _INDUSTRY_STOCK_COLUMNS),
+                                           html.Span("")]),
+                        html.Div(id="industry-stocks-container"),
+                    ],
+                ),
             ),
         ],
     )
@@ -2142,7 +2153,7 @@ _HEATMAP_DOWN_RGB = (194, 70, 58)
 # height against the content width), since they're positioned in % and stretch
 # with the card. _HEATMAP_SECTOR_LABEL_HEIGHT matches .heatmap-sector-label.
 _HEATMAP_LAYOUT_WIDTH = 1120
-_HEATMAP_LAYOUT_HEIGHT = 560
+_HEATMAP_LAYOUT_HEIGHT = 440
 _HEATMAP_SECTOR_LABEL_HEIGHT = 18
 
 _FILTER_PANEL_STYLE = {
@@ -5449,8 +5460,10 @@ def _build_mover_row(r, rank, kind):
         children=[
             html.Span(str(rank), style={"fontFamily": "'IBM Plex Mono', monospace", "fontSize": "12px",
                                           "color": "var(--body-text)"}),
+            # Ticker with the name beside it on desktop, under it on phones
+            # (.mover-id in custom.css).
             html.Div(
-                style={"display": "flex", "flexDirection": "column", "gap": "2px", "minWidth": "0"},
+                className="mover-id",
                 children=[
                     html.Span(r["symbol"], style={**_CLICKABLE_NAME_STYLE,
                                                    "fontFamily": "'IBM Plex Mono', monospace",
