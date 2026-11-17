@@ -691,6 +691,31 @@ def _compare_holdings(manager_name, latest_period, latest_holdings, previous_per
     return result
 
 
+def _snapshot_superseded(session, cik, snapshot_entry):
+    """True if `cik` has filed a 13F-HR since its snapshot entry's latest
+    quarter, so the entry is a quarter behind. The snapshot is only rebuilt
+    weekly (and a failed rebuild keeps the old one), so without this a
+    manager's new filing -- Renaissance's Q3 2026 13F, filed 2026-11-12 --
+    stayed hidden behind the old quarter's snapshot entry for a week or
+    more. A 13F-HR filed after the end of the quarter following the
+    entry's latest_period can only be for a newer period (or a very late
+    filing for the old one, in which case the live fetch just rebuilds the
+    same comparison, and caches it). Uses latest_13f_filing_date's 6-hour
+    cache, so this costs one small SEC request per manager per 6 hours;
+    on a network error it keeps serving the snapshot."""
+    snapshot_quarter_end = (quarter_ends_back(snapshot_entry.get("latest_period"), count=1) or [None])[0]
+    if not snapshot_quarter_end:
+        return False
+    # The day after a quarter end is in the following quarter.
+    next_quarter_end = quarter_ends_back(
+        (date.fromisoformat(snapshot_quarter_end) + timedelta(days=1)).isoformat(), count=1)[0]
+    try:
+        latest_filed = latest_13f_filing_date(cik, session=session)
+    except requests.RequestException:
+        return False
+    return bool(latest_filed) and latest_filed > next_quarter_end
+
+
 def build_holdings_comparison(session, cik, top_n=10, skip_snapshot=False, adjust_splits=True):
     """Compare the two most recent 13F-HR quarters for `cik`. Returns a
     dict: {"latest_period", "previous_period", "manager_name",
@@ -738,7 +763,7 @@ def build_holdings_comparison(session, cik, top_n=10, skip_snapshot=False, adjus
     full list rather than the snapshot's capped one)."""
     if not skip_snapshot:
         snapshot_hit = top_managers_snapshot_entry(cik)
-        if snapshot_hit is not None:
+        if snapshot_hit is not None and not _snapshot_superseded(session, cik, snapshot_hit):
             return apply_split_adjustments(snapshot_hit, top_n=top_n) if adjust_splits else snapshot_hit
 
     cached = _load_holdings_comparison_from_disk(cik)
