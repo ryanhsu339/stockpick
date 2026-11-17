@@ -781,6 +781,9 @@ def build_holdings_comparison(session, cik, top_n=10, skip_snapshot=False, adjus
 
     result = _compare_holdings(manager_name, latest_period, latest_holdings,
                                previous_period, previous_holdings, top_n)
+    # When the latest 13F-HR was filed -- what the Top Buys cards' "Newest"
+    # sort orders by (see newest_filings_top_buys).
+    result["latest_filing_date"] = filings[0]["filing_date"]
     # Cached unadjusted, so a later split-factor update applies cleanly.
     _save_holdings_comparison_to_disk(cik, result)
     return apply_split_adjustments(result, top_n=top_n) if adjust_splits else result
@@ -1270,6 +1273,7 @@ def _pooled_buys(comparisons, min_public_equity_portfolio_m):
             pct_of_portfolio = row["delta_shares_value_m"] * portfolio_pct / value_m
             pooled.append({
                 **row, "manager_name": manager_name, "cik": cik,
+                "filing_date": comparison.get("latest_filing_date"),
                 "delta_shares_value_pct_of_portfolio": pct_of_portfolio,
                 "total_portfolio_value_m": total_portfolio_value_m,
             })
@@ -1332,6 +1336,23 @@ def largest_managers_top_buys(top_n=50, min_public_equity_portfolio_m=_MIN_PUBLI
     one manager, the biggest buy by dollars and by % of portfolio are the
     same buy (one shared denominator). A manager with no buys at all this
     quarter just doesn't appear, so the next largest fills its place."""
+    biggest = _biggest_buy_per_manager(comparisons, min_public_equity_portfolio_m)
+    return sorted(biggest, key=lambda r: r["total_portfolio_value_m"], reverse=True)[:top_n]
+
+
+def newest_filings_top_buys(top_n=50, min_public_equity_portfolio_m=_MIN_PUBLIC_EQUITY_PORTFOLIO_M,
+                            comparisons=None):
+    """Each manager's single biggest buy, most recently filed 13F first
+    (largest manager first among same-day filers) -- the Top Buys cards'
+    "Newest" sort, so a fresh filing (Renaissance's, 2026-11-12) leads
+    rather than waiting its turn by size. A comparison built before
+    filing dates were recorded sorts last."""
+    biggest = _biggest_buy_per_manager(comparisons, min_public_equity_portfolio_m)
+    return sorted(biggest, key=lambda r: (r.get("filing_date") or "", r["total_portfolio_value_m"]),
+                  reverse=True)[:top_n]
+
+
+def _biggest_buy_per_manager(comparisons, min_public_equity_portfolio_m):
     if comparisons is None:
         comparisons = _load_top_managers_snapshot()
     biggest = {}
@@ -1339,7 +1360,7 @@ def largest_managers_top_buys(top_n=50, min_public_equity_portfolio_m=_MIN_PUBLI
         current = biggest.get(row["cik"])
         if current is None or row["delta_shares_value_m"] > current["delta_shares_value_m"]:
             biggest[row["cik"]] = row
-    return sorted(biggest.values(), key=lambda r: r["total_portfolio_value_m"], reverse=True)[:top_n]
+    return list(biggest.values())
 
 
 # best_estimated_returns: a manager needs at least this share of its
@@ -1456,9 +1477,11 @@ def load_top_buys():
         with open(_TOP_BUYS_PATH, encoding="utf-8") as f:
             data = json.load(f)
         _top_buys_cache = {"conviction": data["conviction"], "fund_size": data["fund_size"],
+                           "newest": data.get("newest", []),
                            "best_returns": data.get("best_returns", [])}
     except (OSError, json.JSONDecodeError, KeyError):
         _top_buys_cache = {"conviction": top_buys_across_managers(), "fund_size": largest_managers_top_buys(),
+                           "newest": newest_filings_top_buys(),
                            "best_returns": best_estimated_returns(_load_top_managers_snapshot())}
     return _top_buys_cache
 

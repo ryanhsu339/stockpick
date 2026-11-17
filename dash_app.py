@@ -2221,6 +2221,7 @@ def _top_buy_row_to_record(r, companies):
         "delta_shares_pct": r["delta_shares_pct"],
         "value_m": r["value_m"],
         "portfolio_pct": r["portfolio_pct"],
+        "filing_date": r.get("filing_date"),
         # See _manager_row_to_record's matching comment.
         "resolved_ticker": resolve_ticker_for_security(r["issuer"], companies) or "",
     }
@@ -2251,7 +2252,7 @@ _CARD_BADGE_STYLE = {
 }
 
 
-def _build_top_buy_card(r, idx):
+def _build_top_buy_card(r, idx, show_filed=False):
     pct = r.get("delta_shares_value_pct_of_portfolio")
     pct_text = f"+{pct:.1f}%" if pct is not None else "—"
     value_m = r.get("delta_shares_value_m") or 0
@@ -2299,7 +2300,12 @@ def _build_top_buy_card(r, idx):
                     html.Div(f"Equity AUM {_fmt_big_dollars(r['total_portfolio_value_m'] * 1e6)}",
                              style={"fontSize": "11px", "color": "var(--body-text)",
                                     "fontFamily": "'IBM Plex Mono', monospace"}),
-                ],
+                ] + ([
+                    # What the "Newest" sort orders by.
+                    html.Div(f"Filed {_quarter_end_label(r['filing_date'])}",
+                             style={"fontSize": "11px", "color": "var(--body-text)",
+                                    "fontFamily": "'IBM Plex Mono', monospace"}),
+                ] if show_filed and r.get("filing_date") else []),
             ),
             html.Div(
                 style={"display": "flex", "justifyContent": "space-between", "fontSize": "12px",
@@ -2570,9 +2576,11 @@ _TOP_BUYS_NOTE_BY_AUM = "The largest buy this past quarter from each of the 50 l
 # which load_top_buys() list it shows). Two separately precomputed lists,
 # not one list re-sorted: see thirteenf.top_buys_across_managers/
 # largest_managers_top_buys.
+_TOP_BUYS_NOTE_NEWEST = ("The largest buy from each manager's latest 13F, most recently filed first")
 _TOP_BUYS_SORTS = {
     "conviction": ("Highest Conviction", _TOP_BUYS_NOTE, "conviction"),
     "aum": ("Fund Size", _TOP_BUYS_NOTE_BY_AUM, "fund_size"),
+    "newest": ("Newest", _TOP_BUYS_NOTE_NEWEST, "newest"),
 }
 
 # Politician Tracker: House and Senate members' STOCK Act disclosures
@@ -2698,7 +2706,7 @@ def _manager_tracker_children():
     top_buys = load_top_buys()
     top_buy_records = {
         value: [{**_top_buy_row_to_record(r, top_buy_companies), "idx": f"{value}-{i}"}
-                for i, r in enumerate(top_buys[list_key])]
+                for i, r in enumerate(top_buys.get(list_key) or [])]
         for value, (_label, _note, list_key) in _TOP_BUYS_SORTS.items()
     }
     return [
@@ -7132,7 +7140,8 @@ def sort_top_buys(sort_key, records):
     if sort_key not in _TOP_BUYS_SORTS:
         sort_key = "conviction"
     _label, note, _list_key = _TOP_BUYS_SORTS[sort_key]
-    return [_build_top_buy_card(r, r["idx"]) for r in (records or {}).get(sort_key, [])], note
+    return [_build_top_buy_card(r, r["idx"], show_filed=sort_key == "newest")
+            for r in (records or {}).get(sort_key, [])], note
 
 
 _EMPTY_BAR_LIST = _build_delta_bar_list([], True)

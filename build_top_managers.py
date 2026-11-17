@@ -7,7 +7,8 @@ data/thirteenf_top_buys.json and data/thirteenf_top_managers.json.
    and caches the top of that ranking to thirteenf_manager_ranking.json.
 2. Fully builds the quarter-over-quarter holdings comparison for the top
    --pool-n (default 1000) of that ranking, and from all of them computes
-   the Managers tab's two card lists (Highest Conviction, Fund Size) and
+   the Managers tab's three card lists (Highest Conviction, Fund Size,
+   Newest) and
    its top-10 estimated quarterly returns table into
    thirteenf_top_buys.json -- a small file, so the cards can draw on far
    more managers than the live app could hold in memory. Stock splits are
@@ -36,6 +37,7 @@ import sys
 from thirteenf import (_MANAGER_RANKING_PATH, _SPLITS_PATH, _TOP_BUYS_PATH, _TOP_MANAGERS_SNAPSHOT_PATH, _retry,
                        apply_split_adjustments, build_top_managers, detect_split_factors,
                        best_estimated_returns, fetch_sec_13f_ranking, largest_managers_top_buys,
+                       newest_filings_top_buys,
                        top_buys_across_managers, write_top_managers_snapshot)
 
 # Only the top of the ranking is ever used; the full list (~9,000 filers)
@@ -160,6 +162,7 @@ def main():
         "period": ranking["period"],
         "conviction": top_buys_across_managers(top_n=_TOP_BUYS_N, comparisons=results),
         "fund_size": largest_managers_top_buys(top_n=_TOP_BUYS_N, comparisons=results),
+        "newest": newest_filings_top_buys(top_n=_TOP_BUYS_N, comparisons=results),
         # Top 50 managers by estimated return on last quarter's portfolio,
         # priced from the whole pool's reported quarter-end prices.
         "best_returns": best_estimated_returns(results),
@@ -168,7 +171,7 @@ def main():
     snapshot = {cik: comparison for cik, comparison in results.items() if cik in snapshot_ciks}
 
     # Every check before any write, so a bad run leaves all three files as they were.
-    for key in ("conviction", "fund_size"):
+    for key in ("conviction", "fund_size", "newest"):
         if len(top_buys[key]) < _MIN_TOP_BUYS:
             sys.exit(f"Refusing to write: only {len(top_buys[key])} {key} top buys (expected {_TOP_BUYS_N}).")
     existing = _existing_snapshot_size()
