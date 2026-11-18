@@ -1,0 +1,701 @@
+{
+ "_comment": "Per-CIK fixes for build_manager_profiles.py. Keys: search (firm name to search Wikidata for instead of the 13F filer name), qid (exact firm entity), person_search / person_qid (pin the person shown), person_title, no_person (show the logo only), website (for the site-icon logo fallback), display_name, logo_file / photo_file (exact Commons file names), skip.",
+ "2100119": {
+  "search": "The Vanguard Group",
+  "display_name": "Vanguard",
+  "person_search": "Salim Ramji",
+  "person_title": "CEO"
+ },
+ "2100121": {
+  "search": "The Vanguard Group",
+  "display_name": "Vanguard",
+  "person_search": "Salim Ramji",
+  "person_title": "CEO"
+ },
+ "933478": {
+  "search": "The Vanguard Group",
+  "display_name": "Vanguard",
+  "person_search": "Salim Ramji",
+  "person_title": "CEO"
+ },
+ "1811242": {
+  "search": "The Vanguard Group",
+  "display_name": "Vanguard",
+  "person_search": "Salim Ramji",
+  "person_title": "CEO"
+ },
+ "1680208": {
+  "search": "The Vanguard Group",
+  "display_name": "Vanguard",
+  "person_search": "Salim Ramji",
+  "person_title": "CEO"
+ },
+ "93751": {
+  "person_search": "Ronald O'Hanley",
+  "person_title": "Chairman & CEO"
+ },
+ "315066": {
+  "search": "Fidelity Investments",
+  "display_name": "Fidelity Investments",
+  "person_search": "Abigail Johnson",
+  "person_title": "Chairman & CEO"
+ },
+ "318989": {
+  "search": "Fidelity International",
+  "display_name": "Fidelity International"
+ },
+ "1423053": {
+  "search": "Citadel LLC",
+  "display_name": "Citadel",
+  "person_search": "Ken Griffin",
+  "person_title": "Founder & CEO"
+ },
+ "1422849": {
+  "search": "Capital Group Companies",
+  "display_name": "Capital Group (World Investors)",
+  "no_person": true,
+  "website": "https://www.capitalgroup.com"
+ },
+ "1422848": {
+  "search": "Capital Group Companies",
+  "display_name": "Capital Group (Research Global)",
+  "no_person": true,
+  "website": "https://www.capitalgroup.com"
+ },
+ "1562230": {
+  "search": "Capital Group Companies",
+  "display_name": "Capital Group (International)",
+  "no_person": true,
+  "website": "https://www.capitalgroup.com"
+ },
+ "884546": {
+  "search": "Charles Schwab Corporation",
+  "display_name": "Schwab Asset Management",
+  "person_search": "Charles R. Schwab",
+  "person_title": "Founder"
+ },
+ "861177": {
+  "search": "UBS",
+  "display_name": "UBS Asset Management",
+  "person_search": "Sergio Ermotti",
+  "person_title": "Group CEO"
+ },
+ "72971": {
+  "search": "Wells Fargo",
+  "display_name": "Wells Fargo",
+  "person_search": "Charles Scharf",
+  "person_title": "CEO"
+ },
+ "1390777": {
+  "display_name": "BNY",
+  "person_search": "Robin Vince",
+  "person_title": "CEO"
+ },
+ "1000275": {
+  "person_search": "David McKay banker",
+  "person_title": "CEO"
+ },
+ "927971": {
+  "person_search": "Darryl White",
+  "person_title": "CEO"
+ },
+ "873630": {
+  "person_search": "Georges Elhedery",
+  "person_title": "Group CEO"
+ },
+ "1137774": {
+  "no_person": true
+ },
+ "67088": {
+  "person_search": "Hironori Kamezawa",
+  "person_title": "CEO"
+ },
+ "1466546": {
+  "search": "Mitsubishi UFJ Financial Group",
+  "display_name": "Mitsubishi UFJ Asset Management",
+  "no_person": true
+ },
+ "720005": {
+  "person_search": "Paul Shoukry",
+  "person_title": "CEO"
+ },
+ "315032": {
+  "no_person": true
+ },
+ "902219": {
+  "no_person": true
+ },
+ "1465109": {
+  "no_person": true
+ },
+ "1126328": {
+  "no_person": true
+ },
+ "1330387": {
+  "search": "Amundi asset management",
+  "display_name": "Amundi",
+  "person_search": "Valérie Baudson",
+  "person_title": "CEO"
+ },
+ "38777": {
+  "display_name": "Franklin Templeton",
+  "person_search": "Jenny Johnson",
+  "person_title": "CEO"
+ },
+ "1167557": {
+  "display_name": "AQR Capital Management",
+  "person_search": "Cliff Asness",
+  "person_title": "Co-founder"
+ },
+ "1109448": {
+  "search": "AllianceBernstein",
+  "display_name": "AllianceBernstein",
+  "person_search": "Seth Bernstein",
+  "person_title": "CEO"
+ },
+ "1009207": {
+  "search": "D. E. Shaw & Co.",
+  "display_name": "D. E. Shaw",
+  "person_search": "David E. Shaw",
+  "person_title": "Founder"
+ },
+ "1603466": {
+  "search": "Point72 Asset Management",
+  "display_name": "Point72",
+  "person_search": "Steven A. Cohen",
+  "person_title": "Founder"
+ },
+ "1218710": {
+  "search": "Balyasny Asset Management",
+  "display_name": "Balyasny",
+  "person_search": "Dmitry Balyasny",
+  "person_title": "Founder"
+ },
+ "1642575": {
+  "search": "Squarepoint Capital",
+  "display_name": "Squarepoint"
+ },
+ "923093": {
+  "search": "Tudor Investment Corporation",
+  "display_name": "Tudor Investment",
+  "person_search": "Paul Tudor Jones",
+  "person_title": "Founder"
+ },
+ "1037389": {
+  "person_search": "James Harris Simons",
+  "person_title": "Founder"
+ },
+ "1067983": {
+  "person_search": "Warren Buffett",
+  "person_title": "Chairman"
+ },
+ "1652044": {
+  "qid": "Q20800404",
+  "display_name": "Alphabet",
+  "person_search": "Sundar Pichai",
+  "person_title": "CEO"
+ },
+ "1318757": {
+  "display_name": "Marshall Wace",
+  "person_search": "Paul Marshall hedge fund",
+  "person_title": "Co-founder",
+  "website": "https://www.mwam.com"
+ },
+ "919079": {
+  "search": "California Public Employees' Retirement System",
+  "display_name": "CalPERS",
+  "website": "https://www.calpers.ca.gov",
+  "person_search": "Marcie Frost",
+  "person_title": "CEO"
+ },
+ "1088875": {
+  "display_name": "Baillie Gifford",
+  "no_person": true
+ },
+ "1694217": {
+  "search": "DZ Bank",
+  "display_name": "DZ Bank",
+  "person_search": "Cornelius Riese",
+  "person_title": "CEO"
+ },
+ "1166588": {
+  "search": "BNP Paribas",
+  "display_name": "BNP Paribas",
+  "person_search": "Jean-Laurent Bonnafé",
+  "person_title": "CEO"
+ },
+ "1520354": {
+  "search": "BNP Paribas",
+  "display_name": "BNP Paribas Asset Management",
+  "no_person": true
+ },
+ "1535323": {
+  "search": "Allianz",
+  "display_name": "Allianz Asset Management",
+  "person_search": "Oliver Bäte",
+  "person_title": "Allianz CEO"
+ },
+ "926171": {
+  "display_name": "National Bank of Canada",
+  "website": "https://www.nbc.ca",
+  "person_search": "Laurent Ferreira",
+  "person_title": "CEO"
+ },
+ "914208": {
+  "display_name": "Invesco",
+  "website": "https://www.invesco.com",
+  "person_search": "Andrew Schlossberg",
+  "person_title": "CEO"
+ },
+ "1948780": {
+  "display_name": "Corient",
+  "website": "https://www.corient.com",
+  "no_person": true
+ },
+ "1386060": {
+  "display_name": "Boston Partners",
+  "website": "https://www.boston-partners.com",
+  "no_person": true
+ },
+ "1164508": {
+  "display_name": "Arrowstreet Capital",
+  "website": "https://www.arrowstreetcapital.com"
+ },
+ "1729829": {
+  "display_name": "Qube Research & Technologies",
+  "website": "https://www.qube-rt.com"
+ },
+ "1759654": {
+  "display_name": "Quantinno Capital",
+  "website": "https://www.quantinno.com"
+ },
+ "200217": {
+  "display_name": "Dodge & Cox",
+  "website": "https://www.dodgeandcox.com"
+ },
+ "36104": {
+  "search": "U.S. Bancorp",
+  "display_name": "U.S. Bancorp",
+  "person_search": "Gunjan Kedia",
+  "person_title": "CEO"
+ },
+ "948046": {
+  "search": "Deutsche Bank",
+  "display_name": "Deutsche Bank",
+  "person_search": "Christian Sewing",
+  "person_title": "CEO"
+ },
+ "947263": {
+  "display_name": "TD Bank Group",
+  "no_person": true
+ },
+ "1140022": {
+  "search": "Aviva",
+  "display_name": "Aviva",
+  "person_search": "Amanda Blanc",
+  "person_title": "CEO"
+ },
+ "1086619": {
+  "search": "Schroders",
+  "display_name": "Schroders"
+ },
+ "1068837": {
+  "search": "Voya Financial",
+  "display_name": "Voya Investment Management"
+ },
+ "1637460": {
+  "search": "Man Group",
+  "display_name": "Man Group"
+ },
+ "1716774": {
+  "search": "Aberdeen Group",
+  "display_name": "Aberdeen",
+  "website": "https://www.aberdeengroup.com"
+ },
+ "1692234": {
+  "search": "Russell Investments",
+  "display_name": "Russell Investments"
+ },
+ "1403438": {
+  "search": "LPL Financial",
+  "display_name": "LPL Financial"
+ },
+ "1418773": {
+  "search": "Robeco",
+  "display_name": "Robeco"
+ },
+ "1207017": {
+  "search": "Lazard",
+  "display_name": "Lazard Asset Management"
+ },
+ "1739439": {
+  "search": "Rockefeller Capital Management",
+  "display_name": "Rockefeller Capital Management"
+ },
+ "312348": {
+  "search": "Loomis, Sayles & Company",
+  "display_name": "Loomis Sayles"
+ },
+ "1993888": {
+  "search": "Pictet Group",
+  "display_name": "Pictet Asset Management"
+ },
+ "316011": {
+  "search": "Lilly Endowment",
+  "display_name": "Lilly Endowment"
+ },
+ "815917": {
+  "search": "Edward Jones Investments",
+  "display_name": "Edward Jones"
+ },
+ "1141802": {
+  "search": "Northwestern Mutual",
+  "display_name": "Northwestern Mutual"
+ },
+ "1407543": {
+  "search": "Envestnet",
+  "display_name": "Envestnet"
+ },
+ "1871926": {
+  "display_name": "Nuveen"
+ },
+ "912938": {
+  "display_name": "MFS Investment Management"
+ },
+ "73124": {
+  "display_name": "Northern Trust"
+ },
+ "1846237": {
+  "display_name": "Valor Equity Partners",
+  "website": "https://www.valorep.com",
+  "person_search": "Antonio Gracias",
+  "person_title": "Founder & CEO"
+ },
+ "1546007": {
+  "display_name": "Assenagon",
+  "website": "https://www.assenagon.com"
+ },
+ "921739": {
+  "search": "Nomura Holdings",
+  "display_name": "Nomura Asset Management",
+  "no_person": true
+ },
+ "1230239": {
+  "display_name": "Alkeon Capital",
+  "website": "https://www.alkeon.com"
+ },
+ "1508097": {
+  "display_name": "Sanders Capital",
+  "website": "https://www.sanderscapital.com"
+ },
+ "1350694": {
+  "search": "Bridgewater Associates",
+  "display_name": "Bridgewater Associates",
+  "person_search": "Ray Dalio",
+  "person_title": "Founder"
+ },
+ "2026053": {
+  "search": "Pershing Square Capital Management",
+  "display_name": "Pershing Square",
+  "person_search": "Bill Ackman",
+  "person_title": "Founder & CEO"
+ },
+ "1167483": {
+  "search": "Tiger Global Management",
+  "display_name": "Tiger Global",
+  "person_search": "Chase Coleman III",
+  "person_title": "Founder"
+ },
+ "1135730": {
+  "search": "Coatue Management",
+  "display_name": "Coatue",
+  "person_search": "Philippe Laffont",
+  "person_title": "Founder"
+ },
+ "1103804": {
+  "search": "Viking Global Investors",
+  "display_name": "Viking Global",
+  "person_search": "Andreas Halvorsen",
+  "person_title": "Co-founder"
+ },
+ "1747057": {
+  "search": "D1 Capital Partners",
+  "display_name": "D1 Capital",
+  "person_search": "Daniel Sundheim",
+  "person_title": "Founder"
+ },
+ "1061165": {
+  "search": "Lone Pine Capital",
+  "display_name": "Lone Pine Capital",
+  "person_search": "Stephen Mandel",
+  "person_title": "Founder"
+ },
+ "1040273": {
+  "search": "Third Point Management",
+  "display_name": "Third Point",
+  "person_search": "Daniel S. Loeb",
+  "person_title": "Founder & CEO"
+ },
+ "1791786": {
+  "search": "Elliott Management Corporation",
+  "display_name": "Elliott Management",
+  "person_title": "Founder",
+  "person_qid": "Q6511841"
+ },
+ "1656456": {
+  "search": "Appaloosa Management",
+  "display_name": "Appaloosa",
+  "person_search": "David Tepper",
+  "person_title": "Founder"
+ },
+ "921669": {
+  "search": "Icahn Enterprises",
+  "display_name": "Icahn Capital",
+  "person_search": "Carl Icahn",
+  "person_title": "Founder"
+ },
+ "1029160": {
+  "search": "Soros Fund Management",
+  "display_name": "Soros Fund Management",
+  "person_search": "George Soros",
+  "person_title": "Founder"
+ },
+ "1536411": {
+  "search": "Duquesne Capital",
+  "display_name": "Duquesne Family Office",
+  "person_search": "Stanley Druckenmiller",
+  "person_title": "Founder"
+ },
+ "1061768": {
+  "search": "Baupost Group",
+  "display_name": "Baupost Group",
+  "person_search": "Seth Klarman",
+  "person_title": "CEO"
+ },
+ "1489933": {
+  "search": "Greenlight Capital",
+  "display_name": "Greenlight Capital",
+  "person_search": "David Einhorn",
+  "person_title": "Founder"
+ },
+ "1709323": {
+  "search": "Himalaya Capital",
+  "display_name": "Himalaya Capital",
+  "person_search": "Li Lu investor",
+  "person_title": "Founder"
+ },
+ "1649339": {
+  "search": "Scion Capital",
+  "display_name": "Scion Asset Management",
+  "person_search": "Michael Burry",
+  "person_title": "Founder"
+ },
+ "1549575": {
+  "search": "Pabrai Investment Funds",
+  "display_name": "Pabrai Investment Funds",
+  "person_search": "Mohnish Pabrai",
+  "person_title": "Founder"
+ },
+ "1647251": {
+  "search": "The Children's Investment Fund Management",
+  "display_name": "TCI Fund Management",
+  "person_search": "Christopher Hohn",
+  "person_title": "Founder"
+ },
+ "2045724": {
+  "search": "Situational Awareness LP",
+  "display_name": "Situational Awareness",
+  "person_search": "Leopold Aschenbrenner",
+  "person_title": "Founder"
+ },
+ "1697748": {
+  "search": "ARK Invest",
+  "display_name": "ARK Invest",
+  "person_search": "Cathie Wood",
+  "person_title": "Founder & CEO"
+ },
+ "1569205": {
+  "search": "Fundsmith",
+  "display_name": "Fundsmith",
+  "person_search": "Terry Smith fund manager",
+  "person_title": "Founder"
+ },
+ "1387322": {
+  "search": "Whale Rock Capital Management",
+  "display_name": "Whale Rock Capital",
+  "no_person": true,
+  "website": "https://www.whalerockcapital.com"
+ },
+ "934639": {
+  "search": "Maverick Capital",
+  "display_name": "Maverick Capital",
+  "person_search": "Lee Ainslie",
+  "person_title": "Founder"
+ },
+ "1541617": {
+  "search": "Altimeter Capital",
+  "display_name": "Altimeter Capital",
+  "person_search": "Brad Gerstner",
+  "person_title": "Founder"
+ },
+ "1798849": {
+  "search": "Durable Capital Partners",
+  "display_name": "Durable Capital",
+  "no_person": true,
+  "website": "https://www.durablecapital.com"
+ },
+ "1602189": {
+  "search": "Dragoneer Investment Group",
+  "display_name": "Dragoneer",
+  "person_search": "Marc Stad",
+  "person_title": "Founder"
+ },
+ "1517137": {
+  "search": "Starboard Value",
+  "display_name": "Starboard Value",
+  "person_search": "Jeffrey C. Smith",
+  "person_title": "CEO"
+ },
+ "1345471": {
+  "search": "Trian Fund Management",
+  "display_name": "Trian Partners",
+  "person_search": "Nelson Peltz",
+  "person_title": "Founder"
+ },
+ "1418814": {
+  "search": "ValueAct Capital",
+  "display_name": "ValueAct Capital",
+  "person_search": "Mason Morfit",
+  "person_title": "CEO"
+ },
+ "1582090": {
+  "search": "Sachem Head Capital",
+  "display_name": "Sachem Head",
+  "person_search": "Scott Ferguson investor",
+  "person_title": "Founder"
+ },
+ "1138995": {
+  "search": "Glenview Capital Management",
+  "display_name": "Glenview Capital",
+  "person_search": "Larry Robbins",
+  "person_title": "Founder"
+ },
+ "1112520": {
+  "search": "Akre Capital Management",
+  "display_name": "Akre Capital",
+  "person_search": "Chuck Akre",
+  "person_title": "Founder"
+ },
+ "1720792": {
+  "search": "Ruane, Cunniff & Goldfarb",
+  "display_name": "Ruane, Cunniff & Goldfarb",
+  "no_person": true,
+  "website": "https://www.ruanecunniff.com"
+ },
+ "860643": {
+  "search": "Gardner Russo & Quinn",
+  "display_name": "Gardner Russo & Quinn",
+  "person_search": "Thomas Russo investor",
+  "person_title": "Partner"
+ },
+ "1358706": {
+  "search": "Abrams Capital Management",
+  "display_name": "Abrams Capital",
+  "person_search": "David Abrams investor",
+  "person_title": "Founder"
+ },
+ "1581811": {
+  "search": "Egerton Capital",
+  "display_name": "Egerton Capital",
+  "person_search": "John Armitage",
+  "person_title": "Founder"
+ },
+ "909661": {
+  "search": "Farallon Capital",
+  "display_name": "Farallon Capital",
+  "person_search": "Tom Steyer",
+  "person_title": "Founder"
+ },
+ "1512857": {
+  "search": "Brevan Howard",
+  "display_name": "Brevan Howard",
+  "person_search": "Alan Howard",
+  "person_title": "Founder"
+ },
+ "1448574": {
+  "search": "Moore Capital Management",
+  "display_name": "Moore Capital",
+  "person_search": "Louis Bacon",
+  "person_title": "Founder"
+ },
+ "949509": {
+  "search": "Oaktree Capital Management",
+  "display_name": "Oaktree Capital",
+  "person_title": "Co-founder",
+  "person_qid": "Q15109625",
+  "qid": "Q2008551"
+ },
+ "1096343": {
+  "search": "Markel Group",
+  "display_name": "Markel Group",
+  "person_search": "Thomas Gayner",
+  "person_title": "CEO"
+ },
+ "60086": {
+  "search": "Loews Corporation",
+  "display_name": "Loews",
+  "no_person": true
+ },
+ "1166559": {
+  "search": "Bill & Melinda Gates Foundation",
+  "display_name": "Gates Foundation Trust",
+  "person_search": "Bill Gates",
+  "person_title": "Co-founder"
+ },
+ "1020066": {
+  "search": "Sands Capital Management",
+  "display_name": "Sands Capital",
+  "no_person": true,
+  "website": "https://www.sandscapital.com"
+ },
+ "1608485": {
+  "search": "Lansdowne Partners",
+  "display_name": "Lansdowne Partners",
+  "no_person": true
+ },
+ "1113000": {
+  "search": "Kensico Capital",
+  "display_name": "Kensico Capital",
+  "no_person": true,
+  "website": "https://www.kensicocapital.com"
+ },
+ "905567": {
+  "search": "Yacktman Asset Management",
+  "display_name": "Yacktman Asset Management",
+  "no_person": true
+ },
+ "783412": {
+  "search": "Daily Journal Corporation",
+  "display_name": "Daily Journal",
+  "person_search": "Charlie Munger",
+  "person_title": "Longtime Chairman"
+ },
+ "915191": {
+  "search": "Fairfax Financial",
+  "display_name": "Fairfax Financial",
+  "person_search": "Prem Watsa",
+  "person_title": "Founder & CEO"
+ },
+ "1665241": {
+  "search": "Schonfeld Strategic Advisors",
+  "display_name": "Schonfeld",
+  "person_search": "Steven Schonfeld",
+  "person_title": "Founder"
+ },
+ "1745981": {
+  "search": "WorldQuant",
+  "display_name": "WorldQuant",
+  "person_search": "Igor Tulchinsky",
+  "person_title": "Founder"
+ }
+}

@@ -1,0 +1,1765 @@
+{
+ "1000275": {
+  "manager_name": "ROYAL BANK OF CANADA",
+  "qid": "Q735261",
+  "display_name": "Royal Bank of Canada",
+  "website": "https://rbc.com",
+  "logo": "/assets/managers/1000275-logo.webp"
+ },
+ "1001085": {
+  "manager_name": "BROOKFIELD Corp /ON/",
+  "qid": "Q908324",
+  "display_name": "Brookfield Corporation",
+  "website": "https://www.brookfield.com/",
+  "logo": "/assets/managers/1001085-logo.webp",
+  "person": {
+   "qid": "Q20962718",
+   "name": "Bruce Flatt",
+   "title": "CEO",
+   "credit": "Todd France",
+   "license": "CC BY-SA 3.0",
+   "photo": "/assets/managers/1001085-person.webp"
+  }
+ },
+ "1009207": {
+  "manager_name": "D. E. Shaw & Co., Inc.",
+  "qid": null,
+  "display_name": "D. E. Shaw",
+  "website": null,
+  "person": {
+   "qid": "Q5233207",
+   "name": "David E. Shaw",
+   "title": "Founder"
+  }
+ },
+ "1020066": {
+  "manager_name": "SANDS CAPITAL MANAGEMENT, LLC",
+  "qid": null,
+  "display_name": "Sands Capital",
+  "website": null,
+  "logo": "/assets/managers/1020066-logo.webp"
+ },
+ "1029160": {
+  "manager_name": "SOROS FUND MANAGEMENT LLC",
+  "qid": "Q200816",
+  "display_name": "Soros Fund Management",
+  "website": "https://sorosfundmgmt.com/",
+  "logo": "/assets/managers/1029160-logo.webp",
+  "person": {
+   "qid": "Q12908",
+   "name": "George Soros",
+   "title": "Founder",
+   "credit": "Aris Oikonomou - European Commission",
+   "license": "CC BY 4.0",
+   "photo": "/assets/managers/1029160-person.webp"
+  }
+ },
+ "1037389": {
+  "manager_name": "RENAISSANCE TECHNOLOGIES LLC",
+  "qid": "Q3424738",
+  "display_name": "Renaissance Technologies",
+  "website": "http://www.rentec.com",
+  "logo": "/assets/managers/1037389-logo.webp",
+  "person": {
+   "qid": "Q560847",
+   "name": "Jim Simons",
+   "title": "Founder",
+   "credit": "Gleuschk",
+   "license": "CC BY-SA 3.0",
+   "photo": "/assets/managers/1037389-person.webp"
+  }
+ },
+ "1040188": {
+  "manager_name": "VICTORY CAPITAL MANAGEMENT INC",
+  "qid": "Q121816947",
+  "display_name": "Victory Capital",
+  "website": null,
+  "logo": "/assets/managers/1040188-logo.webp"
+ },
+ "1040273": {
+  "manager_name": "Third Point LLC",
+  "qid": "Q17164492",
+  "display_name": "Third Point",
+  "website": "http://www.thirdpoint.com/",
+  "logo": "/assets/managers/1040273-logo.webp",
+  "person": {
+   "qid": "Q5218659",
+   "name": "Daniel S. Loeb",
+   "title": "Founder & CEO"
+  }
+ },
+ "1056053": {
+  "manager_name": "TD ASSET MANAGEMENT INC",
+  "qid": null,
+  "display_name": "TD ASSET MANAGEMENT INC",
+  "website": null
+ },
+ "1056288": {
+  "manager_name": "FEDERATED HERMES, INC.",
+  "qid": "Q5440684",
+  "display_name": "Federated Hermes",
+  "website": "http://www.federatedinvestors.com/",
+  "logo": "/assets/managers/1056288-logo.webp"
+ },
+ "1061165": {
+  "manager_name": "LONE PINE CAPITAL LLC",
+  "qid": "Q22023125",
+  "display_name": "Lone Pine Capital",
+  "website": "https://www.lonepinecapital.com",
+  "logo": "/assets/managers/1061165-logo.webp",
+  "person": {
+   "qid": "Q7609886",
+   "name": "Stephen Mandel",
+   "title": "Founder"
+  }
+ },
+ "1067983": {
+  "manager_name": "Berkshire Hathaway Inc",
+  "qid": "Q217583",
+  "display_name": "Berkshire Hathaway",
+  "website": "https://www.berkshirehathaway.com/",
+  "logo": "/assets/managers/1067983-logo.webp",
+  "person": {
+   "qid": "Q47213",
+   "name": "Warren Buffett",
+   "title": "Chairman",
+   "credit": "USA International Trade Administration",
+   "license": "Public domain",
+   "photo": "/assets/managers/1067983-person.webp"
+  }
+ },
+ "1068837": {
+  "manager_name": "VOYA INVESTMENT MANAGEMENT LLC",
+  "qid": "Q5972276",
+  "display_name": "Voya Investment Management",
+  "website": "https://www.voya.com/",
+  "logo": "/assets/managers/1068837-logo.webp"
+ },
+ "1086619": {
+  "manager_name": "SCHRODER INVESTMENT MANAGEMENT GROUP",
+  "qid": "Q1142797",
+  "display_name": "Schroders",
+  "website": "http://www.schroders.com",
+  "logo": "/assets/managers/1086619-logo.webp",
+  "person": {
+   "qid": "Q75814485",
+   "name": "Richard Oldfield",
+   "title": "CEO"
+  }
+ },
+ "1088875": {
+  "manager_name": "BAILLIE GIFFORD & CO",
+  "qid": "Q4848455",
+  "display_name": "Baillie Gifford",
+  "website": "http://www.bailliegifford.com",
+  "logo": "/assets/managers/1088875-logo.webp"
+ },
+ "1103804": {
+  "manager_name": "VIKING GLOBAL INVESTORS LP",
+  "qid": "Q19398093",
+  "display_name": "Viking Global",
+  "website": "https://www.vikingglobal.com/",
+  "logo": "/assets/managers/1103804-logo.webp",
+  "person": {
+   "qid": "Q7085794",
+   "name": "Ole Andreas Halvorsen",
+   "title": "Co-founder"
+  }
+ },
+ "1109448": {
+  "manager_name": "ALLIANCEBERNSTEIN L.P.",
+  "qid": "Q4732268",
+  "display_name": "AllianceBernstein",
+  "website": "https://www.alliancebernstein.com/",
+  "logo": "/assets/managers/1109448-logo.webp",
+  "person": {
+   "qid": "Q130803034",
+   "name": "Seth Bernstein",
+   "title": "CEO"
+  }
+ },
+ "1112520": {
+  "manager_name": "AKRE CAPITAL MANAGEMENT LLC",
+  "qid": null,
+  "display_name": "Akre Capital",
+  "website": null
+ },
+ "1113000": {
+  "manager_name": "KENSICO CAPITAL MANAGEMENT CORP",
+  "qid": null,
+  "display_name": "Kensico Capital",
+  "website": null
+ },
+ "1115418": {
+  "manager_name": "RHUMBLINE ADVISERS",
+  "qid": "Q130383199",
+  "display_name": "RhumbLine Advisers",
+  "website": null
+ },
+ "1125816": {
+  "manager_name": "FIRST TRUST ADVISORS LP",
+  "qid": "Q123739617",
+  "display_name": "First Trust",
+  "website": null,
+  "logo": "/assets/managers/1125816-logo.webp"
+ },
+ "1126328": {
+  "manager_name": "PRINCIPAL FINANCIAL GROUP INC",
+  "qid": "Q3403513",
+  "display_name": "Principal Financial Group",
+  "website": "https://www.principal.com/",
+  "logo": "/assets/managers/1126328-logo.webp"
+ },
+ "1135730": {
+  "manager_name": "COATUE MANAGEMENT LLC",
+  "qid": "Q25245629",
+  "display_name": "Coatue",
+  "website": null,
+  "logo": "/assets/managers/1135730-logo.webp",
+  "person": {
+   "qid": "Q116972965",
+   "name": "Phillipe Laffont",
+   "title": "Founder"
+  }
+ },
+ "1137774": {
+  "manager_name": "PRUDENTIAL FINANCIAL INC",
+  "qid": "Q2114414",
+  "display_name": "Prudential Financial",
+  "website": "http://prudential.com",
+  "logo": "/assets/managers/1137774-logo.webp"
+ },
+ "1138995": {
+  "manager_name": "GLENVIEW CAPITAL MANAGEMENT, LLC",
+  "qid": "Q18151674",
+  "display_name": "Glenview Capital",
+  "website": null,
+  "person": {
+   "qid": "Q18157398",
+   "name": "Larry Robbins",
+   "title": "Founder"
+  }
+ },
+ "1140022": {
+  "manager_name": "AVIVA PLC",
+  "qid": "Q791179",
+  "display_name": "Aviva",
+  "website": "https://aviva.com",
+  "logo": "/assets/managers/1140022-logo.webp",
+  "person": {
+   "qid": "Q97010729",
+   "name": "Amanda Blanc",
+   "title": "CEO",
+   "credit": "Andy Wilson - https://www.photofolio.net/",
+   "license": "CC BY-SA 4.0",
+   "photo": "/assets/managers/1140022-person.webp"
+  }
+ },
+ "1141802": {
+  "manager_name": "NORTHWESTERN MUTUAL WEALTH MANAGEMENT CO",
+  "qid": null,
+  "display_name": "Northwestern Mutual",
+  "website": null
+ },
+ "1163653": {
+  "manager_name": "NOMURA HOLDINGS INC",
+  "qid": "Q1295105",
+  "display_name": "Nomura Holdings",
+  "website": "https://www.nomura.com/",
+  "logo": "/assets/managers/1163653-logo.webp",
+  "person": {
+   "qid": "Q115646287",
+   "name": "Kentaro Okuda",
+   "title": "CEO",
+   "credit": null,
+   "license": null
+  }
+ },
+ "1164508": {
+  "manager_name": "ARROWSTREET CAPITAL, LIMITED PARTNERSHIP",
+  "qid": "Q121435783",
+  "display_name": "Arrowstreet Capital",
+  "website": null,
+  "logo": "/assets/managers/1164508-logo.webp"
+ },
+ "1165408": {
+  "manager_name": "ADAGE CAPITAL PARTNERS GP, L.L.C.",
+  "qid": null,
+  "display_name": "ADAGE CAPITAL PARTNERS GP, L.L.C.",
+  "website": null
+ },
+ "1166559": {
+  "manager_name": "GATES FOUNDATION TRUST",
+  "qid": null,
+  "display_name": "Gates Foundation Trust",
+  "website": null,
+  "person": {
+   "qid": "Q5284",
+   "name": "Bill Gates",
+   "title": "Co-founder",
+   "credit": "Bogdan Hoyaux / European Union",
+   "license": "CC BY 4.0",
+   "photo": "/assets/managers/1166559-person.webp"
+  }
+ },
+ "1166588": {
+  "manager_name": "BNP PARIBAS FINANCIAL MARKETS",
+  "qid": "Q499707",
+  "display_name": "BNP Paribas",
+  "website": "https://group.bnpparibas",
+  "logo": "/assets/managers/1166588-logo.webp",
+  "person": {
+   "qid": "Q239216",
+   "name": "Jean-Laurent Bonnafé",
+   "title": "CEO"
+  }
+ },
+ "1167483": {
+  "manager_name": "TIGER GLOBAL MANAGEMENT LLC",
+  "qid": "Q95413215",
+  "display_name": "Tiger Global",
+  "website": "https://www.tigerglobal.com/",
+  "logo": "/assets/managers/1167483-logo.webp",
+  "person": {
+   "qid": "Q20979231",
+   "name": "Chase Coleman, III",
+   "title": "Founder"
+  }
+ },
+ "1167557": {
+  "manager_name": "AQR CAPITAL MANAGEMENT LLC",
+  "qid": "Q4653518",
+  "display_name": "AQR Capital Management",
+  "website": "http://www.aqr.com/",
+  "person": {
+   "qid": "Q5132528",
+   "name": "Cliff Asness",
+   "title": "Co-founder",
+   "credit": "BillCramer",
+   "license": "CC BY-SA 4.0",
+   "photo": "/assets/managers/1167557-person.webp"
+  }
+ },
+ "1179392": {
+  "manager_name": "TWO SIGMA INVESTMENTS, LP",
+  "qid": "Q18355352",
+  "display_name": "Two Sigma",
+  "website": "https://www.twosigma.com/",
+  "logo": "/assets/managers/1179392-logo.webp",
+  "person": {
+   "qid": "Q33092670",
+   "name": "David Siegel",
+   "title": "Founder",
+   "credit": null,
+   "license": null
+  }
+ },
+ "1207017": {
+  "manager_name": "LAZARD ASSET MANAGEMENT LLC",
+  "qid": "Q637440",
+  "display_name": "Lazard Asset Management",
+  "website": "https://lazard.com/",
+  "logo": "/assets/managers/1207017-logo.webp",
+  "person": {
+   "qid": "Q730580",
+   "name": "Peter R. Orszag",
+   "title": "CEO",
+   "credit": "Unknown authorUnknown author",
+   "license": "Public domain",
+   "photo": "/assets/managers/1207017-person.webp"
+  }
+ },
+ "1214717": {
+  "manager_name": "GEODE CAPITAL MANAGEMENT, LLC",
+  "qid": "Q105773164",
+  "display_name": "Geode Capital Management",
+  "website": "https://www.geodecapital.com",
+  "logo": "/assets/managers/1214717-logo.webp"
+ },
+ "1218210": {
+  "manager_name": "NORDEA INVESTMENT MANAGEMENT AB",
+  "qid": null,
+  "display_name": "NORDEA INVESTMENT MANAGEMENT AB",
+  "website": null
+ },
+ "1218710": {
+  "manager_name": "Balyasny Asset Management L.P.",
+  "qid": "Q115813673",
+  "display_name": "Balyasny",
+  "website": null,
+  "logo": "/assets/managers/1218710-logo.webp",
+  "person": {
+   "qid": "Q120720268",
+   "name": "Dmitry Balyasny",
+   "title": "Founder"
+  }
+ },
+ "1230239": {
+  "manager_name": "ALKEON CAPITAL MANAGEMENT LLC",
+  "qid": null,
+  "display_name": "Alkeon Capital",
+  "website": null,
+  "logo": "/assets/managers/1230239-logo.webp"
+ },
+ "1273087": {
+  "manager_name": "MILLENNIUM MANAGEMENT LLC",
+  "qid": "Q65089884",
+  "display_name": "Millennium Management",
+  "website": "https://www.mlp.com",
+  "logo": "/assets/managers/1273087-logo.webp",
+  "person": {
+   "qid": "Q16120832",
+   "name": "Israel Englander",
+   "title": "Founder",
+   "credit": null,
+   "license": null
+  }
+ },
+ "1283718": {
+  "manager_name": "CANADA PENSION PLAN INVESTMENT BOARD",
+  "qid": "Q5013693",
+  "display_name": "CPP Investment Board",
+  "website": "http://cppib.com/en/home.html",
+  "logo": "/assets/managers/1283718-logo.webp"
+ },
+ "1318757": {
+  "manager_name": "MARSHALL WACE, LLP",
+  "qid": "Q6773832",
+  "display_name": "Marshall Wace",
+  "website": "https://www.mwam.com/"
+ },
+ "1330387": {
+  "manager_name": "Amundi",
+  "qid": null,
+  "display_name": "Amundi",
+  "website": null,
+  "person": {
+   "qid": "Q106805862",
+   "name": "Valérie Baudson",
+   "title": "CEO"
+  }
+ },
+ "1348883": {
+  "manager_name": "Clearbridge Investments, LLC",
+  "qid": "Q116055845",
+  "display_name": "ClearBridge Investments",
+  "website": null,
+  "logo": "/assets/managers/1348883-logo.webp"
+ },
+ "1350694": {
+  "manager_name": "Bridgewater Associates, LP",
+  "qid": "Q652431",
+  "display_name": "Bridgewater Associates",
+  "website": "https://www.bridgewater.com/",
+  "logo": "/assets/managers/1350694-logo.webp",
+  "person": {
+   "qid": "Q7297378",
+   "name": "Ray Dalio",
+   "title": "Founder",
+   "credit": "Web Summit",
+   "license": "CC BY 2.0",
+   "photo": "/assets/managers/1350694-person.webp"
+  }
+ },
+ "1357955": {
+  "manager_name": "ProShare Advisors LLC",
+  "qid": null,
+  "display_name": "ProShare Advisors LLC",
+  "website": null
+ },
+ "1358706": {
+  "manager_name": "ABRAMS CAPITAL MANAGEMENT, L.P.",
+  "qid": null,
+  "display_name": "Abrams Capital",
+  "website": null
+ },
+ "1373442": {
+  "manager_name": "Mariner, LLC",
+  "qid": null,
+  "display_name": "Mariner, LLC",
+  "website": null
+ },
+ "1386060": {
+  "manager_name": "Boston Partners",
+  "qid": "Q95991081",
+  "display_name": "Boston Partners",
+  "website": "https://www.boston-partners.com/",
+  "logo": "/assets/managers/1386060-logo.webp"
+ },
+ "1387322": {
+  "manager_name": "Whale Rock Capital Management LLC",
+  "qid": null,
+  "display_name": "Whale Rock Capital",
+  "website": null
+ },
+ "1390777": {
+  "manager_name": "Bank of New York Mellon Corp",
+  "qid": "Q589288",
+  "display_name": "BNY",
+  "website": "https://www.bnymellon.com/",
+  "logo": "/assets/managers/1390777-logo.webp",
+  "person": {
+   "qid": "Q115736014",
+   "name": "Robin Vince",
+   "title": "CEO",
+   "credit": "World Economic Forum",
+   "license": "CC BY 3.0",
+   "photo": "/assets/managers/1390777-person.webp"
+  }
+ },
+ "1403438": {
+  "manager_name": "LPL Financial LLC",
+  "qid": null,
+  "display_name": "LPL Financial",
+  "website": null
+ },
+ "1407543": {
+  "manager_name": "ENVESTNET ASSET MANAGEMENT INC",
+  "qid": "Q24915031",
+  "display_name": "Envestnet",
+  "website": "https://www.envestnet.com",
+  "logo": "/assets/managers/1407543-logo.webp"
+ },
+ "1418773": {
+  "manager_name": "Robeco Institutional Asset Management B.V.",
+  "qid": "Q3051079",
+  "display_name": "Robeco",
+  "website": "http://www.robeco.com/",
+  "logo": "/assets/managers/1418773-logo.webp"
+ },
+ "1418814": {
+  "manager_name": "ValueAct Holdings, L.P.",
+  "qid": "Q22032185",
+  "display_name": "ValueAct Capital",
+  "website": "https://valueact.com/",
+  "logo": "/assets/managers/1418814-logo.webp",
+  "person": {
+   "qid": "Q16732847",
+   "name": "Mason Morfit",
+   "title": "CEO"
+  }
+ },
+ "1422848": {
+  "manager_name": "Capital Research Global Investors",
+  "qid": null,
+  "display_name": "Capital Group (Research Global)",
+  "website": null,
+  "logo": "/assets/managers/1422848-logo.webp"
+ },
+ "1422849": {
+  "manager_name": "Capital World Investors",
+  "qid": null,
+  "display_name": "Capital Group (World Investors)",
+  "website": null,
+  "logo": "/assets/managers/1422849-logo.webp"
+ },
+ "1423053": {
+  "manager_name": "CITADEL ADVISORS LLC",
+  "qid": "Q2974366",
+  "display_name": "Citadel",
+  "website": "http://www.citadel.com/",
+  "logo": "/assets/managers/1423053-logo.webp",
+  "person": {
+   "qid": "Q3195170",
+   "name": "Kenneth C. Griffin",
+   "title": "Founder & CEO",
+   "credit": "Paul Elledge",
+   "license": "CC BY-SA 4.0",
+   "photo": "/assets/managers/1423053-person.webp"
+  }
+ },
+ "1426196": {
+  "manager_name": "CAPSTONE INVESTMENT ADVISORS, LLC",
+  "qid": "Q122973699",
+  "display_name": "Capstone Investment Advisors",
+  "website": null,
+  "logo": "/assets/managers/1426196-logo.webp"
+ },
+ "1448574": {
+  "manager_name": "MOORE CAPITAL MANAGEMENT, LP",
+  "qid": "Q6023447",
+  "display_name": "Moore Capital",
+  "website": "https://www.moorecap.com",
+  "person": {
+   "qid": "Q519582",
+   "name": "Louis Bacon",
+   "title": "Founder",
+   "credit": "USFWS Mountain-Prairie",
+   "license": "Public domain",
+   "photo": "/assets/managers/1448574-person.webp"
+  }
+ },
+ "1462245": {
+  "manager_name": "HighTower Advisors, LLC",
+  "qid": "Q124477220",
+  "display_name": "Hightower Advisors",
+  "website": null,
+  "logo": "/assets/managers/1462245-logo.webp"
+ },
+ "1465109": {
+  "manager_name": " NEUBERGER BERMAN GROUP LLC",
+  "qid": "Q1851010",
+  "display_name": "Neuberger Berman",
+  "website": "https://www.nb.com",
+  "logo": "/assets/managers/1465109-logo.webp"
+ },
+ "1466546": {
+  "manager_name": "Mitsubishi UFJ Asset Management Co., Ltd.",
+  "qid": "Q1542175",
+  "display_name": "Mitsubishi UFJ Asset Management",
+  "website": "http://www.mufg.jp/",
+  "logo": "/assets/managers/1466546-logo.webp"
+ },
+ "1475365": {
+  "manager_name": "Sumitomo Mitsui Trust Group, Inc.",
+  "qid": "Q5215535",
+  "display_name": "Sumitomo Mitsui Trust Group",
+  "website": "https://www.smth.jp/",
+  "logo": "/assets/managers/1475365-logo.webp"
+ },
+ "1489933": {
+  "manager_name": "DME Capital Management, LP",
+  "qid": "Q5604302",
+  "display_name": "Greenlight Capital",
+  "website": "https://www.greenlightcapital.com",
+  "person": {
+   "qid": "Q4516678",
+   "name": "David Einhorn",
+   "title": "Founder"
+  }
+ },
+ "1508097": {
+  "manager_name": "Sanders Capital, LLC",
+  "qid": null,
+  "display_name": "Sanders Capital",
+  "website": null,
+  "logo": "/assets/managers/1508097-logo.webp"
+ },
+ "1512024": {
+  "manager_name": "CAPTRUST FINANCIAL ADVISORS",
+  "qid": null,
+  "display_name": "CAPTRUST FINANCIAL ADVISORS",
+  "website": null
+ },
+ "1512857": {
+  "manager_name": "Brevan Howard Capital Management LP",
+  "qid": "Q2924661",
+  "display_name": "Brevan Howard",
+  "website": null,
+  "person": {
+   "qid": "Q115558198",
+   "name": "Alan Howard",
+   "title": "Founder"
+  }
+ },
+ "1517137": {
+  "manager_name": "Starboard Value LP",
+  "qid": "Q48977598",
+  "display_name": "Starboard Value",
+  "website": "https://www.starboardvalue.com",
+  "logo": "/assets/managers/1517137-logo.webp",
+  "person": {
+   "qid": "Q6174997",
+   "name": "Jeff Smith",
+   "title": "CEO"
+  }
+ },
+ "1520354": {
+  "manager_name": "BNP PARIBAS ASSET MANAGEMENT Holding S.A.",
+  "qid": "Q499707",
+  "display_name": "BNP Paribas Asset Management",
+  "website": "https://group.bnpparibas",
+  "logo": "/assets/managers/1520354-logo.webp"
+ },
+ "1535323": {
+  "manager_name": "Allianz Asset Management GmbH",
+  "qid": "Q487292",
+  "display_name": "Allianz Asset Management",
+  "website": "https://www.allianz.com/",
+  "logo": "/assets/managers/1535323-logo.webp",
+  "person": {
+   "qid": "Q18221241",
+   "name": "Oliver Bäte",
+   "title": "Allianz CEO",
+   "credit": "Prime Minister's Office, Government of India",
+   "license": "GODL-India",
+   "photo": "/assets/managers/1535323-person.webp"
+  }
+ },
+ "1540235": {
+  "manager_name": "Creative Planning",
+  "qid": "Q30590551",
+  "display_name": "Creative Planning, Inc.",
+  "website": "https://creativeplanning.com/"
+ },
+ "1541617": {
+  "manager_name": "Altimeter Capital Management, LP",
+  "qid": "Q107575346",
+  "display_name": "Altimeter Capital",
+  "website": null,
+  "logo": "/assets/managers/1541617-logo.webp",
+  "person": {
+   "qid": "Q115446687",
+   "name": "Brad Gerstner",
+   "title": "Founder",
+   "credit": "The White House",
+   "license": "Public domain",
+   "photo": "/assets/managers/1541617-person.webp"
+  }
+ },
+ "1542153": {
+  "manager_name": "Focus Partners Wealth",
+  "qid": null,
+  "display_name": "Focus Partners Wealth",
+  "website": null
+ },
+ "1546007": {
+  "manager_name": "Assenagon Asset Management S.A.",
+  "qid": null,
+  "display_name": "Assenagon",
+  "website": null
+ },
+ "1562230": {
+  "manager_name": "Capital International Investors",
+  "qid": null,
+  "display_name": "Capital Group (International)",
+  "website": null,
+  "logo": "/assets/managers/1562230-logo.webp"
+ },
+ "1566475": {
+  "manager_name": "Cerity Partners LLC",
+  "qid": null,
+  "display_name": "Cerity Partners LLC",
+  "website": null
+ },
+ "1569205": {
+  "manager_name": "Fundsmith LLP",
+  "qid": "Q5509060",
+  "display_name": "Fundsmith",
+  "website": "https://www.fundsmith.com/",
+  "logo": "/assets/managers/1569205-logo.webp"
+ },
+ "1581811": {
+  "manager_name": "Egerton Capital (UK) LLP",
+  "qid": "Q49001089",
+  "display_name": "Egerton Capital",
+  "website": "https://www.egertoncapital.com",
+  "logo": "/assets/managers/1581811-logo.webp",
+  "person": {
+   "qid": "Q112109065",
+   "name": "John Armitage",
+   "title": "Founder"
+  }
+ },
+ "1582090": {
+  "manager_name": "Sachem Head Capital Management LP",
+  "qid": "Q48744317",
+  "display_name": "Sachem Head",
+  "website": null
+ },
+ "1582202": {
+  "manager_name": "Swiss National Bank",
+  "qid": "Q597394",
+  "display_name": "Swiss National Bank",
+  "website": "https://www.snb.ch/",
+  "logo": "/assets/managers/1582202-logo.webp"
+ },
+ "1602189": {
+  "manager_name": "Dragoneer Investment Group, LLC",
+  "qid": "Q107575343",
+  "display_name": "Dragoneer",
+  "website": null,
+  "person": {
+   "qid": "Q141144164",
+   "name": "Marc Stad",
+   "title": "Founder"
+  }
+ },
+ "1603466": {
+  "manager_name": "Point72 Asset Management, L.P.",
+  "qid": "Q2204741",
+  "display_name": "Point72",
+  "website": "https://point72.com/",
+  "logo": "/assets/managers/1603466-logo.webp",
+  "person": {
+   "qid": "Q590212",
+   "name": "Steven A. Cohen",
+   "title": "Founder",
+   "credit": "JetSetJeri2",
+   "license": "CC0",
+   "photo": "/assets/managers/1603466-person.webp"
+  }
+ },
+ "1608046": {
+  "manager_name": "National Pension Service",
+  "qid": "Q6974864",
+  "display_name": "National Pension Service",
+  "website": "http://www.nps.or.kr/",
+  "logo": "/assets/managers/1608046-logo.webp"
+ },
+ "1608485": {
+  "manager_name": "LANSDOWNE PARTNERS (UK) LLP",
+  "qid": "Q18345094",
+  "display_name": "Lansdowne Partners",
+  "website": null,
+  "logo": "/assets/managers/1608485-logo.webp"
+ },
+ "1610520": {
+  "manager_name": "UBS Group AG",
+  "qid": "Q193199",
+  "display_name": "UBS",
+  "website": "https://www.ubs.com/",
+  "logo": "/assets/managers/1610520-logo.webp",
+  "person": {
+   "qid": "Q117289",
+   "name": "Sergio Ermotti",
+   "title": "CEO",
+   "credit": "The official global picture collection of UBS from Switzerland",
+   "license": "CC BY 2.0",
+   "photo": "/assets/managers/1610520-person.webp"
+  }
+ },
+ "1632972": {
+  "manager_name": "WEALTH ENHANCEMENT ADVISORY SERVICES, LLC",
+  "qid": null,
+  "display_name": "WEALTH ENHANCEMENT ADVISORY SERVICES, LLC",
+  "website": null
+ },
+ "1637460": {
+  "manager_name": "Man Group plc",
+  "qid": null,
+  "display_name": "Man Group",
+  "website": null
+ },
+ "1642575": {
+  "manager_name": "Squarepoint Ops LLC",
+  "qid": "Q116754879",
+  "display_name": "Squarepoint",
+  "website": null,
+  "logo": "/assets/managers/1642575-logo.webp"
+ },
+ "1648711": {
+  "manager_name": "Baird Financial Group, Inc.",
+  "qid": null,
+  "display_name": "Baird Financial Group, Inc.",
+  "website": null
+ },
+ "1652044": {
+  "manager_name": "Alphabet Inc.",
+  "qid": "Q20800404",
+  "display_name": "Alphabet",
+  "website": "https://abc.xyz/",
+  "logo": "/assets/managers/1652044-logo.webp",
+  "person": {
+   "qid": "Q3503829",
+   "name": "Sundar Pichai",
+   "title": "CEO",
+   "credit": "Photographer: Lukasz Kobus (European Commission)",
+   "license": "CC BY 4.0",
+   "photo": "/assets/managers/1652044-person.webp"
+  }
+ },
+ "1656456": {
+  "manager_name": "APPALOOSA LP",
+  "qid": "Q4780897",
+  "display_name": "Appaloosa",
+  "website": "http://amlp.com",
+  "logo": "/assets/managers/1656456-logo.webp",
+  "person": {
+   "qid": "Q459538",
+   "name": "David Tepper",
+   "title": "Founder",
+   "credit": "Appaloosa Management",
+   "license": "CC BY-SA 3.0",
+   "photo": "/assets/managers/1656456-person.webp"
+  }
+ },
+ "1665241": {
+  "manager_name": "Schonfeld Strategic Advisors LLC",
+  "qid": "Q116205030",
+  "display_name": "Schonfeld",
+  "website": null,
+  "logo": "/assets/managers/1665241-logo.webp"
+ },
+ "1666741": {
+  "manager_name": "Cetera Investment Advisers",
+  "qid": null,
+  "display_name": "Cetera Investment Advisers",
+  "website": null
+ },
+ "1677044": {
+  "manager_name": "OSAIC HOLDINGS, INC.",
+  "qid": "Q4686817",
+  "display_name": "Osaic",
+  "website": "https://osaic.com/",
+  "logo": "/assets/managers/1677044-logo.webp"
+ },
+ "1680208": {
+  "manager_name": "VANGUARD ASSET MANAGEMENT, Ltd",
+  "qid": "Q849363",
+  "display_name": "Vanguard",
+  "website": "https://investor.vanguard.com/",
+  "logo": "/assets/managers/1680208-logo.webp",
+  "person": {
+   "qid": "Q142183933",
+   "name": "Salim Ramji",
+   "title": "CEO"
+  }
+ },
+ "1692234": {
+  "manager_name": "Russell Investments Group, Ltd.",
+  "qid": null,
+  "display_name": "Russell Investments",
+  "website": null
+ },
+ "1694217": {
+  "manager_name": "DZ BANK AG Deutsche Zentral Genossenschafts Bank, Frankfurt am Main",
+  "qid": "Q524424",
+  "display_name": "DZ Bank",
+  "website": "https://www.dzbank.com",
+  "logo": "/assets/managers/1694217-logo.webp",
+  "person": {
+   "qid": "Q33011992",
+   "name": "Cornelius Riese",
+   "title": "CEO"
+  }
+ },
+ "1697748": {
+  "manager_name": "ARK Investment Management LLC",
+  "qid": "Q105102690",
+  "display_name": "ARK Invest",
+  "website": null,
+  "person": {
+   "qid": "Q104587868",
+   "name": "Cathie Wood",
+   "title": "Founder & CEO",
+   "credit": "Caroline Wood",
+   "license": "CC BY-SA 4.0",
+   "photo": "/assets/managers/1697748-person.webp"
+  }
+ },
+ "1705339": {
+  "manager_name": "MIRAE ASSET GLOBAL ETFS HOLDINGS Ltd.",
+  "qid": null,
+  "display_name": "MIRAE ASSET GLOBAL ETFS HOLDINGS Ltd.",
+  "website": null
+ },
+ "1709323": {
+  "manager_name": "Himalaya Capital Management LLC",
+  "qid": "Q24963168",
+  "display_name": "Himalaya Capital",
+  "website": null,
+  "logo": "/assets/managers/1709323-logo.webp"
+ },
+ "1711924": {
+  "manager_name": "CIBC Bancorp USA Inc.",
+  "qid": null,
+  "display_name": "CIBC Bancorp USA Inc.",
+  "website": null
+ },
+ "1716774": {
+  "manager_name": "Aberdeen Group plc",
+  "qid": null,
+  "display_name": "Aberdeen",
+  "website": null
+ },
+ "1720792": {
+  "manager_name": "Ruane, Cunniff & Goldfarb L.P.",
+  "qid": null,
+  "display_name": "Ruane, Cunniff & Goldfarb",
+  "website": null,
+  "logo": "/assets/managers/1720792-logo.webp"
+ },
+ "1729829": {
+  "manager_name": "Qube Research & Technologies Ltd",
+  "qid": "Q118342428",
+  "display_name": "Qube Research & Technologies",
+  "website": null,
+  "logo": "/assets/managers/1729829-logo.webp"
+ },
+ "1739439": {
+  "manager_name": "Rockefeller Capital Management L.P.",
+  "qid": "Q108661056",
+  "display_name": "Rockefeller Capital Management",
+  "website": "https://rcm.rockco.com/"
+ },
+ "1747057": {
+  "manager_name": "D1 Capital Partners L.P.",
+  "qid": "Q106946633",
+  "display_name": "D1 Capital",
+  "website": null,
+  "logo": "/assets/managers/1747057-logo.webp",
+  "person": {
+   "qid": "Q114837582",
+   "name": "Daniel Sundheim",
+   "title": "Founder"
+  }
+ },
+ "1759654": {
+  "manager_name": "Quantinno Capital Management LP",
+  "qid": null,
+  "display_name": "Quantinno Capital",
+  "website": null,
+  "logo": "/assets/managers/1759654-logo.webp"
+ },
+ "1791786": {
+  "manager_name": "Elliott Investment Management L.P.",
+  "qid": "Q5365696",
+  "display_name": "Elliott Management",
+  "website": "https://www.elliottmgmt.com/",
+  "logo": "/assets/managers/1791786-logo.webp",
+  "person": {
+   "qid": "Q6511841",
+   "name": "Paul Singer",
+   "title": "Founder",
+   "credit": "World Economic Forum",
+   "license": "CC BY-SA 2.0",
+   "photo": "/assets/managers/1791786-person.webp"
+  }
+ },
+ "1798849": {
+  "manager_name": "Durable Capital Partners LP",
+  "qid": null,
+  "display_name": "Durable Capital",
+  "website": null
+ },
+ "1811242": {
+  "manager_name": "Vanguard Global Advisers, LLC",
+  "qid": "Q849363",
+  "display_name": "Vanguard",
+  "website": "https://investor.vanguard.com/",
+  "logo": "/assets/managers/1811242-logo.webp",
+  "person": {
+   "qid": "Q142183933",
+   "name": "Salim Ramji",
+   "title": "CEO"
+  }
+ },
+ "1846237": {
+  "manager_name": "Valor Management LLC",
+  "qid": null,
+  "display_name": "Valor Equity Partners",
+  "website": null,
+  "person": {
+   "qid": "Q111928349",
+   "name": "Antonio Gracias",
+   "title": "Founder & CEO"
+  }
+ },
+ "1871926": {
+  "manager_name": "Nuveen, LLC",
+  "qid": "Q7070622",
+  "display_name": "Nuveen",
+  "website": "http://www.nuveen.com",
+  "logo": "/assets/managers/1871926-logo.webp"
+ },
+ "1948780": {
+  "manager_name": "Corient Private Wealth LP",
+  "qid": null,
+  "display_name": "Corient",
+  "website": null,
+  "logo": "/assets/managers/1948780-logo.webp"
+ },
+ "19617": {
+  "manager_name": "JPMORGAN CHASE & CO",
+  "qid": "Q192314",
+  "display_name": "JPMorgan Chase",
+  "website": "https://www.jpmorganchase.com/",
+  "logo": "/assets/managers/19617-logo.webp",
+  "person": {
+   "qid": "Q922169",
+   "name": "Jamie Dimon",
+   "title": "CEO",
+   "credit": "Steve Jurvetson",
+   "license": "CC BY 2.0",
+   "photo": "/assets/managers/19617-person.webp"
+  }
+ },
+ "1993888": {
+  "manager_name": "Pictet Asset Management Holding SA",
+  "qid": "Q29561453",
+  "display_name": "Pictet Asset Management",
+  "website": null
+ },
+ "200217": {
+  "manager_name": "Dodge & Cox",
+  "qid": "Q1234076",
+  "display_name": "Dodge & Cox",
+  "website": "https://www.dodgeandcox.com/",
+  "logo": "/assets/managers/200217-logo.webp"
+ },
+ "2012383": {
+  "manager_name": "BlackRock, Inc.",
+  "qid": "Q219635",
+  "display_name": "BlackRock",
+  "website": "https://www.blackrock.com",
+  "logo": "/assets/managers/2012383-logo.webp",
+  "person": {
+   "qid": "Q3218882",
+   "name": "Larry Fink",
+   "title": "CEO",
+   "credit": "Kena Betancur/European Commission",
+   "license": "CC BY 4.0",
+   "photo": "/assets/managers/2012383-person.webp"
+  }
+ },
+ "2026053": {
+  "manager_name": "PERSHING SQUARE INC.",
+  "qid": "Q7170181",
+  "display_name": "Pershing Square",
+  "website": "https://www.pershingsquareholdings.com",
+  "logo": "/assets/managers/2026053-logo.webp",
+  "person": {
+   "qid": "Q1586871",
+   "name": "Bill Ackman",
+   "title": "Founder & CEO",
+   "credit": "Senate Democrats",
+   "license": "CC BY 2.0",
+   "photo": "/assets/managers/2026053-person.webp"
+  }
+ },
+ "2100119": {
+  "manager_name": "VANGUARD CAPITAL MANAGEMENT LLC",
+  "qid": "Q849363",
+  "display_name": "Vanguard",
+  "website": "https://investor.vanguard.com/",
+  "logo": "/assets/managers/2100119-logo.webp",
+  "person": {
+   "qid": "Q142183933",
+   "name": "Salim Ramji",
+   "title": "CEO"
+  }
+ },
+ "2100121": {
+  "manager_name": "VANGUARD PORTFOLIO MANAGEMENT LLC",
+  "qid": "Q849363",
+  "display_name": "Vanguard",
+  "website": "https://investor.vanguard.com/",
+  "logo": "/assets/managers/2100121-logo.webp",
+  "person": {
+   "qid": "Q142183933",
+   "name": "Salim Ramji",
+   "title": "CEO"
+  }
+ },
+ "312069": {
+  "manager_name": "BARCLAYS PLC",
+  "qid": "Q245343",
+  "display_name": "Barclays",
+  "website": "https://home.barclays/",
+  "logo": "/assets/managers/312069-logo.webp",
+  "person": {
+   "qid": "Q109609662",
+   "name": "C. S. Venkatakrishnan",
+   "title": "CEO",
+   "credit": "World Economic Forum",
+   "license": "CC BY 3.0",
+   "photo": "/assets/managers/312069-person.webp"
+  }
+ },
+ "312272": {
+  "manager_name": "COMMONWEALTH EQUITY SERVICES, LLC",
+  "qid": null,
+  "display_name": "COMMONWEALTH EQUITY SERVICES, LLC",
+  "website": null
+ },
+ "312348": {
+  "manager_name": "LOOMIS SAYLES & CO L P",
+  "qid": null,
+  "display_name": "Loomis Sayles",
+  "website": null
+ },
+ "315032": {
+  "manager_name": "STATE FARM MUTUAL AUTOMOBILE INSURANCE CO",
+  "qid": "Q2007336",
+  "display_name": "State Farm Insurance",
+  "website": "https://www.statefarm.com/",
+  "logo": "/assets/managers/315032-logo.webp"
+ },
+ "315066": {
+  "manager_name": "FMR LLC",
+  "qid": "Q1411292",
+  "display_name": "Fidelity Investments",
+  "website": "https://www.fidelity.com",
+  "person": {
+   "qid": "Q321125",
+   "name": "Abigail Johnson",
+   "title": "Chairman & CEO",
+   "credit": "Village Global",
+   "license": "CC BY 2.0",
+   "photo": "/assets/managers/315066-person.webp"
+  }
+ },
+ "316011": {
+  "manager_name": " LILLY ENDOWMENT INC",
+  "qid": null,
+  "display_name": "Lilly Endowment",
+  "website": null
+ },
+ "318989": {
+  "manager_name": "FIL Ltd",
+  "qid": "Q5446786",
+  "display_name": "Fidelity International",
+  "website": "https://www.fidelityinternational.com/",
+  "logo": "/assets/managers/318989-logo.webp"
+ },
+ "350894": {
+  "manager_name": "SEI INVESTMENTS CO",
+  "qid": "Q7389686",
+  "display_name": "SEI Investments Company",
+  "website": "http://www.seic.com/",
+  "logo": "/assets/managers/350894-logo.webp"
+ },
+ "354204": {
+  "manager_name": "DIMENSIONAL FUND ADVISORS LP",
+  "qid": "Q3028075",
+  "display_name": "Dimensional Fund Advisors",
+  "website": "http://www.dimensional.com/",
+  "logo": "/assets/managers/354204-logo.webp",
+  "person": {
+   "qid": "Q5233914",
+   "name": "David G. Booth",
+   "title": "Founder",
+   "credit": null,
+   "license": null
+  }
+ },
+ "36104": {
+  "manager_name": "US BANCORP \\DE\\",
+  "qid": null,
+  "display_name": "U.S. Bancorp",
+  "website": null,
+  "person": {
+   "qid": "Q117249105",
+   "name": "Gunjan Kedia",
+   "title": "CEO"
+  }
+ },
+ "38777": {
+  "manager_name": "FRANKLIN TEMPLETON INC",
+  "qid": "Q744683",
+  "display_name": "Franklin Templeton",
+  "website": "http://www.franklintempleton.com/",
+  "person": {
+   "qid": "Q102157386",
+   "name": "Jenny Johnson",
+   "title": "CEO"
+  }
+ },
+ "53417": {
+  "manager_name": "JENNISON ASSOCIATES LLC",
+  "qid": null,
+  "display_name": "JENNISON ASSOCIATES LLC",
+  "website": null
+ },
+ "67088": {
+  "manager_name": "MITSUBISHI UFJ FINANCIAL GROUP INC",
+  "qid": "Q1542175",
+  "display_name": "Mitsubishi UFJ Financial Group",
+  "website": "http://www.mufg.jp/",
+  "logo": "/assets/managers/67088-logo.webp",
+  "person": {
+   "qid": "Q104012838",
+   "name": "Hironori Kamezawa",
+   "title": "CEO"
+  }
+ },
+ "70858": {
+  "manager_name": "BANK OF AMERICA CORP /DE/",
+  "qid": "Q487907",
+  "display_name": "Bank of America",
+  "website": "https://www.bankofamerica.com/",
+  "logo": "/assets/managers/70858-logo.webp",
+  "person": {
+   "qid": "Q912811",
+   "name": "Brian Moynihan",
+   "title": "CEO",
+   "credit": "Benjamin Applebaum",
+   "license": "Public domain",
+   "photo": "/assets/managers/70858-person.webp"
+  }
+ },
+ "713676": {
+  "manager_name": "PNC Financial Services Group, Inc.",
+  "qid": "Q38928",
+  "display_name": "PNC Financial Services",
+  "website": "https://www.pnc.com/",
+  "logo": "/assets/managers/713676-logo.webp",
+  "person": {
+   "qid": "Q21062806",
+   "name": "William S. Demchak",
+   "title": "CEO",
+   "credit": null,
+   "license": null
+  }
+ },
+ "720005": {
+  "manager_name": "RAYMOND JAMES FINANCIAL INC",
+  "qid": "Q7298901",
+  "display_name": "Raymond James Financial",
+  "website": "https://www.raymondjames.com/",
+  "logo": "/assets/managers/720005-logo.webp"
+ },
+ "720672": {
+  "manager_name": "STIFEL FINANCIAL CORP",
+  "qid": "Q7616390",
+  "display_name": "Stifel",
+  "website": "https://www.stifel.com/",
+  "logo": "/assets/managers/720672-logo.webp"
+ },
+ "72971": {
+  "manager_name": "WELLS FARGO & COMPANY/MN",
+  "qid": "Q744149",
+  "display_name": "Wells Fargo",
+  "website": "https://www.wellsfargo.com/",
+  "logo": "/assets/managers/72971-logo.webp",
+  "person": {
+   "qid": "Q18386868",
+   "name": "Charlie Scharf",
+   "title": "CEO",
+   "credit": "C-SPAN",
+   "license": "CC0",
+   "photo": "/assets/managers/72971-person.webp"
+  }
+ },
+ "73124": {
+  "manager_name": "NORTHERN TRUST CORP",
+  "qid": "Q970695",
+  "display_name": "Northern Trust",
+  "website": "http://www.northerntrust.com/",
+  "logo": "/assets/managers/73124-logo.webp",
+  "person": {
+   "qid": "Q125307830",
+   "name": "Michael G. O'Grady",
+   "title": "CEO",
+   "credit": null,
+   "license": null
+  }
+ },
+ "748054": {
+  "manager_name": "AMERICAN CENTURY COMPANIES INC",
+  "qid": "Q2843073",
+  "display_name": "American Century",
+  "website": "https://corporate.americancentury.com/en.html",
+  "logo": "/assets/managers/748054-logo.webp"
+ },
+ "763212": {
+  "manager_name": "PRIMECAP MANAGEMENT CO/CA/",
+  "qid": "Q55662775",
+  "display_name": "PRIMECAP",
+  "website": null
+ },
+ "764068": {
+  "manager_name": "Legal & General Group Plc",
+  "qid": "Q1470848",
+  "display_name": "Legal & General",
+  "website": "https://www.legalandgeneralgroup.com/",
+  "logo": "/assets/managers/764068-logo.webp",
+  "person": {
+   "qid": "Q114838509",
+   "name": "Antonio Simoes",
+   "title": "CEO",
+   "credit": null,
+   "license": null
+  }
+ },
+ "810265": {
+  "manager_name": "NEW YORK STATE COMMON RETIREMENT FUND",
+  "qid": "Q60751458",
+  "display_name": "New York State Common Retirement Fund",
+  "website": null
+ },
+ "813917": {
+  "manager_name": " HARRIS ASSOCIATES L P",
+  "qid": "Q5664776",
+  "display_name": "Harris Associates",
+  "website": "http://www.harrisassoc.com/",
+  "logo": "/assets/managers/813917-logo.webp"
+ },
+ "815917": {
+  "manager_name": "JONES FINANCIAL COMPANIES LLLP",
+  "qid": "Q5343830",
+  "display_name": "Edward Jones",
+  "website": "https://www.edwardjones.com/",
+  "logo": "/assets/managers/815917-logo.webp"
+ },
+ "820027": {
+  "manager_name": "AMERIPRISE FINANCIAL INC",
+  "qid": "Q2843129",
+  "display_name": "Ameriprise Financial",
+  "website": "http://www.ameriprise.com",
+  "logo": "/assets/managers/820027-logo.webp",
+  "person": {
+   "qid": "Q6131851",
+   "name": "James Cracchiolo",
+   "title": "CEO",
+   "credit": null,
+   "license": null
+  }
+ },
+ "831001": {
+  "manager_name": "CITIGROUP INC",
+  "qid": "Q219508",
+  "display_name": "Citigroup",
+  "website": "http://www.citigroup.com/",
+  "logo": "/assets/managers/831001-logo.webp",
+  "person": {
+   "qid": "Q21997525",
+   "name": "Jane Fraser",
+   "title": "CEO",
+   "credit": "LowneyJen",
+   "license": "CC BY-SA 4.0",
+   "photo": "/assets/managers/831001-person.webp"
+  }
+ },
+ "850529": {
+  "manager_name": "Fisher Asset Management, LLC",
+  "qid": "Q54074163",
+  "display_name": "Fisher Investments",
+  "website": "https://www.fisherinvestments.com/",
+  "logo": "/assets/managers/850529-logo.webp",
+  "person": {
+   "qid": "Q6390103",
+   "name": "Ken Fisher",
+   "title": "Founder",
+   "credit": null,
+   "license": null
+  }
+ },
+ "853758": {
+  "manager_name": "MERCER GLOBAL ADVISORS INC /ADV",
+  "qid": null,
+  "display_name": "MERCER GLOBAL ADVISORS INC /ADV",
+  "website": null
+ },
+ "861177": {
+  "manager_name": "UBS AM, a distinct business unit of UBS ASSET MANAGEMENT AMERICAS LLC",
+  "qid": "Q193199",
+  "display_name": "UBS Asset Management",
+  "website": "https://www.ubs.com/",
+  "logo": "/assets/managers/861177-logo.webp",
+  "person": {
+   "qid": "Q117289",
+   "name": "Sergio Ermotti",
+   "title": "Group CEO",
+   "credit": "The official global picture collection of UBS from Switzerland",
+   "license": "CC BY 2.0",
+   "photo": "/assets/managers/861177-person.webp"
+  }
+ },
+ "869178": {
+  "manager_name": "VAN ECK ASSOCIATES CORP",
+  "qid": null,
+  "display_name": "VAN ECK ASSOCIATES CORP",
+  "website": null
+ },
+ "873630": {
+  "manager_name": "HSBC HOLDINGS PLC",
+  "qid": "Q190464",
+  "display_name": "HSBC",
+  "website": "https://hsbc.com/",
+  "logo": "/assets/managers/873630-logo.webp",
+  "person": {
+   "qid": "Q130464757",
+   "name": "Georges Elhedery",
+   "title": "Group CEO"
+  }
+ },
+ "884546": {
+  "manager_name": "CHARLES SCHWAB INVESTMENT MANAGEMENT INC",
+  "qid": "Q1066028",
+  "display_name": "Schwab Asset Management",
+  "website": "https://www.schwab.com/",
+  "logo": "/assets/managers/884546-logo.webp",
+  "person": {
+   "qid": "Q1066027",
+   "name": "Charles R. Schwab",
+   "title": "Founder",
+   "credit": "Larry D. Moore",
+   "license": "CC BY 4.0",
+   "photo": "/assets/managers/884546-person.webp"
+  }
+ },
+ "886982": {
+  "manager_name": "GOLDMAN SACHS GROUP INC",
+  "qid": "Q193326",
+  "display_name": "Goldman Sachs",
+  "website": "https://www.goldmansachs.com/",
+  "logo": "/assets/managers/886982-logo.webp",
+  "person": {
+   "qid": "Q29641838",
+   "name": "David M. Solomon",
+   "title": "CEO",
+   "credit": "U.S. Secretary of Defense",
+   "license": "CC BY 2.0",
+   "photo": "/assets/managers/886982-person.webp"
+  }
+ },
+ "895421": {
+  "manager_name": "MORGAN STANLEY",
+  "qid": "Q334204",
+  "display_name": "Morgan Stanley",
+  "website": "https://morganstanley.com",
+  "logo": "/assets/managers/895421-logo.webp",
+  "person": {
+   "qid": "Q123531962",
+   "name": "Ted Pick",
+   "title": "CEO",
+   "credit": null,
+   "license": null
+  }
+ },
+ "898286": {
+  "manager_name": "Caisse de depot et placement du Quebec",
+  "qid": "Q2933291",
+  "display_name": "Caisse de dépôt et placement du Québec",
+  "website": "https://www.lacaisse.com/",
+  "logo": "/assets/managers/898286-logo.webp"
+ },
+ "902219": {
+  "manager_name": "WELLINGTON MANAGEMENT GROUP LLP",
+  "qid": "Q2557807",
+  "display_name": "Wellington Management Company",
+  "website": "http://www.wellington.com",
+  "logo": "/assets/managers/902219-logo.webp"
+ },
+ "909661": {
+  "manager_name": "FARALLON CAPITAL MANAGEMENT, L.L.C.",
+  "qid": "Q3066773",
+  "display_name": "Farallon Capital",
+  "website": "https://www.faralloncapital.com/",
+  "logo": "/assets/managers/909661-logo.webp",
+  "person": {
+   "qid": "Q16189531",
+   "name": "Tom Steyer",
+   "title": "Founder",
+   "credit": "Gage Skidmore",
+   "license": "CC BY-SA 3.0",
+   "photo": "/assets/managers/909661-person.webp"
+  }
+ },
+ "912938": {
+  "manager_name": "MASSACHUSETTS FINANCIAL SERVICES CO /MA/",
+  "qid": "Q6715642",
+  "display_name": "MFS Investment Management",
+  "website": "http://www.mfs.com/"
+ },
+ "914208": {
+  "manager_name": "Invesco Ltd.",
+  "qid": "Q522617",
+  "display_name": "Invesco",
+  "website": "http://www.invesco.com",
+  "logo": "/assets/managers/914208-logo.webp",
+  "person": {
+   "qid": "Q115655498",
+   "name": "Andrew Schlossberg",
+   "title": "CEO"
+  }
+ },
+ "915191": {
+  "manager_name": "FAIRFAX FINANCIAL HOLDINGS LTD/ CAN",
+  "qid": "Q1393210",
+  "display_name": "Fairfax Financial",
+  "website": "https://www.fairfax.ca/",
+  "logo": "/assets/managers/915191-logo.webp",
+  "person": {
+   "qid": "Q7240183",
+   "name": "Prem Watsa",
+   "title": "Founder & CEO",
+   "credit": "செல்வா at Tamil Wikipedia",
+   "license": "CC BY 3.0",
+   "photo": "/assets/managers/915191-person.webp"
+  }
+ },
+ "919079": {
+  "manager_name": "California Public Employees Retirement System",
+  "qid": "Q2933412",
+  "display_name": "CalPERS",
+  "website": "http://www.calpers.ca.gov/",
+  "logo": "/assets/managers/919079-logo.webp",
+  "person": {
+   "qid": "Q117221905",
+   "name": "Marcie Frost",
+   "title": "CEO"
+  }
+ },
+ "919859": {
+  "manager_name": "MACKENZIE FINANCIAL CORP",
+  "qid": null,
+  "display_name": "MACKENZIE FINANCIAL CORP",
+  "website": null
+ },
+ "921669": {
+  "manager_name": "ICAHN CARL C",
+  "qid": "Q5985017",
+  "display_name": "Icahn Capital",
+  "website": "http://www.icahnenterprises.com/",
+  "logo": "/assets/managers/921669-logo.webp",
+  "person": {
+   "qid": "Q981479",
+   "name": "Carl Icahn",
+   "title": "Founder",
+   "credit": "AviateHistory",
+   "license": "CC0",
+   "photo": "/assets/managers/921669-person.webp"
+  }
+ },
+ "921739": {
+  "manager_name": "NOMURA ASSET MANAGEMENT INTERNATIONAL INC.",
+  "qid": "Q1295105",
+  "display_name": "Nomura Asset Management",
+  "website": "https://www.nomura.com/",
+  "logo": "/assets/managers/921739-logo.webp"
+ },
+ "92230": {
+  "manager_name": "TRUIST FINANCIAL CORP",
+  "qid": "Q795486",
+  "display_name": "Truist Financial",
+  "website": "https://www.truist.com/",
+  "logo": "/assets/managers/92230-logo.webp"
+ },
+ "923093": {
+  "manager_name": "TUDOR INVESTMENT CORP ET AL",
+  "qid": "Q95950900",
+  "display_name": "Tudor Investment",
+  "website": "https://www.tudorfunds.com/",
+  "person": {
+   "qid": "Q7154092",
+   "name": "Paul Tudor Jones",
+   "title": "Founder",
+   "credit": "Hedge Funds",
+   "license": "CC BY 3.0",
+   "photo": "/assets/managers/923093-person.webp"
+  }
+ },
+ "926171": {
+  "manager_name": "NATIONAL BANK OF CANADA /FI/",
+  "qid": "Q634298",
+  "display_name": "National Bank of Canada",
+  "website": "https://www.nbc.ca/",
+  "logo": "/assets/managers/926171-logo.webp"
+ },
+ "927971": {
+  "manager_name": "BANK OF MONTREAL /CAN/",
+  "qid": "Q806693",
+  "display_name": "Bank of Montreal",
+  "website": "http://www.bmo.com/",
+  "logo": "/assets/managers/927971-logo.webp",
+  "person": {
+   "qid": "Q22443550",
+   "name": "Darryl White",
+   "title": "CEO",
+   "credit": "Andrew Scheer",
+   "license": "CC0",
+   "photo": "/assets/managers/927971-person.webp"
+  }
+ },
+ "928047": {
+  "manager_name": "MANUFACTURERS LIFE INSURANCE COMPANY, THE",
+  "qid": null,
+  "display_name": "MANUFACTURERS LIFE INSURANCE COMPANY, THE",
+  "website": null
+ },
+ "933478": {
+  "manager_name": "VANGUARD FIDUCIARY TRUST CO",
+  "qid": "Q849363",
+  "display_name": "Vanguard",
+  "website": "https://investor.vanguard.com/",
+  "logo": "/assets/managers/933478-logo.webp",
+  "person": {
+   "qid": "Q142183933",
+   "name": "Salim Ramji",
+   "title": "CEO"
+  }
+ },
+ "934639": {
+  "manager_name": "MAVERICK CAPITAL LTD",
+  "qid": "Q25110445",
+  "display_name": "Maverick Capital",
+  "website": null,
+  "logo": "/assets/managers/934639-logo.webp",
+  "person": {
+   "qid": "Q6512938",
+   "name": "Lee Ainslie",
+   "title": "Founder"
+  }
+ },
+ "93751": {
+  "manager_name": "STATE STREET CORP",
+  "qid": "Q2037125",
+  "display_name": "State Street Corporation",
+  "website": "https://www.statestreet.com/",
+  "logo": "/assets/managers/93751-logo.webp",
+  "person": {
+   "qid": "Q113558297",
+   "name": "Ronald P. O'Hanley",
+   "title": "Chairman & CEO",
+   "credit": "World Economic Forum",
+   "license": "CC BY 3.0",
+   "photo": "/assets/managers/93751-person.webp"
+  }
+ },
+ "938076": {
+  "manager_name": "STATE BOARD OF ADMINISTRATION OF FLORIDA RETIREMENT SYSTEM",
+  "qid": null,
+  "display_name": "STATE BOARD OF ADMINISTRATION OF FLORIDA RETIREMENT SYSTEM",
+  "website": null
+ },
+ "944388": {
+  "manager_name": "1832 Asset Management L.P.",
+  "qid": null,
+  "display_name": "1832 Asset Management L.P.",
+  "website": null
+ },
+ "946431": {
+  "manager_name": "Swedbank AB",
+  "qid": "Q1145493",
+  "display_name": "Swedbank",
+  "website": "http://www.swedbank.com/",
+  "logo": "/assets/managers/946431-logo.webp",
+  "person": {
+   "qid": "Q5801398",
+   "name": "Jens Henriksson",
+   "title": "CEO",
+   "credit": null,
+   "license": null
+  }
+ },
+ "947263": {
+  "manager_name": "TORONTO DOMINION BANK",
+  "qid": "Q1194832",
+  "display_name": "TD Bank Group",
+  "website": "http://www.td.com/",
+  "logo": "/assets/managers/947263-logo.webp"
+ },
+ "948046": {
+  "manager_name": "DEUTSCHE BANK AG\\",
+  "qid": "Q66048",
+  "display_name": "Deutsche Bank",
+  "website": "https://www.db.com",
+  "logo": "/assets/managers/948046-logo.webp",
+  "person": {
+   "qid": "Q51641672",
+   "name": "Christian Sewing",
+   "title": "CEO",
+   "credit": "World Economic Forum",
+   "license": "CC BY 3.0",
+   "photo": "/assets/managers/948046-person.webp"
+  }
+ },
+ "949509": {
+  "manager_name": "OAKTREE CAPITAL MANAGEMENT LP",
+  "qid": "Q2008551",
+  "display_name": "Oaktree Capital",
+  "website": "https://www.oaktreecapital.com/",
+  "logo": "/assets/managers/949509-logo.webp",
+  "person": {
+   "qid": "Q15109625",
+   "name": "Howard Marks",
+   "title": "Co-founder",
+   "credit": "kellywritershouse",
+   "license": "CC BY 2.0",
+   "photo": "/assets/managers/949509-person.webp"
+  }
+ }
+}

@@ -1420,3 +1420,361 @@ details summary { cursor: pointer; color: var(--body-text); font-size: 13px; }
 @keyframes spin {
     to { transform: rotate(360deg); }
 }
+
+/* ---- Managers tab: Headlines carousel + Best Performing Funds row ----
+   Two equal columns on desktop. Each column is a subgrid of the row's
+   three tracks (heading, card, note), so both headings, both cards and
+   both notes line up even when one note wraps to more lines. The returns
+   card has contain: size so it adds no height of its own: it stretches to
+   the carousel's height and scrolls inside that (min-height keeps it
+   usable if the carousel is ever short). See _build_headlines_carousel
+   in dash_app.py and the .hl-* handlers in custom.js. */
+.hl-row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    grid-template-rows: auto 1fr auto;
+    column-gap: 24px;
+    /* Space under the "Investment Manager Tracker" heading. */
+    margin-top: 28px;
+}
+.hl-col {
+    display: grid;
+    grid-row: span 3;
+    grid-template-rows: subgrid;
+    min-width: 0;
+}
+.hl-col > h3 {
+    margin-top: 0;
+}
+.hl-col-note {
+    font-size: 13px;
+    margin: 12px 0 0;
+}
+#best-returns-card {
+    contain: size;
+    min-height: 340px;
+}
+
+.hl-carousel {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    background-color: var(--card-bg);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    overflow: hidden;
+}
+.hl-track {
+    display: flex;
+    flex: 1;
+    overflow-x: auto;
+    scroll-snap-type: x mandatory;
+    overscroll-behavior-x: contain;
+    scrollbar-width: none;
+    outline: none;
+}
+.hl-track::-webkit-scrollbar {
+    display: none;
+}
+.hl-card {
+    flex: 0 0 100%;
+    box-sizing: border-box;
+    scroll-snap-align: start;
+    scroll-snap-stop: always;
+    padding: 20px 20px 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    min-width: 0;
+}
+.hl-head {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    gap: 16px;
+    align-items: center;
+}
+.hl-avatar {
+    position: relative;
+    width: 76px;
+    height: 76px;
+    flex-shrink: 0;
+}
+.hl-photo {
+    width: 76px;
+    height: 76px;
+    box-sizing: border-box;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 2px solid var(--border);
+    background-color: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+}
+.hl-monogram {
+    color: #fff;
+    font-size: 24px;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    border-color: transparent;
+}
+.hl-logo-fill {
+    width: 72%;
+    height: 72%;
+    object-fit: contain;
+}
+.hl-badge {
+    position: absolute;
+    right: -4px;
+    bottom: -4px;
+    width: 32px;
+    height: 32px;
+    box-sizing: border-box;
+    border-radius: 50%;
+    background-color: #fff;
+    border: 2px solid var(--card-bg);
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.25);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+}
+.hl-badge img {
+    width: 78%;
+    height: 78%;
+    object-fit: contain;
+}
+.hl-id {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    min-width: 0;
+}
+.hl-fund {
+    font-size: 18px;
+    font-weight: 600;
+    color: var(--text);
+    line-height: 1.25;
+}
+.hl-link {
+    cursor: pointer;
+    text-decoration: underline;
+    text-decoration-color: transparent;
+    text-underline-offset: 3px;
+    transition: text-decoration-color 0.15s;
+}
+.hl-link:hover {
+    text-decoration-color: currentColor;
+}
+.hl-person {
+    font-size: 13px;
+    color: var(--text);
+    opacity: 0.85;
+}
+.hl-meta {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px;
+    color: var(--body-text);
+}
+.hl-moves {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 10px;
+}
+.hl-move {
+    --move: var(--up);
+    border-radius: 10px;
+    border-left: 4px solid var(--move);
+    padding: 11px 14px 12px;
+    background-color: rgba(76, 195, 138, 0.11);
+    min-width: 0;
+}
+.hl-sell {
+    --move: var(--down);
+    background-color: rgba(229, 103, 90, 0.11);
+}
+.hl-move-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 8px;
+}
+.hl-move-label {
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--move);
+}
+.hl-move-pct {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 12px;
+    font-weight: 700;
+    padding: 2px 8px;
+    border-radius: 999px;
+    background-color: var(--move);
+    color: var(--bg);
+    white-space: nowrap;
+}
+.hl-move-main {
+    display: flex;
+    align-items: baseline;
+    gap: 12px;
+    margin-top: 4px;
+    min-width: 0;
+}
+.hl-move-amount {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 30px;
+    font-weight: 700;
+    line-height: 1.1;
+    color: var(--text);
+    white-space: nowrap;
+}
+.hl-ticker {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--security-text);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    min-width: 0;
+}
+.hl-issuer {
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--text);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    min-width: 0;
+}
+.hl-move-sub {
+    font-size: 12px;
+    color: var(--body-text);
+    margin-top: 3px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.hl-move-position {
+    margin-top: 1px;
+    opacity: 0.85;
+}
+.hl-move-position:empty {
+    display: none;
+}
+.hl-foot {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    font-size: 11px;
+    color: var(--body-text);
+}
+.hl-credit {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    max-width: 65%;
+    opacity: 0.8;
+}
+.hl-controls {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 14px;
+    border-top: 1px solid var(--border);
+}
+.hl-nav {
+    width: 32px;
+    height: 32px;
+    flex-shrink: 0;
+    border-radius: 50%;
+    border: 1px solid var(--border);
+    background: transparent;
+    color: var(--text);
+    font-size: 20px;
+    line-height: 1;
+    padding: 0 0 2px;
+    cursor: pointer;
+}
+.hl-nav:hover {
+    background-color: var(--card-bg-2);
+}
+.hl-progress-wrap {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    min-width: 0;
+}
+.hl-pos {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px;
+    color: var(--body-text);
+    white-space: nowrap;
+    min-width: 52px;
+    text-align: right;
+}
+/* Tall transparent hit area around a 4px visible bar, so it's easy to tap. */
+.hl-progress {
+    position: relative;
+    flex: 1;
+    height: 18px;
+    cursor: pointer;
+}
+.hl-progress::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 7px;
+    height: 4px;
+    border-radius: 999px;
+    background-color: var(--scrollbar-thumb);
+    opacity: 0.5;
+}
+.hl-progress-fill {
+    position: absolute;
+    top: 7px;
+    left: 0;
+    height: 4px;
+    min-width: 12px;
+    border-radius: 999px;
+    background-color: var(--text);
+    transition: left 0.3s ease;
+}
+@media (max-width: 768px) {
+    .hl-row {
+        grid-template-columns: minmax(0, 1fr);
+        grid-template-rows: none;
+        row-gap: 40px;
+    }
+    .hl-col {
+        display: block;
+        grid-row: auto;
+    }
+    #best-returns-card {
+        contain: none;
+        min-height: 0;
+        max-height: 340px;
+    }
+    .hl-card {
+        padding: 16px 16px 12px;
+    }
+    .hl-avatar,
+    .hl-photo {
+        width: 64px;
+        height: 64px;
+    }
+    .hl-fund {
+        font-size: 16px;
+    }
+    .hl-move-amount {
+        font-size: 26px;
+    }
+}

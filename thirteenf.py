@@ -72,14 +72,17 @@ def _cache_db():
         "CREATE TABLE IF NOT EXISTS manager_search ("
         "query TEXT PRIMARY KEY, data TEXT NOT NULL, built_at TEXT NOT NULL)"
     )
+    # _v2: comparisons built since get_filing_holdings started skipping
+    # option (putCall) rows -- the old tables' entries summed options into
+    # the stock's own position, so they're abandoned rather than reused.
     conn.execute(
-        "CREATE TABLE IF NOT EXISTS holdings_comparison ("
+        "CREATE TABLE IF NOT EXISTS holdings_comparison_v2 ("
         "cik INTEGER PRIMARY KEY, data TEXT NOT NULL, built_at TEXT NOT NULL)"
     )
     # Past quarters (see fetch_manager_comparison_for_period) -- a filed
     # quarter's holdings don't change, so these keep far longer.
     conn.execute(
-        "CREATE TABLE IF NOT EXISTS holdings_comparison_period ("
+        "CREATE TABLE IF NOT EXISTS holdings_comparison_period_v2 ("
         "cik INTEGER NOT NULL, period TEXT NOT NULL, data TEXT NOT NULL, built_at TEXT NOT NULL, "
         "PRIMARY KEY (cik, period))"
     )
@@ -133,7 +136,7 @@ def _load_holdings_comparison_from_disk(cik, max_age_hours=HOLDINGS_CACHE_TTL_HO
     try:
         with _cache_db() as conn:
             row = conn.execute(
-                "SELECT data, built_at FROM holdings_comparison WHERE cik = ?", (cik,)
+                "SELECT data, built_at FROM holdings_comparison_v2 WHERE cik = ?", (cik,)
             ).fetchone()
     except sqlite3.Error:
         return None
@@ -144,7 +147,7 @@ def _save_holdings_comparison_to_disk(cik, comparison):
     try:
         with _cache_db() as conn:
             conn.execute(
-                "INSERT INTO holdings_comparison (cik, data, built_at) VALUES (?, ?, ?) "
+                "INSERT INTO holdings_comparison_v2 (cik, data, built_at) VALUES (?, ?, ?) "
                 "ON CONFLICT(cik) DO UPDATE SET data = excluded.data, built_at = excluded.built_at",
                 (cik, json.dumps(comparison), datetime.now(timezone.utc).isoformat()),
             )
@@ -159,7 +162,7 @@ def _load_period_comparison_from_disk(cik, period, max_age_hours=PERIOD_CACHE_TT
     try:
         with _cache_db() as conn:
             row = conn.execute(
-                "SELECT data, built_at FROM holdings_comparison_period WHERE cik = ? AND period = ?",
+                "SELECT data, built_at FROM holdings_comparison_period_v2 WHERE cik = ? AND period = ?",
                 (cik, period),
             ).fetchone()
     except sqlite3.Error:
@@ -171,7 +174,7 @@ def _save_period_comparison_to_disk(cik, period, comparison):
     try:
         with _cache_db() as conn:
             conn.execute(
-                "INSERT INTO holdings_comparison_period (cik, period, data, built_at) VALUES (?, ?, ?, ?) "
+                "INSERT INTO holdings_comparison_period_v2 (cik, period, data, built_at) VALUES (?, ?, ?, ?) "
                 "ON CONFLICT(cik, period) DO UPDATE SET data = excluded.data, built_at = excluded.built_at",
                 (cik, period, json.dumps(comparison), datetime.now(timezone.utc).isoformat()),
             )
@@ -564,6 +567,14 @@ def get_filing_holdings(session, cik, accession):
         # what "shares"/"ΔShares"/"Portfolio %" already implicitly
         # assume everywhere else in this app.
         if shares_type == "PRN":
+            continue
+        # A putCall row is an option position (its sshPrnamt is the
+        # underlying share count, its value the underlying's notional) and
+        # shares the stock's own CUSIP -- summed in below, Scion's Palantir
+        # PUTS read as a 66%-of-portfolio Palantir "buy", Q3 2026. Same
+        # equity-only reasoning as PRN above.
+        put_call = fields.get("putCall")
+        if put_call is not None and (put_call.text or "").strip():
             continue
         # SEC "value" was reported in thousands of dollars for periods
         # before Q1 2023 (period end < 2023-01-01), whole dollars from Q1
@@ -1363,6 +1374,242 @@ def _biggest_buy_per_manager(comparisons, min_public_equity_portfolio_m):
     return list(biggest.values())
 
 
+# headline_moves: market makers / prop-trading desks file 13Fs full of ETF
+# and option inventory held as hedges -- a 5% "SPY sell" at Jane Street is
+# not a conviction trade. Matched against the manager name, lowercased.
+_MARKET_MAKER_NAMES = (
+    "jane street", "susquehanna", "imc-chicago", "imc chicago", "citadel securities", "simplex trading",
+    "belvedere trading", "ctc llc", "optiver", "hudson river trading", "virtu", "wolverine",
+    "peak6", "flow traders", "drw ", "xtx", "old mission", "group one trading", "akuna", "mako",
+    "tower research", "jump financial", "jump trading", "two sigma securities", "g1 execution",
+    "volant", "headlands", "ccm", "bluefin",
+)
+# Same reason for broker-dealers, banks and brokerage networks: their 13Fs
+# are mostly trading inventory, hedges and clients' accounts (Nomura
+# Holdings' "$14B Micron sale", Q3 2026), not the firm's own conviction.
+# Their asset-management arms file separately (UBS AM, BNP Paribas AM,
+# Nomura AM, MUFG AM) and stay in.
+_BROKER_NAMES = (
+    "goldman sachs group", "morgan stanley", "jpmorgan chase", "citigroup", "bank of america",
+    "wells fargo & company", "barclays plc", "ubs group", "deutsche bank ag", "bnp paribas financial markets",
+    "nomura holdings", "hsbc holdings", "royal bank of canada", "bank of montreal", "toronto dominion bank",
+    "canadian imperial bank", "cibc", "national bank of canada", "bank of nova scotia", "jefferies",
+    "raymond james", "stifel", "lpl financial", "mizuho", "mitsubishi ufj financial group",
+    "sumitomo mitsui financial", "societe generale", "credit agricole", "natixis", "macquarie group",
+    "credit suisse", "jones financial", "envestnet", "osaic", "cetera", "commonwealth equity services",
+    "interactive brokers", "robinhood", "us bancorp", "pnc financial", "truist financial",
+    "baird financial", "dz bank", "piper sandler", "oppenheimer", "cantor fitzgerald", "charles schwab corp",
+    "ameriprise financial", "northwestern mutual wealth", "daiwa securities", "smbc nikko", "bmo capital",
+    "rbc capital", "scotia capital",
+)
+
+
+def _excluded_from_headlines(name):
+    name = name.lower()
+    return any(n in name for n in _MARKET_MAKER_NAMES + _BROKER_NAMES)
+
+
+# Famous funds the Headlines carousel always covers, whatever their size --
+# most of the best-known hedge funds and investors run far less than the
+# top 100's ~$105B of 13F equity (Bridgewater ~$24B, Pershing Square ~$19B,
+# Scion a few hundred million). build_top_managers.py adds any of these
+# outside its top-1000 pool, so each always has a comparison to draw from.
+NOTABLE_FUND_CIKS = {
+    1350694: "Bridgewater Associates", 2026053: "Pershing Square", 1167483: "Tiger Global",
+    1135730: "Coatue", 1103804: "Viking Global", 1747057: "D1 Capital", 1061165: "Lone Pine",
+    1040273: "Third Point", 1791786: "Elliott", 1656456: "Appaloosa", 921669: "Icahn",
+    1029160: "Soros Fund Management", 1536411: "Duquesne Family Office", 1061768: "Baupost",
+    1489933: "Greenlight (DME Capital)", 1709323: "Himalaya Capital", 1649339: "Scion Asset Management",
+    1549575: "Dalal Street (Pabrai)", 1647251: "TCI Fund Management", 2045724: "Situational Awareness",
+    1697748: "ARK Investment Management", 1569205: "Fundsmith", 1387322: "Whale Rock", 934639: "Maverick",
+    1541617: "Altimeter", 1798849: "Durable Capital", 1602189: "Dragoneer", 1517137: "Starboard Value",
+    1345471: "Trian", 1418814: "ValueAct", 1582090: "Sachem Head", 1138995: "Glenview Capital",
+    1112520: "Akre Capital", 1720792: "Ruane, Cunniff & Goldfarb", 860643: "Gardner Russo & Quinn",
+    1358706: "Abrams Capital", 1581811: "Egerton Capital", 909661: "Farallon", 1512857: "Brevan Howard",
+    1448574: "Moore Capital", 949509: "Oaktree", 1096343: "Markel", 60086: "Loews",
+    1166559: "Gates Foundation Trust", 1020066: "Sands Capital", 1608485: "Lansdowne Partners",
+    1113000: "Kensico Capital", 905567: "Yacktman", 783412: "Daily Journal", 915191: "Fairfax Financial",
+    1665241: "Schonfeld", 1745981: "WorldQuant",
+    # Large enough to usually make the top 100 anyway, but famous enough
+    # that a ranking shift shouldn't drop them.
+    1423053: "Citadel", 1603466: "Point72", 1273087: "Millennium", 1009207: "D. E. Shaw",
+    1179392: "Two Sigma", 1037389: "Renaissance Technologies", 1218710: "Balyasny", 1167557: "AQR",
+    1318757: "Marshall Wace", 923093: "Tudor Investment", 1067983: "Berkshire Hathaway",
+}
+# ETFs, index funds and option positions, by the 13F issuer/class text --
+# rebalancing a broad-market ETF isn't a headline either.
+_NON_HEADLINE_SECURITY_RE = re.compile(
+    r"\((?:CALL|PUT|OPT|FUND|ETP|ETN)\)|\bET[FPN]\b|\bISHARES\b|\bSPDR\b|\bQQQ\b|\bFDS?\b|\bINDEX\b.*\(FUND\)|"
+    r"\bVANECK\b|\bSELECT SECTOR\b|\bPROSHARES\b|\bDIREXION\b|\bWISDOMTREE\b|\bDFA INVT\b|"
+    r"\bSCHWAB STRATEGIC\b|\bINVESCO EXCHANGE\b|\bVANGUARD (?:INDEX|WORLD|SCOTTSDALE|TAX|BD|ADMIRAL|"
+    r"SPECIALIZED|WHITEHALL|STAR|INTL|MALVERN|CHARLOTTE|FENWAY|MUN)\b|\bGOLD TR\b|\bSILVER TR\b|"
+    r"\bTR (?:UNIT|7 10YR)|\bNASDAQ 100\b",
+    re.IGNORECASE,
+)
+# A CUSIP that's brand new (or fully exited) at this share of the managers
+# holding it, across at least _REISSUE_MIN_HOLDERS of them, is a CUSIP
+# change -- ExxonMobil's Q3 2026 reorganization into ExxonMobil Holdings
+# Corp read as a new $44B position at Vanguard and an equal "exit" of the
+# old CUSIP. A real crowd buy (SpaceX's IPO quarter) was new at only ~10%.
+_REISSUE_MIN_SHARE = 0.8
+_REISSUE_MIN_HOLDERS = 15
+HEADLINE_FUNDS_N = 100
+HEADLINE_MIN_PCT = 1.0
+
+
+def _reissued_cusips(comparisons):
+    """CUSIPs that look like a corporate action's new/old CUSIP rather than
+    a trade -- see _REISSUE_MIN_SHARE."""
+    held, new, prev_held, exited = (Counter() for _ in range(4))
+    for cik, comparison in comparisons.items():
+        rows = {}
+        for key in ("all_positions", "top_increases", "top_decreases"):
+            for r in comparison.get(key) or ():
+                rows.setdefault(r["cusip"], r)
+        for cusip, r in rows.items():
+            if r.get("shares_m"):
+                held[cusip] += 1
+                if not r.get("prev_shares_m"):
+                    new[cusip] += 1
+            if r.get("prev_shares_m"):
+                prev_held[cusip] += 1
+                if not r.get("shares_m"):
+                    exited[cusip] += 1
+    reissued = set()
+    for changed, base in ((new, held), (exited, prev_held)):
+        for cusip, n in changed.items():
+            if base[cusip] >= _REISSUE_MIN_HOLDERS and n / base[cusip] >= _REISSUE_MIN_SHARE:
+                reissued.add(cusip)
+    return reissued
+
+
+def _equity_total_m(comparison):
+    """The manager's total public equity portfolio ($M), recovered from any
+    one position's value and weight -- see _pooled_buys."""
+    for r in comparison.get("all_positions") or ():
+        if r.get("value_m") and r.get("portfolio_pct"):
+            return r["value_m"] / (r["portfolio_pct"] / 100)
+    return None
+
+
+def _prev_equity_total_m(comparison):
+    """Like _equity_total_m, for the previous quarter's portfolio."""
+    for r in comparison.get("all_positions") or ():
+        if r.get("prev_value_m") and r.get("prev_portfolio_pct"):
+            return r["prev_value_m"] / (r["prev_portfolio_pct"] / 100)
+    return None
+
+
+def _headline_skip_keys(comparison):
+    """Issuer keys a fund's headline must skip: its own listed stock
+    (Pershing Square buying PERSHING SQUARE INC, Icahn buying Icahn
+    Enterprises), and any company it both newly bought and fully exited
+    under different CUSIPs in the same quarter -- a share-class conversion
+    or redomicile (Altimeter's Cerebras preferred -> common at IPO;
+    Ferguson Plc -> Ferguson Enterprises), not two trades."""
+    skip = {_company_word(comparison.get("manager_name", ""))}
+    new = {_company_word(r["issuer"]) for r in comparison.get("top_increases") or () if not r.get("prev_shares_m")}
+    exited = {_company_word(r["issuer"]) for r in comparison.get("top_decreases") or () if not r.get("shares_m")}
+    return (skip | (new & exited)) - {None}
+
+
+# Too common as a company name's first word to pair a new position with an
+# exit on (First Solar vs First Horizon) -- see _headline_skip_keys.
+_GENERIC_FIRST_WORDS = {"FIRST", "AMERICAN", "UNITED", "GENERAL", "NATIONAL", "INTERNATIONAL", "GLOBAL",
+                        "BANK", "NEW", "WESTERN", "SOUTHERN", "NORTHERN", "EASTERN", "PACIFIC", "ROYAL",
+                        "ISHARES", "VANGUARD", "INVESCO", "SPDR", "THE", "CAPITAL", "ASSET", "INVESTMENT",
+                        "STATE", "CITY", "GREAT", "SOUTH", "NORTH"}
+
+
+def _company_word(issuer):
+    """The distinctive first word of an issuer name, or None if it's too
+    short or generic to identify the company -- one company's old and new
+    listing usually share only this (FERGUSON PLC -> FERGUSON ENTERPRISES
+    INC on its 2024 redomicile)."""
+    word = (re.findall(r"[A-Z0-9]+", issuer.upper()) or [""])[0]
+    return word if len(word) >= 4 and word not in _GENERIC_FIRST_WORDS else None
+
+
+def _headline_move(rows, total_m, skip_cusips, skip_keys, buy):
+    """The fund's biggest qualifying buy (or sell) from its top_increases/
+    top_decreases -- within one fund the biggest by dollars is also the
+    biggest by % of AUM -- or None if it's under HEADLINE_MIN_PCT of
+    total_m (the equity AUM after a buy, before a sell)."""
+    for r in sorted(rows or (), key=lambda r: abs(r.get("delta_shares_value_m") or 0), reverse=True):
+        value_m = r.get("delta_shares_value_m") or 0
+        if (value_m > 0) != buy or r["cusip"] in skip_cusips or _NON_HEADLINE_SECURITY_RE.search(r["issuer"]):
+            continue
+        if _company_word(r["issuer"]) in skip_keys:
+            continue
+        # A "buy" worth far more than the position it built is a data error
+        # (see _MAX_BUY_TO_POSITION_RATIO); same in reverse for a sell.
+        basis = r.get("value_m") if buy else (r.get("prev_shares_m") or 0) * abs(value_m) / (
+            abs(r.get("delta_shares_m") or 0) or 1)
+        if basis and abs(value_m) > basis * _MAX_BUY_TO_POSITION_RATIO:
+            continue
+        pct = abs(value_m) / total_m * 100
+        # More than the whole portfolio can only be a data error.
+        if pct > 100:
+            continue
+        if pct < HEADLINE_MIN_PCT:
+            return None
+        shares, prev_shares = r.get("shares_m") or 0, r.get("prev_shares_m") or 0
+        if not prev_shares:
+            change = "New position"
+        elif not shares:
+            change = "Exited"
+        else:
+            change = f"{(shares - prev_shares) / prev_shares * 100:+.0f}% shares"
+        return {"issuer": r["issuer"], "cusip": r["cusip"], "value_m": abs(value_m),
+                "pct_of_aum": pct, "change": change,
+                # The position after the move (0 for an exit).
+                "position_value_m": r.get("value_m") or 0, "position_pct": r.get("portfolio_pct") or 0}
+    return None
+
+
+def headline_moves(comparisons, top_funds=HEADLINE_FUNDS_N,
+                   min_public_equity_portfolio_m=_MIN_PUBLIC_EQUITY_PORTFOLIO_M):
+    """The Managers tab's Headlines carousel: for each of the `top_funds`
+    largest managers (by derived public equity AUM, same as the Fund Size
+    sort) plus every NOTABLE_FUND_CIKS fund, its biggest buy and biggest
+    sell this quarter, each kept only if it's at least HEADLINE_MIN_PCT of
+    that fund's equity AUM (after a buy; before a sell). One row per fund
+    that has either, biggest move (as % of AUM) first. Skips market makers
+    and brokers/banks (counted before the top_funds cut, so it's 100
+    actual managers), ETFs/options, CUSIP changes (see _reissued_cusips),
+    self-holdings and share-class conversions (see _headline_skip_keys) --
+    in a real quarter those were over half the raw >= 1% moves. aum_rank
+    is the fund's place among every sized comparison, brokers included.
+    Expects split-adjusted comparisons."""
+    sized = []
+    for cik, comparison in comparisons.items():
+        total_m = _equity_total_m(comparison)
+        if total_m and total_m >= min_public_equity_portfolio_m:
+            sized.append((total_m, cik, comparison))
+    sized.sort(key=lambda t: t[0], reverse=True)
+    ranked = [(rank, total_m, cik, comparison) for rank, (total_m, cik, comparison) in enumerate(sized, start=1)
+              if not _excluded_from_headlines(comparison.get("manager_name", ""))]
+    chosen = ranked[:top_funds] + [t for t in ranked[top_funds:] if int(t[2]) in NOTABLE_FUND_CIKS]
+    reissued = _reissued_cusips(comparisons)
+    results = []
+    for rank, total_m, cik, comparison in chosen:
+        skip_keys = _headline_skip_keys(comparison)
+        buy = _headline_move(comparison.get("top_increases"), total_m, reissued, skip_keys, buy=True)
+        # A sell is sized against what the fund held when it sold.
+        sell = _headline_move(comparison.get("top_decreases"), _prev_equity_total_m(comparison) or total_m,
+                              reissued, skip_keys, buy=False)
+        if not buy and not sell:
+            continue
+        results.append({
+            "cik": int(cik), "manager_name": comparison.get("manager_name", ""), "aum_rank": rank,
+            "equity_aum_m": total_m, "notable": int(cik) in NOTABLE_FUND_CIKS,
+            "latest_period": comparison.get("latest_period"), "filing_date": comparison.get("latest_filing_date"),
+            "buy": buy, "sell": sell,
+        })
+    results.sort(key=lambda r: max((m["pct_of_aum"] for m in (r["buy"], r["sell"]) if m)), reverse=True)
+    return results
+
+
 # best_estimated_returns: a manager needs at least this share of its
 # previous-quarter portfolio priced at both quarter-ends to be ranked, and
 # at least this many priced positions (a one- or two-stock holding company
@@ -1478,11 +1725,13 @@ def load_top_buys():
             data = json.load(f)
         _top_buys_cache = {"conviction": data["conviction"], "fund_size": data["fund_size"],
                            "newest": data.get("newest", []),
-                           "best_returns": data.get("best_returns", [])}
+                           "best_returns": data.get("best_returns", []),
+                           "headlines": data.get("headlines", [])}
     except (OSError, json.JSONDecodeError, KeyError):
         _top_buys_cache = {"conviction": top_buys_across_managers(), "fund_size": largest_managers_top_buys(),
                            "newest": newest_filings_top_buys(),
-                           "best_returns": best_estimated_returns(_load_top_managers_snapshot())}
+                           "best_returns": best_estimated_returns(_load_top_managers_snapshot()),
+                           "headlines": headline_moves(_load_top_managers_snapshot())}
     return _top_buys_cache
 
 

@@ -3757,5 +3757,1481 @@
    "previous_period": "2026-06-30",
    "latest_period": "2026-09-30"
   }
+ ],
+ "headlines": [
+  {
+   "cik": 915191,
+   "manager_name": "FAIRFAX FINANCIAL HOLDINGS LTD/ CAN",
+   "aum_rank": 328,
+   "equity_aum_m": 2648.1767,
+   "notable": true,
+   "latest_period": "2026-09-30",
+   "filing_date": "2026-11-16",
+   "buy": {
+    "issuer": "EQUINOX GOLD CORP",
+    "cusip": "29446Y502",
+    "value_m": 649.089,
+    "pct_of_aum": 24.5108,
+    "change": "New position",
+    "position_value_m": 649.089,
+    "position_pct": 24.5108
+   },
+   "sell": null
+  },
+  {
+   "cik": 1602189,
+   "manager_name": "Dragoneer Investment Group, LLC",
+   "aum_rank": 315,
+   "equity_aum_m": 6031.9326,
+   "notable": true,
+   "latest_period": "2026-09-30",
+   "filing_date": "2026-11-16",
+   "buy": {
+    "issuer": "INTEL CORP",
+    "cusip": "458140100",
+    "value_m": 1202.3,
+    "pct_of_aum": 19.9323,
+    "change": "New position",
+    "position_value_m": 1202.3,
+    "position_pct": 19.9323
+   },
+   "sell": {
+    "issuer": "ADVANCED MICRO DEVICES INC",
+    "cusip": "007903107",
+    "value_m": 219.8377,
+    "pct_of_aum": 7.756,
+    "change": "-39% shares",
+    "position_value_m": 351.9694,
+    "position_pct": 5.8351
+   }
+  },
+  {
+   "cik": 1040273,
+   "manager_name": "Third Point LLC",
+   "aum_rank": 321,
+   "equity_aum_m": 4519.3063,
+   "notable": true,
+   "latest_period": "2026-09-30",
+   "filing_date": "2026-11-16",
+   "buy": {
+    "issuer": "META PLATFORMS INC (CL A)",
+    "cusip": "30303M102",
+    "value_m": 474.9929,
+    "pct_of_aum": 10.5103,
+    "change": "New position",
+    "position_value_m": 474.9929,
+    "position_pct": 10.5103
+   },
+   "sell": {
+    "issuer": "WARNER BROS DISCOVERY INC (COM SER A)",
+    "cusip": "934423104",
+    "value_m": 533.2,
+    "pct_of_aum": 11.4836,
+    "change": "Exited",
+    "position_value_m": 0,
+    "position_pct": 0
+   }
+  },
+  {
+   "cik": 1846237,
+   "manager_name": "Valor Management LLC",
+   "aum_rank": 138,
+   "equity_aum_m": 68400.7328,
+   "notable": false,
+   "latest_period": "2026-09-30",
+   "filing_date": "2026-11-16",
+   "buy": null,
+   "sell": {
+    "issuer": "SPACE EXPLORATION TECHN CORP (CLASS A COM STK)",
+    "cusip": "84615Q103",
+    "value_m": 8223.2213,
+    "pct_of_aum": 9.5407,
+    "change": "-10% shares",
+    "position_value_m": 68233.0983,
+    "position_pct": 99.7549
+   }
+  },
+  {
+   "cik": 1061165,
+   "manager_name": "LONE PINE CAPITAL LLC",
+   "aum_rank": 297,
+   "equity_aum_m": 15329.4672,
+   "notable": true,
+   "latest_period": "2026-09-30",
+   "filing_date": "2026-11-16",
+   "buy": {
+    "issuer": "AMAZON COM INC",
+    "cusip": "023135106",
+    "value_m": 1394.8668,
+    "pct_of_aum": 9.0993,
+    "change": "New position",
+    "position_value_m": 1394.8668,
+    "position_pct": 9.0993
+   },
+   "sell": {
+    "issuer": "SEAGATE TECHNOLOGY HLDNGS PL",
+    "cusip": "G7997R103",
+    "value_m": 965.1052,
+    "pct_of_aum": 5.9,
+    "change": "Exited",
+    "position_value_m": 0,
+    "position_pct": 0
+   }
+  },
+  {
+   "cik": 909661,
+   "manager_name": "FARALLON CAPITAL MANAGEMENT, L.L.C.",
+   "aum_rank": 293,
+   "equity_aum_m": 18657.5093,
+   "notable": true,
+   "latest_period": "2026-09-30",
+   "filing_date": "2026-11-16",
+   "buy": {
+    "issuer": "WARNER BROS DISCOVERY INC (COM SER A)",
+    "cusip": "934423104",
+    "value_m": 1528.074,
+    "pct_of_aum": 8.1901,
+    "change": "New position",
+    "position_value_m": 1528.074,
+    "position_pct": 8.1901
+   },
+   "sell": {
+    "issuer": "THERMO FISHER SCIENTIFIC INC",
+    "cusip": "883556102",
+    "value_m": 354.9817,
+    "pct_of_aum": 2.0949,
+    "change": "-58% shares",
+    "position_value_m": 300.8597,
+    "position_pct": 1.6125
+   }
+  },
+  {
+   "cik": 1656456,
+   "manager_name": "APPALOOSA LP",
+   "aum_rank": 310,
+   "equity_aum_m": 7559.6286,
+   "notable": true,
+   "latest_period": "2026-09-30",
+   "filing_date": "2026-11-16",
+   "buy": {
+    "issuer": "SPACE EXPLORATION TECHN CORP (CLASS A COM STK)",
+    "cusip": "84615Q103",
+    "value_m": 574.6814,
+    "pct_of_aum": 7.602,
+    "change": "+1626% shares",
+    "position_value_m": 556.5471,
+    "position_pct": 7.3621
+   },
+   "sell": {
+    "issuer": "ALPHABET INC (CAP STK CL C)",
+    "cusip": "02079K107",
+    "value_m": 294.9798,
+    "pct_of_aum": 3.9482,
+    "change": "-46% shares",
+    "position_value_m": 340.74,
+    "position_pct": 4.5074
+   }
+  },
+  {
+   "cik": 1582090,
+   "manager_name": "Sachem Head Capital Management LP",
+   "aum_rank": 323,
+   "equity_aum_m": 3969.5981,
+   "notable": true,
+   "latest_period": "2026-09-30",
+   "filing_date": "2026-11-13",
+   "buy": {
+    "issuer": "Skyworks Solutions Inc",
+    "cusip": "83088M102",
+    "value_m": 298.7526,
+    "pct_of_aum": 7.526,
+    "change": "New position",
+    "position_value_m": 298.7526,
+    "position_pct": 7.526
+   },
+   "sell": {
+    "issuer": "Dicks Sporting Goods Inc",
+    "cusip": "253393102",
+    "value_m": 337.9469,
+    "pct_of_aum": 7.0118,
+    "change": "Exited",
+    "position_value_m": 0,
+    "position_pct": 0
+   }
+  },
+  {
+   "cik": 1716774,
+   "manager_name": "Aberdeen Group plc",
+   "aum_rank": 130,
+   "equity_aum_m": 72379.9307,
+   "notable": false,
+   "latest_period": "2026-09-30",
+   "filing_date": "2026-11-06",
+   "buy": {
+    "issuer": "MICRON TECHNOLOGY INC",
+    "cusip": "595112103",
+    "value_m": 5194.1166,
+    "pct_of_aum": 7.1762,
+    "change": "+762% shares",
+    "position_value_m": 3573.8752,
+    "position_pct": 4.9377
+   },
+   "sell": {
+    "issuer": "NVIDIA CORPORATION",
+    "cusip": "67066G104",
+    "value_m": 4280.1617,
+    "pct_of_aum": 6.0097,
+    "change": "-98% shares",
+    "position_value_m": 96.3191,
+    "position_pct": 0.1331
+   }
+  },
+  {
+   "cik": 1541617,
+   "manager_name": "Altimeter Capital Management, LP",
+   "aum_rank": 304,
+   "equity_aum_m": 9797.1757,
+   "notable": true,
+   "latest_period": "2026-09-30",
+   "filing_date": "2026-11-16",
+   "buy": {
+    "issuer": "TESLA INC",
+    "cusip": "88160R101",
+    "value_m": 679.6173,
+    "pct_of_aum": 6.9369,
+    "change": "New position",
+    "position_value_m": 679.6173,
+    "position_pct": 6.9369
+   },
+   "sell": {
+    "issuer": "QUALCOMM INC",
+    "cusip": "747525103",
+    "value_m": 347.8653,
+    "pct_of_aum": 3.5389,
+    "change": "Exited",
+    "position_value_m": 0,
+    "position_pct": 0
+   }
+  },
+  {
+   "cik": 1948780,
+   "manager_name": "Corient Private Wealth LP",
+   "aum_rank": 92,
+   "equity_aum_m": 112306.0131,
+   "notable": false,
+   "latest_period": "2026-09-30",
+   "filing_date": "2026-11-16",
+   "buy": {
+    "issuer": "NVIDIA CORPORATION",
+    "cusip": "67066G104",
+    "value_m": 1383.6348,
+    "pct_of_aum": 1.232,
+    "change": "+62% shares",
+    "position_value_m": 3878.7427,
+    "position_pct": 3.4537
+   },
+   "sell": {
+    "issuer": "THERMO FISHER SCIENTIFIC INC",
+    "cusip": "883556102",
+    "value_m": 5353.9399,
+    "pct_of_aum": 6.8145,
+    "change": "-95% shares",
+    "position_value_m": 587.0555,
+    "position_pct": 0.5227
+   }
+  },
+  {
+   "cik": 1138995,
+   "manager_name": "GLENVIEW CAPITAL MANAGEMENT, LLC",
+   "aum_rank": 316,
+   "equity_aum_m": 5630.4402,
+   "notable": true,
+   "latest_period": "2026-09-30",
+   "filing_date": "2026-11-16",
+   "buy": {
+    "issuer": "ONTO INNOVATION INC",
+    "cusip": "683344105",
+    "value_m": 130.1333,
+    "pct_of_aum": 2.3112,
+    "change": "+184% shares",
+    "position_value_m": 180.0867,
+    "position_pct": 3.1984
+   },
+   "sell": {
+    "issuer": "CVS HEALTH CORP",
+    "cusip": "126650100",
+    "value_m": 335.3382,
+    "pct_of_aum": 6.6986,
+    "change": "-73% shares",
+    "position_value_m": 109.5866,
+    "position_pct": 1.9463
+   }
+  },
+  {
+   "cik": 1029160,
+   "manager_name": "SOROS FUND MANAGEMENT LLC",
+   "aum_rank": 317,
+   "equity_aum_m": 5314.8681,
+   "notable": true,
+   "latest_period": "2026-09-30",
+   "filing_date": "2026-11-13",
+   "buy": {
+    "issuer": "INTEL CORP",
+    "cusip": "458140100",
+    "value_m": 354.7089,
+    "pct_of_aum": 6.6739,
+    "change": "+2730% shares",
+    "position_value_m": 340.2509,
+    "position_pct": 6.4019
+   },
+   "sell": {
+    "issuer": "SUPER MICRO COMPUTER INC (7 DEP CM SR A WI)",
+    "cusip": "86800U500",
+    "value_m": 111.4714,
+    "pct_of_aum": 1.8395,
+    "change": "Exited",
+    "position_value_m": 0,
+    "position_pct": 0
+   }
+  },
+  {
+   "cik": 949509,
+   "manager_name": "OAKTREE CAPITAL MANAGEMENT LP",
+   "aum_rank": 325,
+   "equity_aum_m": 3778.6303,
+   "notable": true,
+   "latest_period": "2026-06-30",
+   "filing_date": "2026-08-14",
+   "buy": {
+    "issuer": "INDIVIOR PHARMACEUTICALS INC",
+    "cusip": "45579U109",
+    "value_m": 251.3995,
+    "pct_of_aum": 6.6532,
+    "change": "New position",
+    "position_value_m": 251.3995,
+    "position_pct": 6.6532
+   },
+   "sell": {
+    "issuer": "GARRETT MOTION INC",
+    "cusip": "366505105",
+    "value_m": 190.4,
+    "pct_of_aum": 4.7058,
+    "change": "-48% shares",
+    "position_value_m": 275.1602,
+    "position_pct": 7.282
+   }
+  },
+  {
+   "cik": 1387322,
+   "manager_name": "Whale Rock Capital Management LLC",
+   "aum_rank": 302,
+   "equity_aum_m": 11449.9435,
+   "notable": true,
+   "latest_period": "2026-09-30",
+   "filing_date": "2026-11-13",
+   "buy": {
+    "issuer": "META PLATFORMS INC (CL A)",
+    "cusip": "30303M102",
+    "value_m": 478.1222,
+    "pct_of_aum": 4.1758,
+    "change": "+163% shares",
+    "position_value_m": 868.865,
+    "position_pct": 7.5884
+   },
+   "sell": {
+    "issuer": "SANDISK CORP",
+    "cusip": "80004C200",
+    "value_m": 776.483,
+    "pct_of_aum": 6.2336,
+    "change": "-65% shares",
+    "position_value_m": 364.7175,
+    "position_pct": 3.1853
+   }
+  },
+  {
+   "cik": 1448574,
+   "manager_name": "MOORE CAPITAL MANAGEMENT, LP",
+   "aum_rank": 327,
+   "equity_aum_m": 3428.5026,
+   "notable": true,
+   "latest_period": "2026-09-30",
+   "filing_date": "2026-11-16",
+   "buy": {
+    "issuer": "META PLATFORMS INC (CL A)",
+    "cusip": "30303M102",
+    "value_m": 205.9511,
+    "pct_of_aum": 6.007,
+    "change": "New position",
+    "position_value_m": 205.9511,
+    "position_pct": 6.007
+   },
+   "sell": {
+    "issuer": "UBS GROUP AG",
+    "cusip": "H42097107",
+    "value_m": 92.1325,
+    "pct_of_aum": 2.1568,
+    "change": "Exited",
+    "position_value_m": 0,
+    "position_pct": 0
+   }
+  },
+  {
+   "cik": 2026053,
+   "manager_name": "PERSHING SQUARE INC.",
+   "aum_rank": 244,
+   "equity_aum_m": 30796.5501,
+   "notable": true,
+   "latest_period": "2026-09-30",
+   "filing_date": "2026-11-16",
+   "buy": {
+    "issuer": "INTERCONTINENTAL EXCHANGE IN",
+    "cusip": "45866F104",
+    "value_m": 1008.8557,
+    "pct_of_aum": 3.2759,
+    "change": "New position",
+    "position_value_m": 1008.8557,
+    "position_pct": 3.2759
+   },
+   "sell": {
+    "issuer": "MICROSOFT CORP",
+    "cusip": "594918104",
+    "value_m": 948.7986,
+    "pct_of_aum": 4.8742,
+    "change": "-35% shares",
+    "position_value_m": 2084.8251,
+    "position_pct": 6.7697
+   }
+  },
+  {
+   "cik": 1747057,
+   "manager_name": "D1 Capital Partners L.P.",
+   "aum_rank": 238,
+   "equity_aum_m": 31819.683,
+   "notable": true,
+   "latest_period": "2026-09-30",
+   "filing_date": "2026-11-16",
+   "buy": {
+    "issuer": "MADISON AIR SOLUTIONS CORP (COM SHS CL A)",
+    "cusip": "55658T105",
+    "value_m": 758.918,
+    "pct_of_aum": 2.3851,
+    "change": "+1909% shares",
+    "position_value_m": 617.8375,
+    "position_pct": 1.9417
+   },
+   "sell": {
+    "issuer": "SPACE EXPLORATION TECHN CORP (CLASS A COM STK)",
+    "cusip": "84615Q103",
+    "value_m": 1494.7385,
+    "pct_of_aum": 4.2973,
+    "change": "-7% shares",
+    "position_value_m": 17612.9144,
+    "position_pct": 55.3523
+   }
+  },
+  {
+   "cik": 1569205,
+   "manager_name": "Fundsmith LLP",
+   "aum_rank": 298,
+   "equity_aum_m": 12922.4609,
+   "notable": true,
+   "latest_period": "2026-09-30",
+   "filing_date": "2026-11-16",
+   "buy": {
+    "issuer": "YUM BRANDS INC",
+    "cusip": "988498101",
+    "value_m": 534.0455,
+    "pct_of_aum": 4.1327,
+    "change": "+648% shares",
+    "position_value_m": 567.4588,
+    "position_pct": 4.3913
+   },
+   "sell": {
+    "issuer": "MARRIOTT INTL INC NEW (CL A)",
+    "cusip": "571903202",
+    "value_m": 445.8695,
+    "pct_of_aum": 3.2667,
+    "change": "-47% shares",
+    "position_value_m": 482.9664,
+    "position_pct": 3.7374
+   }
+  },
+  {
+   "cik": 934639,
+   "manager_name": "MAVERICK CAPITAL LTD",
+   "aum_rank": 300,
+   "equity_aum_m": 12508.1239,
+   "notable": true,
+   "latest_period": "2026-09-30",
+   "filing_date": "2026-11-16",
+   "buy": {
+    "issuer": "DANAHER CORP DEL",
+    "cusip": "235851102",
+    "value_m": 490.2961,
+    "pct_of_aum": 3.9198,
+    "change": "New position",
+    "position_value_m": 490.2961,
+    "position_pct": 3.9198
+   },
+   "sell": {
+    "issuer": "ASTERA LABS INC",
+    "cusip": "04626A103",
+    "value_m": 446.4207,
+    "pct_of_aum": 4.0289,
+    "change": "-100% shares",
+    "position_value_m": 1.0782,
+    "position_pct": 0.0086
+   }
+  },
+  {
+   "cik": 1581811,
+   "manager_name": "Egerton Capital (UK) LLP",
+   "aum_rank": 303,
+   "equity_aum_m": 9819.7755,
+   "notable": true,
+   "latest_period": "2026-09-30",
+   "filing_date": "2026-10-20",
+   "buy": {
+    "issuer": "AMAZON COM INC",
+    "cusip": "023135106",
+    "value_m": 278.0446,
+    "pct_of_aum": 2.8315,
+    "change": "+32% shares",
+    "position_value_m": 1174.5247,
+    "position_pct": 11.9608
+   },
+   "sell": {
+    "issuer": "ALPHABET INC (CAP STK CL C)",
+    "cusip": "02079K107",
+    "value_m": 413.8226,
+    "pct_of_aum": 3.9978,
+    "change": "-36% shares",
+    "position_value_m": 715.2616,
+    "position_pct": 7.2839
+   }
+  },
+  {
+   "cik": 1720792,
+   "manager_name": "Ruane, Cunniff & Goldfarb L.P.",
+   "aum_rank": 314,
+   "equity_aum_m": 6144.8927,
+   "notable": true,
+   "latest_period": "2026-09-30",
+   "filing_date": "2026-11-16",
+   "buy": null,
+   "sell": {
+    "issuer": "ALPHABET INC (CAP STK CL A)",
+    "cusip": "02079K305",
+    "value_m": 251.3716,
+    "pct_of_aum": 3.9109,
+    "change": "-36% shares",
+    "position_value_m": 439.5808,
+    "position_pct": 7.1536
+   }
+  },
+  {
+   "cik": 1166559,
+   "manager_name": "GATES FOUNDATION TRUST",
+   "aum_rank": 252,
+   "equity_aum_m": 29893.7375,
+   "notable": true,
+   "latest_period": "2026-09-30",
+   "filing_date": "2026-11-16",
+   "buy": null,
+   "sell": {
+    "issuer": "WASTE MGMT INC DEL",
+    "cusip": "94106L109",
+    "value_m": 1324.7185,
+    "pct_of_aum": 3.8482,
+    "change": "-23% shares",
+    "position_value_m": 4183.0244,
+    "position_pct": 13.993
+   }
+  },
+  {
+   "cik": 1167483,
+   "manager_name": "TIGER GLOBAL MANAGEMENT LLC",
+   "aum_rank": 290,
+   "equity_aum_m": 20173.1012,
+   "notable": true,
+   "latest_period": "2026-09-30",
+   "filing_date": "2026-11-16",
+   "buy": {
+    "issuer": "CEREBRAS SYSTEMS INC (COM CL A)",
+    "cusip": "15675D103",
+    "value_m": 288.4924,
+    "pct_of_aum": 1.4301,
+    "change": "+48% shares",
+    "position_value_m": 789.8935,
+    "position_pct": 3.9156
+   },
+   "sell": {
+    "issuer": "ALPHABET INC (CAP STK CL A)",
+    "cusip": "02079K305",
+    "value_m": 861.5451,
+    "pct_of_aum": 3.5925,
+    "change": "-42% shares",
+    "position_value_m": 1152.3989,
+    "position_pct": 5.7126
+   }
+  },
+  {
+   "cik": 1135730,
+   "manager_name": "COATUE MANAGEMENT LLC",
+   "aum_rank": 166,
+   "equity_aum_m": 54495.2477,
+   "notable": true,
+   "latest_period": "2026-09-30",
+   "filing_date": "2026-11-16",
+   "buy": {
+    "issuer": "SALESFORCE INC",
+    "cusip": "79466L302",
+    "value_m": 1844.0157,
+    "pct_of_aum": 3.3838,
+    "change": "New position",
+    "position_value_m": 1844.0157,
+    "position_pct": 3.3838
+   },
+   "sell": {
+    "issuer": "FORGENT POWER SOLUTIONS INC (COM SHS CL A)",
+    "cusip": "34631F102",
+    "value_m": 1145.2075,
+    "pct_of_aum": 2.355,
+    "change": "Exited",
+    "position_value_m": 0,
+    "position_pct": 0
+   }
+  },
+  {
+   "cik": 1112520,
+   "manager_name": "AKRE CAPITAL MANAGEMENT LLC",
+   "aum_rank": 322,
+   "equity_aum_m": 4401.9188,
+   "notable": true,
+   "latest_period": "2026-09-30",
+   "filing_date": "2026-11-13",
+   "buy": null,
+   "sell": {
+    "issuer": "AIRBNB INC (COM CL A)",
+    "cusip": "009066101",
+    "value_m": 169.3945,
+    "pct_of_aum": 3.317,
+    "change": "Exited",
+    "position_value_m": 0,
+    "position_pct": 0
+   }
+  },
+  {
+   "cik": 1517137,
+   "manager_name": "Starboard Value LP",
+   "aum_rank": 320,
+   "equity_aum_m": 4670.2793,
+   "notable": true,
+   "latest_period": "2026-09-30",
+   "filing_date": "2026-11-16",
+   "buy": {
+    "issuer": "FLOWSERVE CORP",
+    "cusip": "34354P105",
+    "value_m": 145.1475,
+    "pct_of_aum": 3.1079,
+    "change": "+137% shares",
+    "position_value_m": 249.5323,
+    "position_pct": 5.343
+   },
+   "sell": {
+    "issuer": "DYNATRACE INC (COM NEW)",
+    "cusip": "268150109",
+    "value_m": 124.1408,
+    "pct_of_aum": 2.7453,
+    "change": "-28% shares",
+    "position_value_m": 370.932,
+    "position_pct": 7.9424
+   }
+  },
+  {
+   "cik": 1418814,
+   "manager_name": "ValueAct Holdings, L.P.",
+   "aum_rank": 313,
+   "equity_aum_m": 6177.7209,
+   "notable": true,
+   "latest_period": "2026-09-30",
+   "filing_date": "2026-11-16",
+   "buy": {
+    "issuer": "AGILENT TECHNOLOGIES INC",
+    "cusip": "00846U101",
+    "value_m": 181.8904,
+    "pct_of_aum": 2.9443,
+    "change": "New position",
+    "position_value_m": 181.8904,
+    "position_pct": 2.9443
+   },
+   "sell": {
+    "issuer": "ROBLOX CORP (CL A)",
+    "cusip": "771049103",
+    "value_m": 171.1568,
+    "pct_of_aum": 3.0374,
+    "change": "Exited",
+    "position_value_m": 0,
+    "position_pct": 0
+   }
+  },
+  {
+   "cik": 1546007,
+   "manager_name": "Assenagon Asset Management S.A.",
+   "aum_rank": 106,
+   "equity_aum_m": 99812.987,
+   "notable": false,
+   "latest_period": "2026-09-30",
+   "filing_date": "2026-10-15",
+   "buy": {
+    "issuer": "MICRON TECHNOLOGY INC",
+    "cusip": "595112103",
+    "value_m": 2921.991,
+    "pct_of_aum": 2.9275,
+    "change": "+1528% shares",
+    "position_value_m": 2988.1182,
+    "position_pct": 2.9937
+   },
+   "sell": {
+    "issuer": "NVIDIA CORPORATION",
+    "cusip": "67066G104",
+    "value_m": 1322.048,
+    "pct_of_aum": 1.716,
+    "change": "-23% shares",
+    "position_value_m": 4605.5581,
+    "position_pct": 4.6142
+   }
+  },
+  {
+   "cik": 1697748,
+   "manager_name": "ARK Investment Management LLC",
+   "aum_rank": 294,
+   "equity_aum_m": 17373.6145,
+   "notable": true,
+   "latest_period": "2026-09-30",
+   "filing_date": "2026-11-13",
+   "buy": {
+    "issuer": "Space Exploration Technologies",
+    "cusip": "84615Q103",
+    "value_m": 364.8955,
+    "pct_of_aum": 2.1003,
+    "change": "+51% shares",
+    "position_value_m": 1017.7644,
+    "position_pct": 5.8581
+   },
+   "sell": {
+    "issuer": "Advanced Micro Devices Inc",
+    "cusip": "007903107",
+    "value_m": 441.7499,
+    "pct_of_aum": 2.8681,
+    "change": "-52% shares",
+    "position_value_m": 413.3464,
+    "position_pct": 2.3792
+   }
+  },
+  {
+   "cik": 1665241,
+   "manager_name": "Schonfeld Strategic Advisors LLC",
+   "aum_rank": 291,
+   "equity_aum_m": 19218.5344,
+   "notable": true,
+   "latest_period": "2026-09-30",
+   "filing_date": "2026-11-16",
+   "buy": null,
+   "sell": {
+    "issuer": "MICRON TECHNOLOGY INC",
+    "cusip": "595112103",
+    "value_m": 529.1571,
+    "pct_of_aum": 2.8125,
+    "change": "-84% shares",
+    "position_value_m": 97.1338,
+    "position_pct": 0.5054
+   }
+  },
+  {
+   "cik": 1103804,
+   "manager_name": "VIKING GLOBAL INVESTORS LP",
+   "aum_rank": 233,
+   "equity_aum_m": 32703.8941,
+   "notable": true,
+   "latest_period": "2026-09-30",
+   "filing_date": "2026-11-16",
+   "buy": {
+    "issuer": "MASTERCARD INCORPORATED (CL A)",
+    "cusip": "57636Q104",
+    "value_m": 818.0782,
+    "pct_of_aum": 2.5015,
+    "change": "New position",
+    "position_value_m": 818.0782,
+    "position_pct": 2.5015
+   },
+   "sell": {
+    "issuer": "SCHWAB CHARLES CORP",
+    "cusip": "808513105",
+    "value_m": 981.6484,
+    "pct_of_aum": 2.7984,
+    "change": "Exited",
+    "position_value_m": 0,
+    "position_pct": 0
+   }
+  },
+  {
+   "cik": 1512857,
+   "manager_name": "Brevan Howard Capital Management LP",
+   "aum_rank": 311,
+   "equity_aum_m": 6378.5393,
+   "notable": true,
+   "latest_period": "2026-09-30",
+   "filing_date": "2026-11-16",
+   "buy": {
+    "issuer": "TESLA INC",
+    "cusip": "88160R101",
+    "value_m": 76.9572,
+    "pct_of_aum": 1.2065,
+    "change": "+183% shares",
+    "position_value_m": 107.8762,
+    "position_pct": 1.6912
+   },
+   "sell": {
+    "issuer": "APPLE INC",
+    "cusip": "037833100",
+    "value_m": 175.6195,
+    "pct_of_aum": 2.5963,
+    "change": "-97% shares",
+    "position_value_m": 6.2538,
+    "position_pct": 0.098
+   }
+  },
+  {
+   "cik": 1489933,
+   "manager_name": "DME Capital Management, LP",
+   "aum_rank": 326,
+   "equity_aum_m": 3553.2657,
+   "notable": true,
+   "latest_period": "2026-09-30",
+   "filing_date": "2026-11-16",
+   "buy": {
+    "issuer": "CENTURY ALUM CO",
+    "cusip": "156431108",
+    "value_m": 81.7083,
+    "pct_of_aum": 2.2995,
+    "change": "New position",
+    "position_value_m": 81.7083,
+    "position_pct": 2.2995
+   },
+   "sell": {
+    "issuer": "PAYPAL HLDGS INC",
+    "cusip": "70450Y103",
+    "value_m": 61.5021,
+    "pct_of_aum": 1.5734,
+    "change": "Exited",
+    "position_value_m": 0,
+    "position_pct": 0
+   }
+  },
+  {
+   "cik": 1386060,
+   "manager_name": "Boston Partners",
+   "aum_rank": 93,
+   "equity_aum_m": 111166.5367,
+   "notable": false,
+   "latest_period": "2026-09-30",
+   "filing_date": "2026-11-10",
+   "buy": {
+    "issuer": "MICROSOFT CORP",
+    "cusip": "594918104",
+    "value_m": 2437.7361,
+    "pct_of_aum": 2.1929,
+    "change": "+739% shares",
+    "position_value_m": 3206.8859,
+    "position_pct": 2.8848
+   },
+   "sell": null
+  },
+  {
+   "cik": 1113000,
+   "manager_name": "KENSICO CAPITAL MANAGEMENT CORP",
+   "aum_rank": 318,
+   "equity_aum_m": 4965.2146,
+   "notable": true,
+   "latest_period": "2026-09-30",
+   "filing_date": "2026-11-16",
+   "buy": {
+    "issuer": "SERVICENOW INC",
+    "cusip": "81762P102",
+    "value_m": 107.61,
+    "pct_of_aum": 2.1673,
+    "change": "New position",
+    "position_value_m": 107.61,
+    "position_pct": 2.1673
+   },
+   "sell": {
+    "issuer": "INTEL CORP",
+    "cusip": "458140100",
+    "value_m": 78.6396,
+    "pct_of_aum": 1.3485,
+    "change": "Exited",
+    "position_value_m": 0,
+    "position_pct": 0
+   }
+  },
+  {
+   "cik": 921739,
+   "manager_name": "NOMURA ASSET MANAGEMENT INTERNATIONAL INC.",
+   "aum_rank": 107,
+   "equity_aum_m": 97893.296,
+   "notable": false,
+   "latest_period": "2026-09-30",
+   "filing_date": "2026-11-16",
+   "buy": {
+    "issuer": "ENBRIDGE INC",
+    "cusip": "29250N105",
+    "value_m": 2076.139,
+    "pct_of_aum": 2.1208,
+    "change": "New position",
+    "position_value_m": 2076.139,
+    "position_pct": 2.1208
+   },
+   "sell": {
+    "issuer": "APPLE INC",
+    "cusip": "037833100",
+    "value_m": 754.9853,
+    "pct_of_aum": 1.1389,
+    "change": "-36% shares",
+    "position_value_m": 1429.7744,
+    "position_pct": 1.4605
+   }
+  },
+  {
+   "cik": 1037389,
+   "manager_name": "RENAISSANCE TECHNOLOGIES LLC",
+   "aum_rank": 128,
+   "equity_aum_m": 73424.2477,
+   "notable": false,
+   "latest_period": "2026-09-30",
+   "filing_date": "2026-11-12",
+   "buy": {
+    "issuer": "MICRON TECHNOLOGY INC",
+    "cusip": "595112103",
+    "value_m": 1452.6641,
+    "pct_of_aum": 1.9785,
+    "change": "+619% shares",
+    "position_value_m": 1619.651,
+    "position_pct": 2.2059
+   },
+   "sell": {
+    "issuer": "NVIDIA CORPORATION",
+    "cusip": "67066G104",
+    "value_m": 1519.6672,
+    "pct_of_aum": 2.0927,
+    "change": "-100% shares",
+    "position_value_m": 5.3273,
+    "position_pct": 0.0073
+   }
+  },
+  {
+   "cik": 1798849,
+   "manager_name": "Durable Capital Partners LP",
+   "aum_rank": 305,
+   "equity_aum_m": 9746.7723,
+   "notable": true,
+   "latest_period": "2026-09-30",
+   "filing_date": "2026-11-16",
+   "buy": {
+    "issuer": "REVVITY INC",
+    "cusip": "714046109",
+    "value_m": 201.8905,
+    "pct_of_aum": 2.0714,
+    "change": "New position",
+    "position_value_m": 201.8905,
+    "position_pct": 2.0714
+   },
+   "sell": {
+    "issuer": "SHIFT4 PMTS INC (CL A)",
+    "cusip": "82452J109",
+    "value_m": 215.1655,
+    "pct_of_aum": 2.0926,
+    "change": "Exited",
+    "position_value_m": 0,
+    "position_pct": 0
+   }
+  },
+  {
+   "cik": 1358706,
+   "manager_name": "ABRAMS CAPITAL MANAGEMENT, L.P.",
+   "aum_rank": 319,
+   "equity_aum_m": 4806.2531,
+   "notable": true,
+   "latest_period": "2026-09-30",
+   "filing_date": "2026-11-13",
+   "buy": {
+    "issuer": "GFL ENVIRONMENTAL INC (SUB VTG SHS)",
+    "cusip": "36168Q104",
+    "value_m": 99.3462,
+    "pct_of_aum": 2.067,
+    "change": "New position",
+    "position_value_m": 99.3462,
+    "position_pct": 2.067
+   },
+   "sell": null
+  },
+  {
+   "cik": 1709323,
+   "manager_name": "Himalaya Capital Management LLC",
+   "aum_rank": 324,
+   "equity_aum_m": 3781.4313,
+   "notable": true,
+   "latest_period": "2026-09-30",
+   "filing_date": "2026-11-16",
+   "buy": {
+    "issuer": "PDD HOLDINGS INC (SPON ADS)",
+    "cusip": "722304102",
+    "value_m": 77.11,
+    "pct_of_aum": 2.0392,
+    "change": "+9% shares",
+    "position_value_m": 916.6616,
+    "position_pct": 24.2411
+   },
+   "sell": null
+  },
+  {
+   "cik": 813917,
+   "manager_name": " HARRIS ASSOCIATES L P",
+   "aum_rank": 126,
+   "equity_aum_m": 76774.7223,
+   "notable": false,
+   "latest_period": "2026-09-30",
+   "filing_date": "2026-11-16",
+   "buy": {
+    "issuer": "META PLATFORMS INC (CL A)",
+    "cusip": "30303M102",
+    "value_m": 1562.811,
+    "pct_of_aum": 2.0356,
+    "change": "+52113% shares",
+    "position_value_m": 1762.5464,
+    "position_pct": 2.2957
+   },
+   "sell": {
+    "issuer": "MERCK & CO INC",
+    "cusip": "58933Y105",
+    "value_m": 1017.2291,
+    "pct_of_aum": 1.3534,
+    "change": "-62% shares",
+    "position_value_m": 674.6638,
+    "position_pct": 0.8788
+   }
+  },
+  {
+   "cik": 1791786,
+   "manager_name": "Elliott Investment Management L.P.",
+   "aum_rank": 296,
+   "equity_aum_m": 16077.8687,
+   "notable": true,
+   "latest_period": "2026-09-30",
+   "filing_date": "2026-11-16",
+   "buy": null,
+   "sell": {
+    "issuer": "HEWLETT PACKARD ENTERPRISE C",
+    "cusip": "42824C109",
+    "value_m": 287.3232,
+    "pct_of_aum": 2.0103,
+    "change": "-16% shares",
+    "position_value_m": 1725.03,
+    "position_pct": 10.7292
+   }
+  },
+  {
+   "cik": 1088875,
+   "manager_name": "BAILLIE GIFFORD & CO",
+   "aum_rank": 95,
+   "equity_aum_m": 105895.7565,
+   "notable": false,
+   "latest_period": "2026-09-30",
+   "filing_date": "2026-11-09",
+   "buy": {
+    "issuer": "Lam Research Corp",
+    "cusip": "512807306",
+    "value_m": 1331.9565,
+    "pct_of_aum": 1.2578,
+    "change": "+6028783% shares",
+    "position_value_m": 1148.718,
+    "position_pct": 1.0848
+   },
+   "sell": {
+    "issuer": "Space Exploration Technologies Corp (CL A COM)",
+    "cusip": "84615Q103",
+    "value_m": 1993.5003,
+    "pct_of_aum": 1.8086,
+    "change": "-24% shares",
+    "position_value_m": 5884.3003,
+    "position_pct": 5.5567
+   }
+  },
+  {
+   "cik": 1020066,
+   "manager_name": "SANDS CAPITAL MANAGEMENT, LLC",
+   "aum_rank": 276,
+   "equity_aum_m": 24794.3995,
+   "notable": true,
+   "latest_period": "2026-09-30",
+   "filing_date": "2026-11-13",
+   "buy": {
+    "issuer": "PALANTIR TECHNOLOGIES INC (CL A)",
+    "cusip": "69608A108",
+    "value_m": 444.1678,
+    "pct_of_aum": 1.7914,
+    "change": "+16300% shares",
+    "position_value_m": 550.4498,
+    "position_pct": 2.2201
+   },
+   "sell": {
+    "issuer": "NVIDIA CORPORATION",
+    "cusip": "67066G104",
+    "value_m": 326.1008,
+    "pct_of_aum": 1.211,
+    "change": "-11% shares",
+    "position_value_m": 2863.2663,
+    "position_pct": 11.548
+   }
+  },
+  {
+   "cik": 1273087,
+   "manager_name": "MILLENNIUM MANAGEMENT LLC",
+   "aum_rank": 81,
+   "equity_aum_m": 132281.1869,
+   "notable": false,
+   "latest_period": "2026-09-30",
+   "filing_date": "2026-11-16",
+   "buy": null,
+   "sell": {
+    "issuer": "SPACE   EXPLORATION         TECHN    CORP (CLASS       A     COM   STK)",
+    "cusip": "84615Q103",
+    "value_m": 2434.2629,
+    "pct_of_aum": 1.7032,
+    "change": "-89% shares",
+    "position_value_m": 275.7463,
+    "position_pct": 0.2085
+   }
+  },
+  {
+   "cik": 1164508,
+   "manager_name": "ARROWSTREET CAPITAL, LIMITED PARTNERSHIP",
+   "aum_rank": 50,
+   "equity_aum_m": 233546.5959,
+   "notable": false,
+   "latest_period": "2026-09-30",
+   "filing_date": "2026-11-13",
+   "buy": {
+    "issuer": "MICRON TECHNOLOGY INC",
+    "cusip": "595112103",
+    "value_m": 2390.0354,
+    "pct_of_aum": 1.0234,
+    "change": "+740% shares",
+    "position_value_m": 2603.9285,
+    "position_pct": 1.115
+   },
+   "sell": {
+    "issuer": "APPLE INC",
+    "cusip": "037833100",
+    "value_m": 3796.1566,
+    "pct_of_aum": 1.6844,
+    "change": "-41% shares",
+    "position_value_m": 5891.1868,
+    "position_pct": 2.5225
+   }
+  },
+  {
+   "cik": 1608485,
+   "manager_name": "LANSDOWNE PARTNERS (UK) LLP",
+   "aum_rank": 330,
+   "equity_aum_m": 2244.6059,
+   "notable": true,
+   "latest_period": "2026-09-30",
+   "filing_date": "2026-11-13",
+   "buy": {
+    "issuer": "TOTALENERGIES SE (ACT)",
+    "cusip": "F92124100",
+    "value_m": 36.4024,
+    "pct_of_aum": 1.6218,
+    "change": "New position",
+    "position_value_m": 36.4024,
+    "position_pct": 1.6218
+   },
+   "sell": {
+    "issuer": "TAIWAN SEMICONDUCTOR MANUFAC (SPONSORED ADS)",
+    "cusip": "874039100",
+    "value_m": 28.8901,
+    "pct_of_aum": 1.1885,
+    "change": "-4% shares",
+    "position_value_m": 645.018,
+    "position_pct": 28.7364
+   }
+  },
+  {
+   "cik": 1508097,
+   "manager_name": "Sanders Capital, LLC",
+   "aum_rank": 101,
+   "equity_aum_m": 103178.3741,
+   "notable": false,
+   "latest_period": "2026-09-30",
+   "filing_date": "2026-11-02",
+   "buy": {
+    "issuer": "NVIDIA CORPORATION",
+    "cusip": "67066G104",
+    "value_m": 1582.6767,
+    "pct_of_aum": 1.5339,
+    "change": "+33% shares",
+    "position_value_m": 6839.6309,
+    "position_pct": 6.6289
+   },
+   "sell": null
+  },
+  {
+   "cik": 861177,
+   "manager_name": "UBS AM, a distinct business unit of UBS ASSET MANAGEMENT AMERICAS LLC",
+   "aum_rank": 20,
+   "equity_aum_m": 660444.725,
+   "notable": false,
+   "latest_period": "2026-09-30",
+   "filing_date": "2026-11-16",
+   "buy": null,
+   "sell": {
+    "issuer": "ADVANCED MICRO DEVICES INC",
+    "cusip": "007903107",
+    "value_m": 8343.6629,
+    "pct_of_aum": 1.5205,
+    "change": "-80% shares",
+    "position_value_m": 2175.9722,
+    "position_pct": 0.3295
+   }
+  },
+  {
+   "cik": 1422849,
+   "manager_name": "Capital World Investors",
+   "aum_rank": 15,
+   "equity_aum_m": 824081.6032,
+   "notable": false,
+   "latest_period": "2026-09-30",
+   "filing_date": "2026-11-12",
+   "buy": null,
+   "sell": {
+    "issuer": "MICRON TECHNOLOGY INC",
+    "cusip": "595112103",
+    "value_m": 12433.4103,
+    "pct_of_aum": 1.4694,
+    "change": "-38% shares",
+    "position_value_m": 19454.5765,
+    "position_pct": 2.3608
+   }
+  },
+  {
+   "cik": 921669,
+   "manager_name": "ICAHN CARL C",
+   "aum_rank": 307,
+   "equity_aum_m": 9428.0819,
+   "notable": true,
+   "latest_period": "2026-09-30",
+   "filing_date": "2026-11-13",
+   "buy": null,
+   "sell": {
+    "issuer": "JetBlue Airways Corp.",
+    "cusip": "477143101",
+    "value_m": 118.3714,
+    "pct_of_aum": 1.4324,
+    "change": "Exited",
+    "position_value_m": 0,
+    "position_pct": 0
+   }
+  },
+  {
+   "cik": 914208,
+   "manager_name": "Invesco Ltd.",
+   "aum_rank": 10,
+   "equity_aum_m": 1273375.945,
+   "notable": false,
+   "latest_period": "2026-09-30",
+   "filing_date": "2026-11-12",
+   "buy": {
+    "issuer": "SPACE EXPLORATION TECHN CORP (CLASS A COM STK)",
+    "cusip": "84615Q103",
+    "value_m": 18181.9326,
+    "pct_of_aum": 1.4279,
+    "change": "+2929% shares",
+    "position_value_m": 17633.8763,
+    "position_pct": 1.3848
+   },
+   "sell": null
+  },
+  {
+   "cik": 1729829,
+   "manager_name": "Qube Research & Technologies Ltd",
+   "aum_rank": 103,
+   "equity_aum_m": 101337.5809,
+   "notable": false,
+   "latest_period": "2026-09-30",
+   "filing_date": "2026-11-13",
+   "buy": {
+    "issuer": "WARNER BROS DISCOVERY INC (COM SER A)",
+    "cusip": "934423104",
+    "value_m": 1356.4158,
+    "pct_of_aum": 1.3385,
+    "change": "+217% shares",
+    "position_value_m": 2129.7719,
+    "position_pct": 2.1017
+   },
+   "sell": null
+  },
+  {
+   "cik": 1318757,
+   "manager_name": "MARSHALL WACE, LLP",
+   "aum_rank": 99,
+   "equity_aum_m": 104625.465,
+   "notable": false,
+   "latest_period": "2026-09-30",
+   "filing_date": "2026-11-13",
+   "buy": {
+    "issuer": "NVIDIA CORP",
+    "cusip": "67066G104",
+    "value_m": 1380.5449,
+    "pct_of_aum": 1.3195,
+    "change": "+75% shares",
+    "position_value_m": 3444.3905,
+    "position_pct": 3.2921
+   },
+   "sell": null
+  },
+  {
+   "cik": 1068837,
+   "manager_name": "VOYA INVESTMENT MANAGEMENT LLC",
+   "aum_rank": 104,
+   "equity_aum_m": 100456.9367,
+   "notable": false,
+   "latest_period": "2026-09-30",
+   "filing_date": "2026-11-10",
+   "buy": {
+    "issuer": "MICROSOFT CORP",
+    "cusip": "594918104",
+    "value_m": 1309.6043,
+    "pct_of_aum": 1.3036,
+    "change": "+57% shares",
+    "position_value_m": 4191.5471,
+    "position_pct": 4.1725
+   },
+   "sell": null
+  },
+  {
+   "cik": 1350694,
+   "manager_name": "Bridgewater Associates, LP",
+   "aum_rank": 286,
+   "equity_aum_m": 22985.7925,
+   "notable": true,
+   "latest_period": "2026-09-30",
+   "filing_date": "2026-11-16",
+   "buy": null,
+   "sell": {
+    "issuer": "ALPHABET INC (CAP STK CL A)",
+    "cusip": "02079K305",
+    "value_m": 302.305,
+    "pct_of_aum": 1.2402,
+    "change": "-65% shares",
+    "position_value_m": 158.357,
+    "position_pct": 0.6889
+   }
+  },
+  {
+   "cik": 1535323,
+   "manager_name": "Allianz Asset Management GmbH",
+   "aum_rank": 94,
+   "equity_aum_m": 106930.8397,
+   "notable": false,
+   "latest_period": "2026-09-30",
+   "filing_date": "2026-11-16",
+   "buy": null,
+   "sell": {
+    "issuer": "NVIDIA CORPORATION",
+    "cusip": "67066G104",
+    "value_m": 1136.9159,
+    "pct_of_aum": 1.1716,
+    "change": "-19% shares",
+    "position_value_m": 5560.8013,
+    "position_pct": 5.2004
+   }
+  },
+  {
+   "cik": 919079,
+   "manager_name": "California Public Employees Retirement System",
+   "aum_rank": 56,
+   "equity_aum_m": 190781.9475,
+   "notable": false,
+   "latest_period": "2026-09-30",
+   "filing_date": "2026-11-16",
+   "buy": {
+    "issuer": "NVIDIA CORPORATION",
+    "cusip": "67066G104",
+    "value_m": 2079.5005,
+    "pct_of_aum": 1.09,
+    "change": "+21% shares",
+    "position_value_m": 12738.5737,
+    "position_pct": 6.677
+   },
+   "sell": null
+  },
+  {
+   "cik": 200217,
+   "manager_name": "Dodge & Cox",
+   "aum_rank": 59,
+   "equity_aum_m": 186554.3752,
+   "notable": false,
+   "latest_period": "2026-09-30",
+   "filing_date": "2026-11-13",
+   "buy": {
+    "issuer": "Danaher Corp.",
+    "cusip": "235851102",
+    "value_m": 2023.3563,
+    "pct_of_aum": 1.0846,
+    "change": "+3821% shares",
+    "position_value_m": 2232.8788,
+    "position_pct": 1.1969
+   },
+   "sell": null
+  },
+  {
+   "cik": 1009207,
+   "manager_name": "D. E. Shaw & Co., Inc.",
+   "aum_rank": 73,
+   "equity_aum_m": 152268.0391,
+   "notable": false,
+   "latest_period": "2026-09-30",
+   "filing_date": "2026-11-16",
+   "buy": null,
+   "sell": {
+    "issuer": "CROWDSTRIKE HLDGS INC (CL A)",
+    "cusip": "22788C105",
+    "value_m": 1590.4444,
+    "pct_of_aum": 1.0323,
+    "change": "-82% shares",
+    "position_value_m": 411.6259,
+    "position_pct": 0.2703
+   }
+  },
+  {
+   "cik": 1759654,
+   "manager_name": "Quantinno Capital Management LP",
+   "aum_rank": 96,
+   "equity_aum_m": 105838.2997,
+   "notable": false,
+   "latest_period": "2026-09-30",
+   "filing_date": "2026-11-13",
+   "buy": {
+    "issuer": "NVIDIA CORPORATION",
+    "cusip": "67066G104",
+    "value_m": 1090.6541,
+    "pct_of_aum": 1.0305,
+    "change": "+22% shares",
+    "position_value_m": 6494.1829,
+    "position_pct": 6.1359
+   },
+   "sell": null
+  }
  ]
 }
