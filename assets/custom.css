@@ -1748,18 +1748,6 @@ details summary { cursor: pointer; color: var(--body-text); font-size: 13px; }
     background-color: var(--text);
     transition: left 0.3s ease;
 }
-.hl-tag {
-    align-self: start;
-    font-size: 10px;
-    font-weight: 700;
-    letter-spacing: 0.06em;
-    text-transform: uppercase;
-    white-space: nowrap;
-    padding: 3px 8px;
-    border-radius: 999px;
-    color: var(--accent);
-    border: 1px solid var(--accent);
-}
 @media (max-width: 768px) {
     .hl-row {
         grid-template-columns: minmax(0, 1fr);

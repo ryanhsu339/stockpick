@@ -2410,12 +2410,11 @@ def _manager_profiles():
     return _manager_profiles_cache
 
 
-# Notable funds ranked below this read "Notable fund" instead of a rank
+# Notable funds ranked below this leave the "#N by AUM" rank off their card
 # (thirteenf.HEADLINE_FUNDS_N's size cut, before brokers are excluded).
 _HEADLINE_RANKED_FUNDS = 100
-_HEADLINES_NOTE = ("The biggest buy and sell this past quarter at the 100 largest funds and the best-known "
-                   "hedge funds, when the move was at least 1% of the fund's equity AUM. Excludes brokers, "
-                   "market makers, ETFs and options.")
+_HEADLINES_NOTE = ("The biggest buy and sell this past quarter at notable funds, when the move was at least 1% "
+                   "of the fund's equity AUM. Excludes brokers, market makers, ETFs and options.")
 
 
 def _quarter_label(iso):
@@ -2493,7 +2492,8 @@ def _build_headline_card(h, i, total, companies):
     person = profile.get("person") or {}
     who = " · ".join(p for p in (person.get("name"), person.get("title")) if p)
     # A famous fund far down the size ranking (Scion, Pershing Square) is
-    # here because it's on thirteenf.NOTABLE_FUND_CIKS, not for its rank.
+    # here because it's on thirteenf.NOTABLE_FUND_CIKS, not for its rank,
+    # so "#290 by AUM" would only read oddly -- leave the rank off.
     notable = h.get("notable") and h["aum_rank"] > _HEADLINE_RANKED_FUNDS
     meta = " · ".join(p for p in (None if notable else f"#{h['aum_rank']} by AUM",
                                   f"{_fmt_big_dollars(h['equity_aum_m'] * 1e6)} equity",
@@ -2526,7 +2526,6 @@ def _build_headline_card(h, i, total, companies):
                             html.Div(meta, className="hl-meta"),
                         ],
                     ),
-                    html.Span("Notable fund", className="hl-tag") if notable else None,
                 ],
             ),
             html.Div(moves, className="hl-moves"),
