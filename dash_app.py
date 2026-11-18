@@ -2393,7 +2393,7 @@ def _build_best_return_row(r, rank):
 # its equity AUM -- see thirteenf.headline_moves. The photo and logo come
 # from data/manager_profiles.json (build_manager_profiles.py: Wikidata/
 # Wikimedia Commons images committed under assets/managers/). Scrolling,
-# arrows, dots and the 3-second auto-rotate are plain JS in
+# arrows, progress bar and the 5-second auto-rotate are plain JS in
 # assets/custom.js (the .hl-* handlers), so moving between cards never
 # round-trips to the server.
 _MANAGER_PROFILES_PATH = Path(__file__).parent / "data" / "manager_profiles.json"

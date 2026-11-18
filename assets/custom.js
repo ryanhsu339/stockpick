@@ -655,14 +655,14 @@ document.addEventListener("focusin", function (e) {
 // Managers tab Headlines carousel (see _build_headlines_carousel in
 // dash_app.py). The track is a native horizontal scroll-snap strip, so
 // swiping on phones needs no code; this adds the ‹ › arrows, the "n / N"
-// readout and click-to-jump progress bar, and auto-rotation every 3 seconds. Everything is delegated from document and
+// readout and click-to-jump progress bar, and auto-rotation every 5 seconds. Everything is delegated from document and
 // re-queried each tick because Dash can replace the Managers tab's DOM at
 // any time (switching trackers), which would orphan per-element listeners.
 // Auto-rotate pauses while the pointer is over the carousel or focus is
 // inside it, for 10 seconds after any manual move, while the tab is hidden,
 // and entirely for prefers-reduced-motion.
 (function () {
-    var ROTATE_MS = 3000;
+    var ROTATE_MS = 5000;
     var MANUAL_PAUSE_MS = 10000;
     var reducedMotion = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
