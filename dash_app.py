@@ -2547,7 +2547,7 @@ def _build_headlines_carousel(headlines, companies):
     total = len(headlines)
     return html.Div(
         className="hl-carousel",
-        **{"aria-roledescription": "carousel", "aria-label": "Headline fund moves"},
+        **{"aria-roledescription": "carousel", "aria-label": "Fund highlights"},
         children=[
             html.Div([_build_headline_card(h, i, total, companies) for i, h in enumerate(headlines)],
                      className="hl-track", tabIndex="0"),
@@ -2910,7 +2910,7 @@ def _manager_tracker_children():
                 html.Div(
                     className="hl-col",
                     children=[
-                        html.H3("Headlines", style=_HEADER_STYLE),
+                        html.H3("Highlights", style=_HEADER_STYLE),
                         _build_headlines_carousel(top_buys.get("headlines"), top_buy_companies),
                         html.P(_HEADLINES_NOTE, className="hl-col-note", style=_PARA_STYLE),
                     ],

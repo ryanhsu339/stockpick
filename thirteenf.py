@@ -1430,6 +1430,11 @@ NOTABLE_FUND_CIKS = {
     1166559: "Gates Foundation Trust", 1020066: "Sands Capital", 1608485: "Lansdowne Partners",
     1113000: "Kensico Capital", 905567: "Yacktman", 783412: "Daily Journal", 915191: "Fairfax Financial",
     1665241: "Schonfeld", 1745981: "WorldQuant",
+    # Large enough to usually make the top 100 anyway, but famous enough
+    # that a ranking shift shouldn't drop them.
+    1423053: "Citadel", 1603466: "Point72", 1273087: "Millennium", 1009207: "D. E. Shaw",
+    1179392: "Two Sigma", 1037389: "Renaissance Technologies", 1218710: "Balyasny", 1167557: "AQR",
+    1318757: "Marshall Wace", 923093: "Tudor Investment", 1067983: "Berkshire Hathaway",
 }
 # ETFs, index funds and option positions, by the 13F issuer/class text --
 # rebalancing a broad-market ETF isn't a headline either.
