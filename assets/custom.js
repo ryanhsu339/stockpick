@@ -651,3 +651,105 @@ document.addEventListener("focusin", function (e) {
 
     timer = setTimeout(step, PAUSE_MS);
 })();
+
+// Managers tab Headlines carousel (see _build_headlines_carousel in
+// dash_app.py). The track is a native horizontal scroll-snap strip, so
+// swiping on phones needs no code; this adds the ‹ › arrows, the "n / N"
+// readout and click-to-jump progress bar, and auto-rotation every 3 seconds. Everything is delegated from document and
+// re-queried each tick because Dash can replace the Managers tab's DOM at
+// any time (switching trackers), which would orphan per-element listeners.
+// Auto-rotate pauses while the pointer is over the carousel or focus is
+// inside it, for 10 seconds after any manual move, while the tab is hidden,
+// and entirely for prefers-reduced-motion.
+(function () {
+    var ROTATE_MS = 3000;
+    var MANUAL_PAUSE_MS = 10000;
+    var reducedMotion = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+    function cardIndex(track) {
+        return track.clientWidth ? Math.round(track.scrollLeft / track.clientWidth) : 0;
+    }
+    function cardCount(track) {
+        return track.children.length;
+    }
+    function goTo(carousel, index, smooth) {
+        var track = carousel.querySelector(".hl-track");
+        if (!track) return;
+        var n = cardCount(track);
+        if (!n) return;
+        index = ((index % n) + n) % n;
+        // Only a one-card step slides; a jump (progress bar, wrap-around)
+        // lands instantly instead of animating past every card between.
+        smooth = smooth && !reducedMotion && Math.abs(index - cardIndex(track)) <= 1;
+        track.scrollTo({left: index * track.clientWidth, behavior: smooth ? "smooth" : "auto"});
+        markPosition(carousel, index);
+    }
+    function markPosition(carousel, index) {
+        var n = cardCount(carousel.querySelector(".hl-track"));
+        var pos = carousel.querySelector(".hl-pos");
+        var fill = carousel.querySelector(".hl-progress-fill");
+        if (pos) pos.textContent = (index + 1) + " / " + n;
+        if (fill && n) {
+            fill.style.width = (100 / n) + "%";
+            fill.style.left = (100 * index / n) + "%";
+        }
+    }
+    function pauseManual(carousel) {
+        carousel.dataset.pausedUntil = String(Date.now() + MANUAL_PAUSE_MS);
+    }
+
+    document.addEventListener("click", function (e) {
+        var btn = e.target.closest && e.target.closest(".hl-nav, .hl-progress");
+        if (!btn) return;
+        var carousel = btn.closest(".hl-carousel");
+        var track = carousel && carousel.querySelector(".hl-track");
+        if (!track) return;
+        pauseManual(carousel);
+        if (btn.classList.contains("hl-progress")) {
+            var rect = btn.getBoundingClientRect();
+            var frac = rect.width ? (e.clientX - rect.left) / rect.width : 0;
+            goTo(carousel, Math.min(cardCount(track) - 1, Math.max(0, Math.floor(frac * cardCount(track)))), true);
+        } else {
+            goTo(carousel, cardIndex(track) + (btn.classList.contains("hl-prev") ? -1 : 1), true);
+        }
+    });
+
+    // Keep the readout in step with swipes/trackpad scrolls (scroll doesn't
+    // bubble, so listen in the capture phase).
+    document.addEventListener("scroll", function (e) {
+        var track = e.target;
+        if (!track.classList || !track.classList.contains("hl-track")) return;
+        markPosition(track.closest(".hl-carousel"), cardIndex(track));
+    }, true);
+
+    // A swipe or arrow key is a manual move too.
+    ["touchstart", "wheel"].forEach(function (type) {
+        document.addEventListener(type, function (e) {
+            var carousel = e.target.closest && e.target.closest(".hl-carousel");
+            if (carousel) pauseManual(carousel);
+        }, {passive: true});
+    });
+    document.addEventListener("keydown", function (e) {
+        if (e.key !== "ArrowLeft" && e.key !== "ArrowRight") return;
+        var track = e.target.classList && e.target.classList.contains("hl-track") ? e.target : null;
+        if (!track) return;
+        e.preventDefault();
+        var carousel = track.closest(".hl-carousel");
+        pauseManual(carousel);
+        goTo(carousel, cardIndex(track) + (e.key === "ArrowLeft" ? -1 : 1), true);
+    });
+
+    if (reducedMotion) return;
+    setInterval(function () {
+        if (document.hidden) return;
+        var carousels = document.querySelectorAll(".hl-carousel");
+        for (var i = 0; i < carousels.length; i++) {
+            var c = carousels[i];
+            var track = c.querySelector(".hl-track");
+            if (!track || !track.clientWidth || cardCount(track) < 2) continue;  // hidden or nothing to rotate
+            if (c.matches(":hover") || c.querySelector(":focus-visible")) continue;
+            if (Date.now() < Number(c.dataset.pausedUntil || 0)) continue;
+            goTo(c, cardIndex(track) + 1, true);
+        }
+    }, ROTATE_MS);
+})();

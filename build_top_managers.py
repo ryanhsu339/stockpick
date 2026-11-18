@@ -36,7 +36,8 @@ import sys
 
 from thirteenf import (_MANAGER_RANKING_PATH, _SPLITS_PATH, _TOP_BUYS_PATH, _TOP_MANAGERS_SNAPSHOT_PATH, _retry,
                        apply_split_adjustments, build_top_managers, detect_split_factors,
-                       best_estimated_returns, fetch_sec_13f_ranking, largest_managers_top_buys,
+                       NOTABLE_FUND_CIKS, best_estimated_returns, fetch_sec_13f_ranking, headline_moves,
+                       largest_managers_top_buys,
                        newest_filings_top_buys,
                        top_buys_across_managers, write_top_managers_snapshot)
 
@@ -139,8 +140,13 @@ def main():
         sys.exit(f"Refusing to write: only {len(managers)} filers ranked (expected at least {_MIN_RANKING_SIZE}).")
 
     pool = managers[:args.pool_n]
-    results, failures = build_top_managers([m["cik"] for m in pool])
-    names = {m["cik"]: m["name"] for m in managers}
+    # The Headlines carousel's famous funds, even below the pool's size cut
+    # (Scion, Baupost, Greenlight, ...) -- see thirteenf.NOTABLE_FUND_CIKS.
+    pooled = {m["cik"] for m in pool}
+    extra = [{"cik": cik, "name": name, "value_b": None}
+             for cik, name in NOTABLE_FUND_CIKS.items() if cik not in pooled]
+    results, failures = build_top_managers([m["cik"] for m in pool + extra])
+    names = {m["cik"]: m["name"] for m in managers + extra}
     print(f"Built {len(results)} of the top {args.pool_n}; {len(failures)} failed:")
     for cik, error in failures.items():
         print(f"  {cik} {names.get(cik, '')}: {error[:200]}")
@@ -166,6 +172,9 @@ def main():
         # Top 50 managers by estimated return on last quarter's portfolio,
         # priced from the whole pool's reported quarter-end prices.
         "best_returns": best_estimated_returns(results),
+        # The Headlines carousel: the 100 largest funds' (plus the notable funds') biggest buy/sell
+        # when it's >= 1% of the fund's equity AUM.
+        "headlines": headline_moves(results),
     }
     snapshot_ciks = {str(m["cik"]) for m in pool[:args.snapshot_n]}
     snapshot = {cik: comparison for cik, comparison in results.items() if cik in snapshot_ciks}

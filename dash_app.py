@@ -33,6 +33,7 @@ import re
 import threading
 import time
 from datetime import date, timedelta
+from pathlib import Path
 from xml.etree.ElementTree import ParseError as ET_ParseError
 
 # For the "worker ready" log line at the bottom of this module -- see
@@ -2262,7 +2263,7 @@ def _build_top_buy_card(r, idx, show_filed=False):
     # top-buy-link, not manager-holding-link -- this list is cross-
     # manager (top_buys_across_managers) and always built eagerly, so the
     # same ticker could otherwise appear here AND in the currently-
-    # searched manager's own Top Increases at once, giving two
+    # searched manager's own Top Buys table at once, giving two
     # components the identical pattern-matching id (the exact "two
     # children with the same key" React bug fixed earlier for Recent
     # Trades' rows -- see _build_trade_row). `idx` is the same fix here:
@@ -2349,7 +2350,7 @@ def _render_best_return_rows(visible_count, records):
 def _build_best_return_row(r, rank):
     ret = r["est_return_pct"]
     up = ret >= 0
-    details = f"Equity AUM {_fmt_big_dollars(r['equity_aum_m'] * 1e6)} · {r['positions']} positions"
+    details = f"Equity AUM {_fmt_big_dollars(r['equity_aum_m'] * 1e6)}"
     return html.Div(
         style={"display": "grid", "gridTemplateColumns": "22px minmax(0,1fr) 78px", "gap": "12px",
                "alignItems": "center", "padding": "9px 0", "borderBottom": "1px solid var(--border)",
@@ -2382,6 +2383,193 @@ def _build_best_return_row(r, rank):
                        "textAlign": "center", "padding": "3px 0", "borderRadius": "4px",
                        "backgroundColor": "rgba(76,195,138,0.14)" if up else "rgba(229,103,90,0.14)",
                        "color": "var(--up)" if up else "var(--down)"},
+            ),
+        ],
+    )
+
+
+# Headlines carousel (Managers tab, beside Best Performing Funds): one card
+# per top-100 fund whose biggest buy and/or sell this quarter was >= 1% of
+# its equity AUM -- see thirteenf.headline_moves. The photo and logo come
+# from data/manager_profiles.json (build_manager_profiles.py: Wikidata/
+# Wikimedia Commons images committed under assets/managers/). Scrolling,
+# arrows, dots and the 3-second auto-rotate are plain JS in
+# assets/custom.js (the .hl-* handlers), so moving between cards never
+# round-trips to the server.
+_MANAGER_PROFILES_PATH = Path(__file__).parent / "data" / "manager_profiles.json"
+_manager_profiles_cache = None
+
+
+def _manager_profiles():
+    global _manager_profiles_cache
+    if _manager_profiles_cache is None:
+        try:
+            _manager_profiles_cache = json.loads(_MANAGER_PROFILES_PATH.read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            _manager_profiles_cache = {}
+    return _manager_profiles_cache
+
+
+# Notable funds ranked below this read "Notable fund" instead of a rank
+# (thirteenf.HEADLINE_FUNDS_N's size cut, before brokers are excluded).
+_HEADLINE_RANKED_FUNDS = 100
+_HEADLINES_NOTE = ("The biggest buy and sell this past quarter at the 100 largest funds and the best-known "
+                   "hedge funds, when the move was at least 1% of the fund's equity AUM. Excludes brokers, "
+                   "market makers, ETFs and options.")
+
+
+def _quarter_label(iso):
+    try:
+        d = date.fromisoformat(iso)
+    except (TypeError, ValueError):
+        return ""
+    return f"Q{(d.month - 1) // 3 + 1} {d.year}"
+
+
+def _monogram(name):
+    words = [w for w in re.split(r"[^A-Za-z0-9]+", name) if w]
+    return "".join(w[0] for w in words[:2]).upper() or "?"
+
+
+def _headline_avatar(profile, display_name, cik):
+    person = profile.get("person") or {}
+    if person.get("photo"):
+        face = html.Img(src=person["photo"], alt=person.get("name", ""), className="hl-photo")
+    elif profile.get("logo"):
+        # No photo on record -- the logo itself fills the circle instead.
+        face = html.Div(html.Img(src=profile["logo"], alt="", className="hl-logo-fill"), className="hl-photo")
+    else:
+        # Same hue for the same fund every time.
+        face = html.Div(_monogram(display_name), className="hl-photo hl-monogram",
+                        style={"backgroundColor": f"hsl({int(cik) * 47 % 360}, 45%, 38%)"})
+    badge = (html.Div(html.Img(src=profile["logo"], alt=""), className="hl-badge")
+             if profile.get("logo") and person.get("photo") else None)
+    return html.Div([face, badge] if badge else [face], className="hl-avatar")
+
+
+# "META PLATFORMS INC (CL A)", "ALPHABET INC-C" -> the bare company name,
+# which the ticker resolver matches when the share-class text defeats it.
+_SHARE_CLASS_SUFFIX_RE = re.compile(r"\s*\(.*?\)\s*$|-[A-Z]$")
+
+
+def _headline_move_block(move, buy, companies, idx):
+    issuer = " ".join(move["issuer"].split())  # some filers pad names: "SPACE   EXPLORATION"
+    bare_issuer = _SHARE_CLASS_SUFFIX_RE.sub("", issuer).strip() or issuer
+    ticker = (resolve_ticker_for_security(issuer, companies)
+              or resolve_ticker_for_security(bare_issuer, companies))
+    # Same top-buy-link pattern as the Top Buys cards, so a tap jumps to
+    # the Public Company Tracker; idx keeps every card's ids unique. No
+    # ticker (a private or foreign listing): just the company name, not
+    # styled like a link.
+    target = (html.Span(ticker, id={"type": "top-buy-link", "ticker": ticker, "idx": idx}, n_clicks=0,
+                        className="hl-ticker hl-link", title=issuer)
+              if ticker else html.Span(bare_issuer.title(), className="hl-issuer", title=issuer))
+    return html.Div(
+        className=f"hl-move {'hl-buy' if buy else 'hl-sell'}",
+        children=[
+            html.Div([html.Span("▲ Bought" if buy else "▼ Sold", className="hl-move-label"),
+                      html.Span(f"{move['pct_of_aum']:.1f}% of AUM", className="hl-move-pct")],
+                     className="hl-move-top"),
+            html.Div([html.Span(_fmt_big_dollars(move["value_m"] * 1e6), className="hl-move-amount"), target],
+                     className="hl-move-main"),
+            html.Div(f"{bare_issuer.title() + ' · ' if ticker else ''}{move['change']}",
+                     className="hl-move-sub"),
+            html.Div(_headline_position_text(move), className="hl-move-sub hl-move-position"),
+        ],
+    )
+
+
+def _headline_position_text(move):
+    if not move.get("position_value_m"):
+        return "Position fully sold" if move.get("change") == "Exited" else ""
+    return (f"Position now {_fmt_big_dollars(move['position_value_m'] * 1e6)} · "
+            f"{move['position_pct']:.1f}% of portfolio")
+
+
+def _build_headline_card(h, i, total, companies):
+    cik = str(h["cik"])
+    profile = _manager_profiles().get(cik) or {}
+    display_name = profile.get("display_name") or h["manager_name"]
+    person = profile.get("person") or {}
+    who = " · ".join(p for p in (person.get("name"), person.get("title")) if p)
+    # A famous fund far down the size ranking (Scion, Pershing Square) is
+    # here because it's on thirteenf.NOTABLE_FUND_CIKS, not for its rank.
+    notable = h.get("notable") and h["aum_rank"] > _HEADLINE_RANKED_FUNDS
+    meta = " · ".join(p for p in (None if notable else f"#{h['aum_rank']} by AUM",
+                                  f"{_fmt_big_dollars(h['equity_aum_m'] * 1e6)} equity",
+                                  _quarter_label(h["latest_period"])) if p)
+    moves = [_headline_move_block(h["buy"], True, companies, f"hl-{i}-buy")] if h.get("buy") else []
+    if h.get("sell"):
+        moves.append(_headline_move_block(h["sell"], False, companies, f"hl-{i}-sell"))
+    credit = None
+    if person.get("photo"):
+        credit_text = "Photo: " + ", ".join(p for p in (person.get("credit") or "Wikimedia Commons",
+                                                       person.get("license")) if p)
+        credit = html.Span(credit_text, className="hl-credit", title=f"{credit_text} (via Wikimedia Commons)")
+    return html.Div(
+        className="hl-card",
+        **{"aria-roledescription": "slide", "aria-label": f"{i + 1} of {total}: {display_name}"},
+        children=[
+            html.Div(
+                className="hl-head",
+                children=[
+                    _headline_avatar(profile, display_name, cik),
+                    html.Div(
+                        className="hl-id",
+                        children=[
+                            # Loads this fund in Look Up a Manager below (see
+                            # select_manager_candidate).
+                            html.Span(display_name, id={"type": "top-buy-manager-link", "cik": int(cik),
+                                                        "idx": f"hl-{i}"},
+                                      n_clicks=0, className="hl-fund hl-link", title=h["manager_name"]),
+                            html.Div(who, className="hl-person") if who else None,
+                            html.Div(meta, className="hl-meta"),
+                        ],
+                    ),
+                    html.Span("Notable fund", className="hl-tag") if notable else None,
+                ],
+            ),
+            html.Div(moves, className="hl-moves"),
+            html.Div(
+                className="hl-foot",
+                children=[
+                    html.Span(f"Filed {_quarter_end_label(h['filing_date'])}" if h.get("filing_date") else ""),
+                    credit,
+                ],
+            ),
+        ],
+    )
+
+
+def _build_headlines_carousel(headlines, companies):
+    if not headlines:
+        return html.P("No headline moves this quarter.", style={"color": "var(--body-text)", "fontSize": "13px"})
+    total = len(headlines)
+    return html.Div(
+        className="hl-carousel",
+        **{"aria-roledescription": "carousel", "aria-label": "Headline fund moves"},
+        children=[
+            html.Div([_build_headline_card(h, i, total, companies) for i, h in enumerate(headlines)],
+                     className="hl-track", tabIndex="0"),
+            html.Div(
+                className="hl-controls",
+                children=[
+                    html.Button("‹", className="hl-nav hl-prev", title="Previous fund", **{"aria-label": "Previous fund"}),
+                    # Position readout + a progress bar you can click to
+                    # jump (dots stopped fitting past ~30 cards). custom.js
+                    # keeps both in step with the track's scroll.
+                    html.Div(
+                        className="hl-progress-wrap",
+                        children=[
+                            html.Span(f"1 / {total}", className="hl-pos"),
+                            html.Div(html.Div(className="hl-progress-fill",
+                                              style={"width": f"{100 / total:.3f}%"}),
+                                     className="hl-progress", title="Jump to a card",
+                                     **{"data-total": str(total)}),
+                        ],
+                    ),
+                    html.Button("›", className="hl-nav hl-next", title="Next fund", **{"aria-label": "Next fund"}),
+                ],
             ),
         ],
     )
@@ -2593,7 +2781,7 @@ _TOP_BUYS_SORTS = {
 _POL_MONEY_FORMAT = Format(precision=0, scheme=Scheme.fixed, group=True)
 _POL_COUNT_FORMAT = Format(precision=0, scheme=Scheme.fixed)
 
-# Top Increases/Decreases: one "$1K – $15K" range column (amount_range, see
+# Top Buys/Sells: one "$1K – $15K" range column (amount_range, see
 # _politician_move_row_to_record) instead of separate low/high columns --
 # same format as the Most Recent Trades card.
 def _politician_move_columns(amount_label):
@@ -2711,7 +2899,51 @@ def _manager_tracker_children():
     }
     return [
         html.H2("Investment Manager Tracker", style=_HEADER_STYLE),
-        html.H3("Top Buys From Largest Managers", style=_HEADER_STYLE),
+        # Headlines (left) and Best Performing Funds (right), half the
+        # width each on desktop; phones stack them, Headlines first (see
+        # .hl-row in custom.css). The returns card stretches to the
+        # Headlines column's height so both cards end level; each column's
+        # explanatory note sits under its card.
+        html.Div(
+            className="hl-row",
+            children=[
+                html.Div(
+                    className="hl-col",
+                    children=[
+                        html.H3("Headlines", style=_HEADER_STYLE),
+                        _build_headlines_carousel(top_buys.get("headlines"), top_buy_companies),
+                        html.P(_HEADLINES_NOTE, className="hl-col-note", style=_PARA_STYLE),
+                    ],
+                ),
+                html.Div(
+                    className="hl-col",
+                    children=[
+                        html.H3("Best Performing Funds Latest Quarter", style=_HEADER_STYLE),
+                        # Scrolls like the Companies tab's Top Gainers/Losers
+                        # cards: the first _BEST_RETURNS_PAGE_SIZE rows, then
+                        # another page each time the card is scrolled near its
+                        # bottom (best-returns-scroll-poll below), up to the 50
+                        # precomputed. Its height (see #best-returns-card in
+                        # custom.css) is under ten rows so the first page
+                        # always overflows -- otherwise there'd be nothing to
+                        # scroll.
+                        html.Div(
+                            id="best-returns-card",
+                            style={"backgroundColor": "var(--card-bg)", "border": "1px solid var(--border)",
+                                   "borderRadius": "14px", "padding": "0 20px", "overflowY": "auto"},
+                            children=html.Div(
+                                id="best-returns-container",
+                                children=_render_best_return_rows(_BEST_RETURNS_PAGE_SIZE,
+                                                                  top_buys.get("best_returns")),
+                            ),
+                        ),
+                        html.P(_best_returns_note(top_buys.get("best_returns")), className="hl-col-note",
+                               style=_PARA_STYLE),
+                    ],
+                ),
+            ],
+        ),
+        html.H3("Top Buys From Largest Managers", style={**_HEADER_STYLE, "marginTop": "56px"}),
         html.Div(
             style={"display": "flex", "justifyContent": "space-between", "alignItems": "center",
                    "gap": "8px 16px", "flexWrap": "wrap", "marginBottom": "12px"},
@@ -2748,24 +2980,6 @@ def _manager_tracker_children():
         # Both lists' records, so sort_top_buys can swap between them
         # without another round trip for the data.
         dcc.Store(id="top-buys-records", data=top_buy_records),
-        html.H3("Best Performing Funds Previous Quarter", style={**_HEADER_STYLE, "marginTop": "56px"}),
-        html.P(_best_returns_note(top_buys.get("best_returns")),
-               style={**_PARA_STYLE, "fontSize": "13px", "marginTop": "0", "maxWidth": "760px"}),
-        # Scrolls like the Companies tab's Top Gainers/Losers cards: the first
-        # _BEST_RETURNS_PAGE_SIZE rows, then another page each time the card
-        # is scrolled near its bottom (best-returns-scroll-poll below), up to
-        # the 50 precomputed. maxHeight is a bit under ten rows so the first
-        # page always overflows -- otherwise there'd be nothing to scroll.
-        html.Div(
-            id="best-returns-card",
-            style={"backgroundColor": "var(--card-bg)", "border": "1px solid var(--border)",
-                   "borderRadius": "14px", "padding": "0 20px", "maxWidth": "760px",
-                   "maxHeight": "340px", "overflowY": "auto"},
-            children=html.Div(
-                id="best-returns-container",
-                children=_render_best_return_rows(_BEST_RETURNS_PAGE_SIZE, top_buys.get("best_returns")),
-            ),
-        ),
         dcc.Store(id="best-returns-records", data=top_buys.get("best_returns") or []),
         dcc.Store(id="best-returns-visible-count", data=_BEST_RETURNS_PAGE_SIZE),
         dcc.Interval(id="best-returns-scroll-poll", interval=1200, n_intervals=0),
@@ -2822,7 +3036,7 @@ def _manager_tracker_children():
                 html.Div(
                     style={"flex": "1 1 420px", "minWidth": "0"},
                     children=[
-                        html.H3("Top Increases This Quarter", id="manager-increases-heading", style=_HEADER_STYLE),
+                        html.H3("Top Buys", id="manager-increases-heading", style=_HEADER_STYLE),
                         html.P(_MANAGER_NOTE, style={**_PARA_STYLE, "fontSize": "13px"}),
                         html.Div(id="increases-table-container"),
                     ],
@@ -2830,7 +3044,7 @@ def _manager_tracker_children():
                 html.Div(
                     style={"flex": "1 1 420px", "minWidth": "0"},
                     children=[
-                        html.H3("Top Decreases This Quarter", id="manager-decreases-heading", style=_HEADER_STYLE),
+                        html.H3("Top Sells", id="manager-decreases-heading", style=_HEADER_STYLE),
                         html.P(_MANAGER_NOTE, style={**_PARA_STYLE, "fontSize": "13px"}),
                         html.Div(id="decreases-table-container"),
                     ],
@@ -3109,7 +3323,7 @@ def _politician_tracker_children(initial_pending=None):
                 html.Div(
                     style={"flex": "1 1 420px", "minWidth": "0"},
                     children=[
-                        html.H3("Top Increases (Last 12 Months)", style=_HEADER_STYLE),
+                        html.H3("Top Buys (Last 12 Months)", style=_HEADER_STYLE),
                         dash_table.DataTable(id="politician-increases-table", columns=POLITICIAN_INCREASE_COLUMNS,
                                               data=[], cell_selectable=False, **_POLITICIAN_TABLE_STYLE),
                     ],
@@ -3117,7 +3331,7 @@ def _politician_tracker_children(initial_pending=None):
                 html.Div(
                     style={"flex": "1 1 420px", "minWidth": "0"},
                     children=[
-                        html.H3("Top Decreases (Last 12 Months)", style=_HEADER_STYLE),
+                        html.H3("Top Sells (Last 12 Months)", style=_HEADER_STYLE),
                         dash_table.DataTable(id="politician-decreases-table", columns=POLITICIAN_DECREASE_COLUMNS,
                                               data=[], cell_selectable=False, **_POLITICIAN_TABLE_STYLE),
                     ],
@@ -4257,7 +4471,7 @@ def update_global_search_suggestions(query):
     Input({"type": "global-search-company", "ticker": ALL}, "n_clicks"),
     Input({"type": "global-search-manager", "name": ALL}, "n_clicks"),
     Input({"type": "global-search-member", "chamber": ALL, "last": ALL, "first": ALL}, "n_clicks"),
-    # A clickable security name in Top Increases/Decreases (manager-
+    # A clickable security name in Top Buys/Sells (manager-
     # holding-link) or All Equity Positions (all-positions-table's
     # active_cell) also jumps to the Public Company Tracker -- same
     # "view" dispatch below, just two more ways to reach the "company"
@@ -7357,16 +7571,17 @@ def load_manager_quarter(period, meta):
             _manager_summary_tiles(all_positions), no_update)
 
 
-# "Top Increases (Q4 2025)" etc. -- names the quarter on screen.
+# "Top Buys (Q4 2025)" etc. -- names the quarter on screen, the latest one
+# included; plain "Top Buys" only until a manager has loaded.
 app.clientside_callback(
     """
     function(period) {
-        let suffix = "This Quarter";
+        let suffix = "";
         if (period) {
             const parts = period.split("-").map(Number);
-            suffix = "(Q" + (Math.floor((parts[1] - 1) / 3) + 1) + " " + parts[0] + ")";
+            suffix = " (Q" + (Math.floor((parts[1] - 1) / 3) + 1) + " " + parts[0] + ")";
         }
-        return ["Top Increases " + suffix, "Top Decreases " + suffix];
+        return ["Top Buys" + suffix, "Top Sells" + suffix];
     }
     """,
     Output("manager-increases-heading", "children"),
