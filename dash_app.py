@@ -2540,9 +2540,30 @@ def _build_headline_card(h, i, total, companies):
     )
 
 
+# The carousel leads with the best-known funds -- the top this many by
+# profile popularity (12 months' Wikipedia views, see
+# build_manager_profiles._add_popularity) -- then the rest largest first.
+_HEADLINE_POPULAR_FIRST = 20
+
+
+def _order_headlines(headlines):
+    profiles = _manager_profiles()
+
+    def popularity(h):
+        return (profiles.get(str(h["cik"])) or {}).get("popularity") or 0
+
+    popular = sorted((h for h in headlines if popularity(h)), key=popularity, reverse=True)
+    popular = popular[:_HEADLINE_POPULAR_FIRST]
+    lead = {id(h) for h in popular}
+    rest = sorted((h for h in headlines if id(h) not in lead),
+                  key=lambda h: h.get("equity_aum_m") or 0, reverse=True)
+    return popular + rest
+
+
 def _build_headlines_carousel(headlines, companies):
     if not headlines:
         return html.P("No headline moves this quarter.", style={"color": "var(--body-text)", "fontSize": "13px"})
+    headlines = _order_headlines(headlines)
     total = len(headlines)
     return html.Div(
         className="hl-carousel",

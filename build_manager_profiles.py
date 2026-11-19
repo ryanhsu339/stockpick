@@ -18,6 +18,11 @@ small square WebPs and committed under assets/managers/, so the live app
 never hotlinks anything. A fund with no match keeps a monogram fallback on
 the card.
 
+Each profile also gets a "popularity" score -- the past 12 months' English
+Wikipedia views of the fund's or its person's article, whichever is higher
+-- which puts the best-known funds first in the carousel (--popularity-only
+refreshes just that).
+
 Wikidata name matching on 13F filer names ("FMR LLC", "UBS AM, a distinct
 business unit of ...") is imperfect, so data/manager_profiles_overrides.json
 pins the right entity (or person) per CIK -- see that file. Not part of the
@@ -30,7 +35,9 @@ import json
 import re
 import sys
 import time
+from datetime import date, timedelta
 from pathlib import Path
+from urllib.parse import quote
 
 import requests
 from PIL import Image
@@ -43,6 +50,7 @@ OVERRIDES_PATH = ROOT / "data" / "manager_profiles_overrides.json"
 IMAGE_DIR = ROOT / "assets" / "managers"
 _WIKIDATA_API = "https://www.wikidata.org/w/api.php"
 _COMMONS_API = "https://commons.wikimedia.org/w/api.php"
+_PAGEVIEWS_API = "https://wikimedia.org/api/rest_v1/metrics/pageviews/per-article/en.wikipedia/all-access/user"
 # Generic client name -- Wikimedia asks for a descriptive User-Agent.
 _HEADERS = {"User-Agent": "StocksDashboard-ManagerProfiles/1.0 (13F tracker; build script)"}
 _PERSON_PX = 200
@@ -202,6 +210,59 @@ def _save_square(data, path, px, crop_face):
     img.save(path, "WEBP", quality=82, method=6)
 
 
+def _enwiki_titles(qids):
+    """{qid: English Wikipedia article title} for the entities that have one."""
+    titles = {}
+    qids = [q for q in dict.fromkeys(qids) if q]
+    for i in range(0, len(qids), 50):
+        data = _get(_WIKIDATA_API, action="wbgetentities", ids="|".join(qids[i:i + 50]),
+                    props="sitelinks", sitefilter="enwiki").json()
+        for qid, entity in data.get("entities", {}).items():
+            title = entity.get("sitelinks", {}).get("enwiki", {}).get("title")
+            if title:
+                titles[qid] = title
+    return titles
+
+
+def _yearly_pageviews(title, end):
+    """Human (non-bot) English Wikipedia views of `title` over the 12 full
+    months before `end` (a date)."""
+    start = date(end.year - 1, end.month, 1)
+    stop = end.replace(day=1) - timedelta(days=1)
+    url = (f"{_PAGEVIEWS_API}/{quote(title.replace(' ', '_'), safe='')}/monthly/"
+           f"{start:%Y%m%d}00/{stop:%Y%m%d}00")
+    try:
+        return sum(item["views"] for item in _get(url).json().get("items", []))
+    except requests.HTTPError:
+        return 0  # 404: no views recorded in the window
+
+
+def _add_popularity(profiles, overrides):
+    """Sets each profile's "popularity": the higher of the fund's and its
+    person's English Wikipedia views over the past 12 months -- a stand-in
+    for how well-known the fund is, used to order the Headlines carousel.
+    overrides' popularity_from narrows which pages count, for pages whose
+    views aren't about the fund (a parent bank's page, a founder famous for
+    politics, a Wikidata person linked to a namesake's article)."""
+    sources = {cik: overrides.get(cik, {}).get("popularity_from", ["fund", "person"]) for cik in profiles}
+    wanted = {}
+    for cik, profile in profiles.items():
+        if "fund" in sources[cik] and profile.get("qid"):
+            wanted.setdefault(cik, []).append(profile["qid"])
+        if "person" in sources[cik] and (profile.get("person") or {}).get("qid"):
+            wanted.setdefault(cik, []).append(profile["person"]["qid"])
+    titles = _enwiki_titles(q for qs in wanted.values() for q in qs)
+    views, today = {}, date.today()
+    for cik, profile in profiles.items():
+        best = 0
+        for qid in wanted.get(cik, ()):
+            if qid in titles:
+                if qid not in views:
+                    views[qid] = _yearly_pageviews(titles[qid], today)
+                best = max(best, views[qid])
+        profile["popularity"] = best
+
+
 def _target_funds(top_n):
     """[(cik, manager_name)]: the top_n largest snapshot funds plus every
     current headline fund."""
@@ -219,16 +280,29 @@ def _target_funds(top_n):
     return list(funds.items())
 
 
+def _write_profiles(profiles):
+    PROFILES_PATH.write_text(json.dumps(dict(sorted(profiles.items())), indent=1, ensure_ascii=False),
+                             encoding="utf-8")
+    popular = sorted(profiles.values(), key=lambda p: p.get("popularity") or 0, reverse=True)[:25]
+    print("Most popular:", ", ".join(f"{p['display_name']} {p.get('popularity', 0) // 1000}k" for p in popular))
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     parser.add_argument("--top-n", type=int, default=150)
     parser.add_argument("--only", nargs="*", help="Only (re)build these CIKs")
     parser.add_argument("--refresh-images", action="store_true", help="Re-download images that exist")
+    parser.add_argument("--popularity-only", action="store_true",
+                        help="Only refresh every profile's Wikipedia-pageview popularity score")
     args = parser.parse_args()
 
     overrides = json.loads(OVERRIDES_PATH.read_text(encoding="utf-8")) if OVERRIDES_PATH.exists() else {}
     overrides = {k: v for k, v in overrides.items() if not k.startswith("_")}
     profiles = json.loads(PROFILES_PATH.read_text(encoding="utf-8")) if PROFILES_PATH.exists() else {}
+    if args.popularity_only:
+        _add_popularity(profiles, overrides)
+        _write_profiles(profiles)
+        return 0
     funds = _target_funds(args.top_n)
     if args.only:
         funds = [(cik, name) for cik, name in funds if cik in args.only]
@@ -320,8 +394,8 @@ def main():
               f"person={(profile.get('person') or {}).get('name', '-')[:24]}"
               f"{' (photo)' if (profile.get('person') or {}).get('photo') else ''}")
 
-    PROFILES_PATH.write_text(json.dumps(dict(sorted(profiles.items())), indent=1, ensure_ascii=False),
-                             encoding="utf-8")
+    _add_popularity(profiles, overrides)
+    _write_profiles(profiles)
     missing = [c for c, _n in funds if not (profiles.get(c) or {}).get("logo")]
     print(f"Wrote {len(profiles)} profiles to {PROFILES_PATH}; {len(missing)} without a logo.")
     return 0

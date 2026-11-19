@@ -1,5 +1,5 @@
 {
- "_comment": "Per-CIK fixes for build_manager_profiles.py. Keys: search (firm name to search Wikidata for instead of the 13F filer name), qid (exact firm entity), person_search / person_qid (pin the person shown), person_title, no_person (show the logo only), website (for the site-icon logo fallback), display_name, logo_file / photo_file (exact Commons file names), skip.",
+ "_comment": "Per-CIK fixes for build_manager_profiles.py. Keys: search (firm name to search Wikidata for instead of the 13F filer name), qid (exact firm entity), person_search / person_qid (pin the person shown), person_title, no_person (show the logo only), website (for the site-icon logo fallback), display_name, logo_file / photo_file (exact Commons file names), skip. popularity_from: which Wikipedia pages count toward the card-ordering popularity score -- [\"fund\"], [\"person\"] or [] (none); default both, taking the higher. Used where a page's views aren't about the fund: a parent bank/insurer's page, a founder famous outside investing, or a Wikidata person linked to the wrong Wikipedia article.",
  "2100119": {
   "search": "The Vanguard Group",
   "display_name": "Vanguard",
@@ -78,7 +78,8 @@
   "search": "UBS",
   "display_name": "UBS Asset Management",
   "person_search": "Sergio Ermotti",
-  "person_title": "Group CEO"
+  "person_title": "Group CEO",
+  "popularity_from": []
  },
  "72971": {
   "search": "Wells Fargo",
@@ -233,7 +234,8 @@
   "search": "Allianz",
   "display_name": "Allianz Asset Management",
   "person_search": "Oliver Bäte",
-  "person_title": "Allianz CEO"
+  "person_title": "Allianz CEO",
+  "popularity_from": []
  },
  "926171": {
   "display_name": "National Bank of Canada",
@@ -245,7 +247,8 @@
   "display_name": "Invesco",
   "website": "https://www.invesco.com",
   "person_search": "Andrew Schlossberg",
-  "person_title": "CEO"
+  "person_title": "CEO",
+  "popularity_from": []
  },
  "1948780": {
   "display_name": "Corient",
@@ -378,7 +381,8 @@
  "921739": {
   "search": "Nomura Holdings",
   "display_name": "Nomura Asset Management",
-  "no_person": true
+  "no_person": true,
+  "popularity_from": []
  },
  "1230239": {
   "display_name": "Alkeon Capital",
@@ -554,7 +558,10 @@
   "search": "Starboard Value",
   "display_name": "Starboard Value",
   "person_search": "Jeffrey C. Smith",
-  "person_title": "CEO"
+  "person_title": "CEO",
+  "popularity_from": [
+   "fund"
+  ]
  },
  "1345471": {
   "search": "Trian Fund Management",
@@ -608,13 +615,19 @@
   "search": "Egerton Capital",
   "display_name": "Egerton Capital",
   "person_search": "John Armitage",
-  "person_title": "Founder"
+  "person_title": "Founder",
+  "popularity_from": [
+   "fund"
+  ]
  },
  "909661": {
   "search": "Farallon Capital",
   "display_name": "Farallon Capital",
   "person_search": "Tom Steyer",
-  "person_title": "Founder"
+  "person_title": "Founder",
+  "popularity_from": [
+   "fund"
+  ]
  },
  "1512857": {
   "search": "Brevan Howard",
@@ -650,7 +663,8 @@
   "search": "Bill & Melinda Gates Foundation",
   "display_name": "Gates Foundation Trust",
   "person_search": "Bill Gates",
-  "person_title": "Co-founder"
+  "person_title": "Co-founder",
+  "popularity_from": []
  },
  "1020066": {
   "search": "Sands Capital Management",

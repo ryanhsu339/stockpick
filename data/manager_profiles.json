@@ -30,14 +30,16 @@
    "qid": "Q5233207",
    "name": "David E. Shaw",
    "title": "Founder"
-  }
+  },
+  "popularity": 69576
  },
  "1020066": {
   "manager_name": "SANDS CAPITAL MANAGEMENT, LLC",
   "qid": null,
   "display_name": "Sands Capital",
   "website": null,
-  "logo": "/assets/managers/1020066-logo.webp"
+  "logo": "/assets/managers/1020066-logo.webp",
+  "popularity": 0
  },
  "1029160": {
   "manager_name": "SOROS FUND MANAGEMENT LLC",
@@ -52,7 +54,8 @@
    "credit": "Aris Oikonomou - European Commission",
    "license": "CC BY 4.0",
    "photo": "/assets/managers/1029160-person.webp"
-  }
+  },
+  "popularity": 1713406
  },
  "1037389": {
   "manager_name": "RENAISSANCE TECHNOLOGIES LLC",
@@ -67,7 +70,8 @@
    "credit": "Gleuschk",
    "license": "CC BY-SA 3.0",
    "photo": "/assets/managers/1037389-person.webp"
-  }
+  },
+  "popularity": 379278
  },
  "1040188": {
   "manager_name": "VICTORY CAPITAL MANAGEMENT INC",
@@ -86,7 +90,8 @@
    "qid": "Q5218659",
    "name": "Daniel S. Loeb",
    "title": "Founder & CEO"
-  }
+  },
+  "popularity": 64079
  },
  "1056053": {
   "manager_name": "TD ASSET MANAGEMENT INC",
@@ -111,7 +116,8 @@
    "qid": "Q7609886",
    "name": "Stephen Mandel",
    "title": "Founder"
-  }
+  },
+  "popularity": 33217
  },
  "1067983": {
   "manager_name": "Berkshire Hathaway Inc",
@@ -133,7 +139,8 @@
   "qid": "Q5972276",
   "display_name": "Voya Investment Management",
   "website": "https://www.voya.com/",
-  "logo": "/assets/managers/1068837-logo.webp"
+  "logo": "/assets/managers/1068837-logo.webp",
+  "popularity": 31789
  },
  "1086619": {
   "manager_name": "SCHRODER INVESTMENT MANAGEMENT GROUP",
@@ -152,7 +159,8 @@
   "qid": "Q4848455",
   "display_name": "Baillie Gifford",
   "website": "http://www.bailliegifford.com",
-  "logo": "/assets/managers/1088875-logo.webp"
+  "logo": "/assets/managers/1088875-logo.webp",
+  "popularity": 39157
  },
  "1103804": {
   "manager_name": "VIKING GLOBAL INVESTORS LP",
@@ -164,7 +172,8 @@
    "qid": "Q7085794",
    "name": "Ole Andreas Halvorsen",
    "title": "Co-founder"
-  }
+  },
+  "popularity": 25786
  },
  "1109448": {
   "manager_name": "ALLIANCEBERNSTEIN L.P.",
@@ -182,13 +191,15 @@
   "manager_name": "AKRE CAPITAL MANAGEMENT LLC",
   "qid": null,
   "display_name": "Akre Capital",
-  "website": null
+  "website": null,
+  "popularity": 0
  },
  "1113000": {
   "manager_name": "KENSICO CAPITAL MANAGEMENT CORP",
   "qid": null,
   "display_name": "Kensico Capital",
-  "website": null
+  "website": null,
+  "popularity": 0
  },
  "1115418": {
   "manager_name": "RHUMBLINE ADVISERS",
@@ -220,7 +231,8 @@
    "qid": "Q116972965",
    "name": "Phillipe Laffont",
    "title": "Founder"
-  }
+  },
+  "popularity": 65993
  },
  "1137774": {
   "manager_name": "PRUDENTIAL FINANCIAL INC",
@@ -238,7 +250,8 @@
    "qid": "Q18157398",
    "name": "Larry Robbins",
    "title": "Founder"
-  }
+  },
+  "popularity": 11720
  },
  "1140022": {
   "manager_name": "AVIVA PLC",
@@ -280,7 +293,8 @@
   "qid": "Q121435783",
   "display_name": "Arrowstreet Capital",
   "website": null,
-  "logo": "/assets/managers/1164508-logo.webp"
+  "logo": "/assets/managers/1164508-logo.webp",
+  "popularity": 15697
  },
  "1165408": {
   "manager_name": "ADAGE CAPITAL PARTNERS GP, L.L.C.",
@@ -300,7 +314,8 @@
    "credit": "Bogdan Hoyaux / European Union",
    "license": "CC BY 4.0",
    "photo": "/assets/managers/1166559-person.webp"
-  }
+  },
+  "popularity": 0
  },
  "1166588": {
   "manager_name": "BNP PARIBAS FINANCIAL MARKETS",
@@ -324,7 +339,8 @@
    "qid": "Q20979231",
    "name": "Chase Coleman, III",
    "title": "Founder"
-  }
+  },
+  "popularity": 64609
  },
  "1167557": {
   "manager_name": "AQR CAPITAL MANAGEMENT LLC",
@@ -413,7 +429,8 @@
    "title": "Founder",
    "credit": null,
    "license": null
-  }
+  },
+  "popularity": 107946
  },
  "1283718": {
   "manager_name": "CANADA PENSION PLAN INVESTMENT BOARD",
@@ -426,7 +443,8 @@
   "manager_name": "MARSHALL WACE, LLP",
   "qid": "Q6773832",
   "display_name": "Marshall Wace",
-  "website": "https://www.mwam.com/"
+  "website": "https://www.mwam.com/",
+  "popularity": 38764
  },
  "1330387": {
   "manager_name": "Amundi",
@@ -459,7 +477,8 @@
    "credit": "Web Summit",
    "license": "CC BY 2.0",
    "photo": "/assets/managers/1350694-person.webp"
-  }
+  },
+  "popularity": 471361
  },
  "1357955": {
   "manager_name": "ProShare Advisors LLC",
@@ -471,7 +490,8 @@
   "manager_name": "ABRAMS CAPITAL MANAGEMENT, L.P.",
   "qid": null,
   "display_name": "Abrams Capital",
-  "website": null
+  "website": null,
+  "popularity": 0
  },
  "1373442": {
   "manager_name": "Mariner, LLC",
@@ -484,13 +504,15 @@
   "qid": "Q95991081",
   "display_name": "Boston Partners",
   "website": "https://www.boston-partners.com/",
-  "logo": "/assets/managers/1386060-logo.webp"
+  "logo": "/assets/managers/1386060-logo.webp",
+  "popularity": 5751
  },
  "1387322": {
   "manager_name": "Whale Rock Capital Management LLC",
   "qid": null,
   "display_name": "Whale Rock Capital",
-  "website": null
+  "website": null,
+  "popularity": 0
  },
  "1390777": {
   "manager_name": "Bank of New York Mellon Corp",
@@ -537,7 +559,8 @@
    "qid": "Q16732847",
    "name": "Mason Morfit",
    "title": "CEO"
-  }
+  },
+  "popularity": 35701
  },
  "1422848": {
   "manager_name": "Capital Research Global Investors",
@@ -551,7 +574,8 @@
   "qid": null,
   "display_name": "Capital Group (World Investors)",
   "website": null,
-  "logo": "/assets/managers/1422849-logo.webp"
+  "logo": "/assets/managers/1422849-logo.webp",
+  "popularity": 0
  },
  "1423053": {
   "manager_name": "CITADEL ADVISORS LLC",
@@ -587,7 +611,8 @@
    "credit": "USFWS Mountain-Prairie",
    "license": "Public domain",
    "photo": "/assets/managers/1448574-person.webp"
-  }
+  },
+  "popularity": 66133
  },
  "1462245": {
   "manager_name": "HighTower Advisors, LLC",
@@ -626,14 +651,16 @@
    "qid": "Q4516678",
    "name": "David Einhorn",
    "title": "Founder"
-  }
+  },
+  "popularity": 72922
  },
  "1508097": {
   "manager_name": "Sanders Capital, LLC",
   "qid": null,
   "display_name": "Sanders Capital",
   "website": null,
-  "logo": "/assets/managers/1508097-logo.webp"
+  "logo": "/assets/managers/1508097-logo.webp",
+  "popularity": 0
  },
  "1512024": {
   "manager_name": "CAPTRUST FINANCIAL ADVISORS",
@@ -650,7 +677,8 @@
    "qid": "Q115558198",
    "name": "Alan Howard",
    "title": "Founder"
-  }
+  },
+  "popularity": 56358
  },
  "1517137": {
   "manager_name": "Starboard Value LP",
@@ -662,7 +690,8 @@
    "qid": "Q6174997",
    "name": "Jeff Smith",
    "title": "CEO"
-  }
+  },
+  "popularity": 15062
  },
  "1520354": {
   "manager_name": "BNP PARIBAS ASSET MANAGEMENT Holding S.A.",
@@ -684,7 +713,8 @@
    "credit": "Prime Minister's Office, Government of India",
    "license": "GODL-India",
    "photo": "/assets/managers/1535323-person.webp"
-  }
+  },
+  "popularity": 0
  },
  "1540235": {
   "manager_name": "Creative Planning",
@@ -705,7 +735,8 @@
    "credit": "The White House",
    "license": "Public domain",
    "photo": "/assets/managers/1541617-person.webp"
-  }
+  },
+  "popularity": 171641
  },
  "1542153": {
   "manager_name": "Focus Partners Wealth",
@@ -717,7 +748,8 @@
   "manager_name": "Assenagon Asset Management S.A.",
   "qid": null,
   "display_name": "Assenagon",
-  "website": null
+  "website": null,
+  "popularity": 0
  },
  "1562230": {
   "manager_name": "Capital International Investors",
@@ -737,7 +769,8 @@
   "qid": "Q5509060",
   "display_name": "Fundsmith",
   "website": "https://www.fundsmith.com/",
-  "logo": "/assets/managers/1569205-logo.webp"
+  "logo": "/assets/managers/1569205-logo.webp",
+  "popularity": 6342
  },
  "1581811": {
   "manager_name": "Egerton Capital (UK) LLP",
@@ -749,13 +782,15 @@
    "qid": "Q112109065",
    "name": "John Armitage",
    "title": "Founder"
-  }
+  },
+  "popularity": 7524
  },
  "1582090": {
   "manager_name": "Sachem Head Capital Management LP",
   "qid": "Q48744317",
   "display_name": "Sachem Head",
-  "website": null
+  "website": null,
+  "popularity": 8675
  },
  "1582202": {
   "manager_name": "Swiss National Bank",
@@ -773,7 +808,8 @@
    "qid": "Q141144164",
    "name": "Marc Stad",
    "title": "Founder"
-  }
+  },
+  "popularity": 47054
  },
  "1603466": {
   "manager_name": "Point72 Asset Management, L.P.",
@@ -802,7 +838,8 @@
   "qid": "Q18345094",
   "display_name": "Lansdowne Partners",
   "website": null,
-  "logo": "/assets/managers/1608485-logo.webp"
+  "logo": "/assets/managers/1608485-logo.webp",
+  "popularity": 7981
  },
  "1610520": {
   "manager_name": "UBS Group AG",
@@ -872,14 +909,16 @@
    "credit": "Appaloosa Management",
    "license": "CC BY-SA 3.0",
    "photo": "/assets/managers/1656456-person.webp"
-  }
+  },
+  "popularity": 205931
  },
  "1665241": {
   "manager_name": "Schonfeld Strategic Advisors LLC",
   "qid": "Q116205030",
   "display_name": "Schonfeld",
   "website": null,
-  "logo": "/assets/managers/1665241-logo.webp"
+  "logo": "/assets/managers/1665241-logo.webp",
+  "popularity": 23706
  },
  "1666741": {
   "manager_name": "Cetera Investment Advisers",
@@ -936,7 +975,8 @@
    "credit": "Caroline Wood",
    "license": "CC BY-SA 4.0",
    "photo": "/assets/managers/1697748-person.webp"
-  }
+  },
+  "popularity": 227305
  },
  "1705339": {
   "manager_name": "MIRAE ASSET GLOBAL ETFS HOLDINGS Ltd.",
@@ -949,7 +989,8 @@
   "qid": "Q24963168",
   "display_name": "Himalaya Capital",
   "website": null,
-  "logo": "/assets/managers/1709323-logo.webp"
+  "logo": "/assets/managers/1709323-logo.webp",
+  "popularity": 17878
  },
  "1711924": {
   "manager_name": "CIBC Bancorp USA Inc.",
@@ -961,21 +1002,24 @@
   "manager_name": "Aberdeen Group plc",
   "qid": null,
   "display_name": "Aberdeen",
-  "website": null
+  "website": null,
+  "popularity": 0
  },
  "1720792": {
   "manager_name": "Ruane, Cunniff & Goldfarb L.P.",
   "qid": null,
   "display_name": "Ruane, Cunniff & Goldfarb",
   "website": null,
-  "logo": "/assets/managers/1720792-logo.webp"
+  "logo": "/assets/managers/1720792-logo.webp",
+  "popularity": 0
  },
  "1729829": {
   "manager_name": "Qube Research & Technologies Ltd",
   "qid": "Q118342428",
   "display_name": "Qube Research & Technologies",
   "website": null,
-  "logo": "/assets/managers/1729829-logo.webp"
+  "logo": "/assets/managers/1729829-logo.webp",
+  "popularity": 60459
  },
  "1739439": {
   "manager_name": "Rockefeller Capital Management L.P.",
@@ -993,14 +1037,16 @@
    "qid": "Q114837582",
    "name": "Daniel Sundheim",
    "title": "Founder"
-  }
+  },
+  "popularity": 46550
  },
  "1759654": {
   "manager_name": "Quantinno Capital Management LP",
   "qid": null,
   "display_name": "Quantinno Capital",
   "website": null,
-  "logo": "/assets/managers/1759654-logo.webp"
+  "logo": "/assets/managers/1759654-logo.webp",
+  "popularity": 0
  },
  "1791786": {
   "manager_name": "Elliott Investment Management L.P.",
@@ -1015,13 +1061,15 @@
    "credit": "World Economic Forum",
    "license": "CC BY-SA 2.0",
    "photo": "/assets/managers/1791786-person.webp"
-  }
+  },
+  "popularity": 167911
  },
  "1798849": {
   "manager_name": "Durable Capital Partners LP",
   "qid": null,
   "display_name": "Durable Capital",
-  "website": null
+  "website": null,
+  "popularity": 0
  },
  "1811242": {
   "manager_name": "Vanguard Global Advisers, LLC",
@@ -1044,7 +1092,8 @@
    "qid": "Q111928349",
    "name": "Antonio Gracias",
    "title": "Founder & CEO"
-  }
+  },
+  "popularity": 112315
  },
  "1871926": {
   "manager_name": "Nuveen, LLC",
@@ -1058,7 +1107,8 @@
   "qid": null,
   "display_name": "Corient",
   "website": null,
-  "logo": "/assets/managers/1948780-logo.webp"
+  "logo": "/assets/managers/1948780-logo.webp",
+  "popularity": 0
  },
  "19617": {
   "manager_name": "JPMORGAN CHASE & CO",
@@ -1086,7 +1136,8 @@
   "qid": "Q1234076",
   "display_name": "Dodge & Cox",
   "website": "https://www.dodgeandcox.com/",
-  "logo": "/assets/managers/200217-logo.webp"
+  "logo": "/assets/managers/200217-logo.webp",
+  "popularity": 16355
  },
  "2012383": {
   "manager_name": "BlackRock, Inc.",
@@ -1116,7 +1167,8 @@
    "credit": "Senate Democrats",
    "license": "CC BY 2.0",
    "photo": "/assets/managers/2026053-person.webp"
-  }
+  },
+  "popularity": 967320
  },
  "2100119": {
   "manager_name": "VANGUARD CAPITAL MANAGEMENT LLC",
@@ -1374,7 +1426,8 @@
   "qid": "Q5664776",
   "display_name": "Harris Associates",
   "website": "http://www.harrisassoc.com/",
-  "logo": "/assets/managers/813917-logo.webp"
+  "logo": "/assets/managers/813917-logo.webp",
+  "popularity": 10877
  },
  "815917": {
   "manager_name": "JONES FINANCIAL COMPANIES LLLP",
@@ -1445,7 +1498,8 @@
    "credit": "The official global picture collection of UBS from Switzerland",
    "license": "CC BY 2.0",
    "photo": "/assets/managers/861177-person.webp"
-  }
+  },
+  "popularity": 0
  },
  "869178": {
   "manager_name": "VAN ECK ASSOCIATES CORP",
@@ -1536,7 +1590,8 @@
    "credit": "Gage Skidmore",
    "license": "CC BY-SA 3.0",
    "photo": "/assets/managers/909661-person.webp"
-  }
+  },
+  "popularity": 86378
  },
  "912938": {
   "manager_name": "MASSACHUSETTS FINANCIAL SERVICES CO /MA/",
@@ -1554,7 +1609,8 @@
    "qid": "Q115655498",
    "name": "Andrew Schlossberg",
    "title": "CEO"
-  }
+  },
+  "popularity": 0
  },
  "915191": {
   "manager_name": "FAIRFAX FINANCIAL HOLDINGS LTD/ CAN",
@@ -1569,7 +1625,8 @@
    "credit": "செல்வா at Tamil Wikipedia",
    "license": "CC BY 3.0",
    "photo": "/assets/managers/915191-person.webp"
-  }
+  },
+  "popularity": 114233
  },
  "919079": {
   "manager_name": "California Public Employees Retirement System",
@@ -1581,7 +1638,8 @@
    "qid": "Q117221905",
    "name": "Marcie Frost",
    "title": "CEO"
-  }
+  },
+  "popularity": 35703
  },
  "919859": {
   "manager_name": "MACKENZIE FINANCIAL CORP",
@@ -1602,14 +1660,16 @@
    "credit": "AviateHistory",
    "license": "CC0",
    "photo": "/assets/managers/921669-person.webp"
-  }
+  },
+  "popularity": 269021
  },
  "921739": {
   "manager_name": "NOMURA ASSET MANAGEMENT INTERNATIONAL INC.",
   "qid": "Q1295105",
   "display_name": "Nomura Asset Management",
   "website": "https://www.nomura.com/",
-  "logo": "/assets/managers/921739-logo.webp"
+  "logo": "/assets/managers/921739-logo.webp",
+  "popularity": 0
  },
  "92230": {
   "manager_name": "TRUIST FINANCIAL CORP",
@@ -1682,7 +1742,8 @@
    "qid": "Q6512938",
    "name": "Lee Ainslie",
    "title": "Founder"
-  }
+  },
+  "popularity": 15609
  },
  "93751": {
   "manager_name": "STATE STREET CORP",
@@ -1760,6 +1821,7 @@
    "credit": "kellywritershouse",
    "license": "CC BY 2.0",
    "photo": "/assets/managers/949509-person.webp"
-  }
+  },
+  "popularity": 155433
  }
 }
