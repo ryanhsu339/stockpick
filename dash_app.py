@@ -91,6 +91,8 @@ from congress_trades import (
     load_activity_summary_snapshot,
     load_member_positions_snapshot,
 )
+from president_trades import PRESIDENT_CANDIDATE
+from president_trades import load_snapshot as load_president_snapshot
 
 # One shared session across requests/users so the ticker-map cache in
 # company_growth_calc.py is actually reused instead of refetched every time.
@@ -2838,7 +2840,12 @@ _POLITICIAN_TABLE_STYLE = dict(
     style_table={"overflowX": "auto", "backgroundColor": _MANAGER_TABLE_BG},
     style_cell=_MANAGER_TABLE_CELL_STYLE,
     style_cell_conditional=[
-        {"if": {"column_id": "ticker"}, "textAlign": "left", "color": _SECURITY_TEXT_COLOR},
+        # maxWidth + wrapping: a President's trade without a resolved
+        # ticker shows the security's full name here (see
+        # president_trades.to_transactions), which would otherwise widen
+        # the column enough to push the others off-screen.
+        {"if": {"column_id": "ticker"}, "textAlign": "left", "color": _SECURITY_TEXT_COLOR,
+         "maxWidth": "200px", "whiteSpace": "normal", "overflowWrap": "anywhere"},
     ] + [
         {"if": {"column_id": col_id}, "minWidth": width, "width": width}
         for col_id, width in _POLITICIAN_COLUMN_WIDTHS.items()
@@ -2852,6 +2859,13 @@ _POLITICIAN_NOTE = ("Every ticker with disclosed activity, ranked by estimated n
                      "available filing history. Amounts are disclosed dollar RANGES (STOCK Act "
                      "filings don't require exact figures), so position sizes below are estimates "
                      "built from the midpoint of each disclosed transaction and are approximations.")
+_PRESIDENT_NOTE = ("Stocks and ETFs only, from the President's OGE Form 278-T periodic transaction "
+                   "reports (bonds and cash funds are left out). His assets are held in a trust "
+                   "managed by others. Filings are posted 30+ days after the trades, and the "
+                   "scanned PDFs are read by machine, so a few tickers or dates may be off; "
+                   "securities that couldn't be matched to a ticker are listed by name. Amounts "
+                   "are disclosed dollar ranges, so positions are estimates built from each "
+                   "trade's midpoint and only cover the period shown above.")
 _POLITICIAN_POSITION_FILTERS = [
     ("net_estimated_value", "Est. Net Value ($)"),
     ("total_bought", "Total Bought ($)"),
@@ -3169,8 +3183,11 @@ def _manager_tracker_children():
     ]
 
 
-_CHAMBER_ROSTER_FN = {"house": list_all_house_members, "senate": list_all_senators}
-_CHAMBER_DEFAULT_KEY_PREFIX = {"house": "house|Pelosi|", "senate": ""}
+# "president" isn't a chamber, but rides the same tab/dropdown/key
+# machinery (see president_trades.py) -- a one-entry roster.
+_CHAMBER_ROSTER_FN = {"house": list_all_house_members, "senate": list_all_senators,
+                      "president": lambda session=None: [PRESIDENT_CANDIDATE]}
+_CHAMBER_DEFAULT_KEY_PREFIX = {"house": "house|Pelosi|", "senate": "", "president": ""}
 
 
 def _politician_dropdown_key(c):
@@ -3202,7 +3219,8 @@ def _search_all_members(query, limit=5):
     q = query.strip().lower()
     if not q:
         return []
-    roster = list_all_house_members(session=_session) + list_all_senators(session=_session)
+    roster = (list_all_house_members(session=_session) + list_all_senators(session=_session)
+              + [PRESIDENT_CANDIDATE])
     candidates = [
         c for c in roster
         if q in c["last"].lower() or q in c["first"].lower() or q in f"{c['first']} {c['last']}".lower()
@@ -3298,7 +3316,7 @@ def _politician_tracker_children(initial_pending=None):
         # consumes it instead of falling back to that chamber's default
         # member, then clears it.
         html.Hr(style=_SECTION_DIVIDER_STYLE),
-        html.H3("Look Up a Member", id="lookup-member-heading", style=_LOOKUP_HEADING_STYLE),
+        html.H3("Look Up a Politician", id="lookup-member-heading", style=_LOOKUP_HEADING_STYLE),
         dcc.Tabs(
             id="politician-chamber-tabs",
             value=initial_chamber,
@@ -3309,6 +3327,8 @@ def _politician_tracker_children(initial_pending=None):
                         style=_NAV_TAB_STYLE, selected_style=_NAV_TAB_SELECTED_STYLE),
                 dcc.Tab(label="Senate", value="senate",
                         style=_NAV_TAB_STYLE, selected_style=_NAV_TAB_SELECTED_STYLE),
+                dcc.Tab(label="President", value="president",
+                        style=_NAV_TAB_STYLE, selected_style=_NAV_TAB_SELECTED_STYLE),
             ],
         ),
         html.Div(
@@ -3318,7 +3338,7 @@ def _politician_tracker_children(initial_pending=None):
             children=[
                 html.Div(
                     children=[
-                        html.Label("Member of Congress"),
+                        html.Label("Politician"),
                         dcc.Dropdown(
                             id="politician-input",
                             options=options,
@@ -3336,7 +3356,13 @@ def _politician_tracker_children(initial_pending=None):
             custom_spinner=html.Div(className="spinner"),
             children=html.Div(id="politician-status-msg", style={"marginTop": "16px", "whiteSpace": "pre-wrap"}),
         ),
-        html.P(_POLITICIAN_NOTE, style={**_PARA_STYLE, "fontSize": "13px", "marginTop": "24px"}),
+        # President only (empty for members of Congress) -- see
+        # _president_summary_tiles.
+        html.Div(id="president-summary-tiles",
+                 style={"display": "grid", "gridTemplateColumns": "repeat(auto-fit, minmax(150px,1fr))",
+                        "gap": "10px", "marginTop": "16px"}),
+        html.P(_POLITICIAN_NOTE, id="politician-note",
+               style={**_PARA_STYLE, "fontSize": "13px", "marginTop": "24px"}),
         html.Div(
             style={"display": "flex", "gap": "24px", "flexWrap": "wrap", "marginTop": "8px"},
             children=[
@@ -3719,7 +3745,8 @@ def _watchlist_display_name(item):
         return str(key)
     if kind == "politician":
         chamber, _, rest = str(key).partition("|")
-        return f"{'Sen.' if chamber == 'senate' else 'Rep.'} {rest.partition('|')[0]}"
+        title = {"senate": "Sen.", "president": "Pres."}.get(chamber, "Rep.")
+        return f"{title} {rest.partition('|')[0]}"
     return _short_manager_name(item["label"])
 
 
@@ -4078,7 +4105,7 @@ app.layout = html.Div(
                 html.Div(id="politician-panel", style=_tracker_panel_style("politician"), children=None),
                 # Below whichever panel is showing -- moved out of the
                 # sidebar footer, where it took up room on every screen.
-                html.Div("Data: SEC EDGAR 13F · House & Senate PTRs.", id="main-data-source",
+                html.Div("Data: SEC EDGAR 13F · House & Senate PTRs · OGE 278-Ts.", id="main-data-source",
                          style={"maxWidth": "1400px", "margin": "0 auto", "padding": "0 16px 24px",
                                 "fontSize": "11px", "color": "var(--body-text)"}),
                 # Hidden by default; shown briefly by the sidebar nav
@@ -4448,9 +4475,10 @@ def update_global_search_suggestions(query):
             for m in managers
         ])
     if members:
-        sections += _global_search_section("Members of Congress", [
+        sections += _global_search_section("Politicians", [
             html.Button(
-                f"{c['display']} ({c['state_dst']})" if c["state_dst"] else c["display"],
+                f"{c['display']} ({c['state_dst']})" if c["state_dst"]
+                else f"{c['display']} (President)" if c["chamber"] == "president" else c["display"],
                 id={"type": "global-search-member", "chamber": c["chamber"], "last": c["last"],
                     "first": c["first"]},
                 n_clicks=0, style=_SUGGESTION_ROW_STYLE,
@@ -7888,12 +7916,48 @@ def _politician_position_row_to_record(p):
     }
 
 
+def _president_summary_tiles(snapshot):
+    filings = snapshot.get("filings") or []
+    if not filings:
+        return []
+    latest = filings[0]
+    filed = date.fromisoformat(latest["filed"])
+    period = None
+    if snapshot.get("first_trade") and snapshot.get("last_trade"):
+        first, last = (f"{date.fromisoformat(snapshot[k]):%b %Y}" for k in ("first_trade", "last_trade"))
+        period = first if first == last else f"{first} – {last}"
+    bought = sum(f["bought"] for f in filings)
+    sold = sum(f["sold"] for f in filings)
+    return [
+        html.A(_kpi_tile("Latest Filing", f"{filed:%b} {filed.day}, {filed.year}", "View source PDF"),
+               href=latest["url"], target="_blank", rel="noopener noreferrer",
+               style={"textDecoration": "none", "color": "inherit"}),
+        _kpi_tile("Trades in Latest Filing", f"{latest['trades']:,}", "Stocks & ETFs"),
+        _kpi_tile("Est. Bought / Sold", f"{_fmt_amount(bought)} / {_fmt_amount(sold)}",
+                  f"{len(filings)} filing{'s' if len(filings) != 1 else ''}"),
+        _kpi_tile("Period Covered", period),
+    ]
+
+
+def _generate_president():
+    snapshot = load_president_snapshot()
+    if not snapshot.get("all_positions"):
+        return ("Donald J. Trump: no data available right now.", [], [], [], [], [], _PRESIDENT_NOTE)
+    increases = [_politician_move_row_to_record(t) for t in snapshot["top_increases"]]
+    decreases = [_politician_move_row_to_record(t) for t in snapshot["top_decreases"]]
+    positions = [_politician_position_row_to_record(p) for p in snapshot["all_positions"]]
+    return ("Found: Donald J. Trump (President)", increases, decreases, positions, positions,
+            _president_summary_tiles(snapshot), _PRESIDENT_NOTE)
+
+
 @app.callback(
     Output("politician-status-msg", "children"),
     Output("politician-increases-table", "data"),
     Output("politician-decreases-table", "data"),
     Output("politician-positions-table", "data"),
     Output("politician-positions-full", "data"),
+    Output("president-summary-tiles", "children"),
+    Output("politician-note", "children"),
     Input("politician-input", "value"),
     # "politician-positions-table" has other callbacks (filter_politician_
     # positions, clear_politician_filters) writing to it with
@@ -7907,7 +7971,9 @@ def _politician_position_row_to_record(p):
 )
 def generate_politician(dropdown_value):
     if not dropdown_value:
-        return "Select a member of Congress.", [], [], [], []
+        return "Select a member of Congress.", [], [], [], [], [], _POLITICIAN_NOTE
+    if dropdown_value.startswith("president|"):
+        return _generate_president()
 
     # dropdown_value is already "chamber|last|first" -- the same key
     # load_member_positions_snapshot's dict uses (see
@@ -7918,12 +7984,12 @@ def generate_politician(dropdown_value):
     try:
         snapshot = load_member_positions_snapshot()
     except (OSError, json.JSONDecodeError):
-        return f"{display}: no data available right now.", [], [], [], []
+        return f"{display}: no data available right now.", [], [], [], [], [], _POLITICIAN_NOTE
 
     result = snapshot.get(dropdown_value)
     if result is None:
         return (f"{display}: no parseable stock transactions found in the latest snapshot.",
-                [], [], [], [])
+                [], [], [], [], [], _POLITICIAN_NOTE)
 
     resolved = result["candidate"]
     chamber_label = "Senator" if resolved["chamber"] == "senate" else "Representative"
@@ -7932,7 +7998,7 @@ def generate_politician(dropdown_value):
     increases = [_politician_move_row_to_record(t) for t in result["top_increases"]]
     decreases = [_politician_move_row_to_record(t) for t in result["top_decreases"]]
     positions = [_politician_position_row_to_record(p) for p in result["all_positions"]]
-    return status, increases, decreases, positions, positions
+    return status, increases, decreases, positions, positions, [], _POLITICIAN_NOTE
 
 
 @app.callback(
