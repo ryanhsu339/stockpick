@@ -545,7 +545,7 @@ def _page(title, body, alt, error=None, notice=None, status=200, aside="", pixel
     elif notice:
         message = f'<div class="notice">{escape(notice)}</div>'
     html = _PAGE_TEMPLATE.format(title=title, message=message, body=body, alt=alt, aside=aside,
-                                 pixel_head=tracking.META_PIXEL_HEAD if pixel else "",
+                                 pixel_head=tracking.PIXEL_HEAD if pixel else "",
                                  pixel_body=tracking.META_PIXEL_BODY if pixel else "")
     return flask.Response(html, status=status, mimetype="text/html")
 

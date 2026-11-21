@@ -267,7 +267,7 @@ def _render_page(site_url, path, title, description, body, json_ld, status=200):
         site_url=_e(site_url), body=body,
         # "</" can't appear inside a <script> block.
         json_ld=json.dumps(json_ld).replace("</", "<\\/"),
-        pixel_head=tracking.META_PIXEL_HEAD, pixel_body=tracking.META_PIXEL_BODY,
+        pixel_head=tracking.PIXEL_HEAD, pixel_body=tracking.META_PIXEL_BODY,
     )
     resp = flask.Response(page, status=status, mimetype="text/html")
     if status == 200:

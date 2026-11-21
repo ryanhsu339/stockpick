@@ -3533,7 +3533,7 @@ app.index_string = """<!DOCTYPE html>
         {%metas%}
         <title>{%title%}</title>
         """ + _SEO_HEAD + """
-        """ + tracking.META_PIXEL_HEAD + """
+        """ + tracking.PIXEL_HEAD + """
         {%favicon%}
         {%css%}
     </head>
