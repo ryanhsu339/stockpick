@@ -472,6 +472,38 @@ document.addEventListener("focusin", function (e) {
     document.addEventListener("scroll", hide, {capture: true, passive: true});
 })();
 
+// Same idea for any element with a data-chart-tip (e.g. the Call/Put Ratio
+// movers rows, see _build_mover_row), styled as .chart-tooltip to match the
+// Plotly charts' hover box. The rows scroll inside their card, so the box
+// hides on any scroll rather than drifting away from its row.
+(function () {
+    var tooltip = null;
+    function hide() {
+        if (tooltip) tooltip.style.display = "none";
+    }
+    document.addEventListener("mousemove", function (event) {
+        var target = event.target.closest ? event.target.closest("[data-chart-tip]") : null;
+        if (!target) {
+            hide();
+            return;
+        }
+        if (!tooltip) {
+            tooltip = document.createElement("div");
+            tooltip.className = "chart-tooltip";
+            document.body.appendChild(tooltip);
+        }
+        tooltip.textContent = target.getAttribute("data-chart-tip");
+        tooltip.style.display = "block";
+        var box = tooltip.getBoundingClientRect();
+        var left = event.clientX + 14, top = event.clientY + 14;
+        if (left + box.width > window.innerWidth - 8) left = Math.max(8, event.clientX - box.width - 14);
+        if (top + box.height > window.innerHeight - 8) top = Math.max(8, event.clientY - box.height - 14);
+        tooltip.style.left = left + "px";
+        tooltip.style.top = top + "px";
+    }, {passive: true});
+    document.addEventListener("scroll", hide, {capture: true, passive: true});
+})();
+
 // Builds the Companies tab's ticker bar and S&P 500 heatmap from the data
 // load_day_movers sends (_market_ticker_views, _sp500_heatmap_data), as plain
 // elements rather than Dash components -- see the clientside callbacks there.
@@ -491,11 +523,15 @@ document.addEventListener("focusin", function (e) {
 
     window.renderMarketTicker = function (container, views) {
         if (!container) return;
+        // No quotes (Yahoo failed): hide the whole bar rather than show an
+        // error; a later refresh with data brings it back.
+        var bar = container.closest(".market-ticker");
         if (!views || !views.length) {
-            container.replaceChildren(el("p", "market-ticker-empty",
-                "Couldn't load market prices right now -- try again shortly."));
+            container.replaceChildren();
+            if (bar) bar.style.display = "none";
             return;
         }
+        if (bar) bar.style.display = "";
         // Every view twice, so there's always more bar to the right while it
         // slides; the slider below jumps back to the start once it reaches
         // the copy of the first view, which looks the same.

@@ -5786,16 +5786,19 @@ def _build_mover_row(r, rank, kind, mode="price"):
                       html.Span(" → ", style={"color": "var(--body-text)"}), ratio],
         )
         change = f"{r['change_pct']:+.1f}%"
-        tooltip = f"Call/put ratio {prev_ratio} → {ratio}: {r['call_oi']:,} calls vs {r['put_oi']:,} puts open"
+        # Shown by custom.js's chart-tooltip, styled like the Plotly charts'
+        # hover box -- one line each, like the earnings chart's.
+        tooltip = {"data-chart-tip": f"Call/Put: {prev_ratio} → {ratio}\nCalls: {r['call_oi']:,}\n"
+                                     f"Puts: {r['put_oi']:,}"}
     else:
         price = r.get("price")
         value = html.Span(f"${price:,.2f}" if price is not None else "—", style={**mono, "color": "var(--text)"})
         change = f"{r['change_pct']:+.2f}%"
-        tooltip = None
+        tooltip = {}
     return html.Div(
         id={"type": "mover-row", "kind": kind, "ticker": r["symbol"]},
         n_clicks=0,
-        title=tooltip,
+        **tooltip,
         className="pol-row",
         style={"display": "grid", "gridTemplateColumns": "22px minmax(0,1fr) auto 78px", "gap": "12px",
                "alignItems": "center", "padding": "11px 0", "borderBottom": "1px solid var(--border)",
@@ -5829,6 +5832,11 @@ def _build_mover_row(r, rank, kind, mode="price"):
 
 
 _MOVERS_EMPTY_MSG_STYLE = {"color": "var(--body-text)", "fontSize": "13px", "margin": "8px 0"}
+# Marks a "couldn't load" placeholder: custom.css hides the card holding it
+# (.market-unavailable), so a failed Yahoo fetch hides that section rather
+# than showing users an error. The text only shows in a browser without
+# :has() support.
+_UNAVAILABLE_CLASS = "market-unavailable"
 
 
 @app.callback(
@@ -5969,6 +5977,10 @@ app.clientside_callback(
         const container = document.getElementById("sp500-heatmap-container");
         if (open && sectors != null) window.renderSp500Heatmap(container, sectors);
         else if (container) container.replaceChildren();
+        // An empty list means the quotes fetch failed: hide the whole card,
+        // heading included, until a refresh brings data back.
+        const card = document.getElementById("heatmap-toggle").closest(".heatmap-card");
+        if (card) card.style.display = Array.isArray(sectors) && !sectors.length ? "none" : "";
         return [open ? {marginTop: "4px"} : {display: "none"}, open ? "\u2212" : "+",
                 open ? "Hide heatmap" : "Show heatmap"];
     }""",
@@ -6063,7 +6075,8 @@ def _build_market_overview(gainers, losers, industries):
     if losers:
         sentences.append(["On the downside, ", *_top_movers_phrase(losers, "fell"), "."])
     if not sentences:
-        return html.P("Couldn't load today's overview right now -- try again shortly.", style=_MOVERS_EMPTY_MSG_STYLE)
+        return html.P("Couldn't load today's overview right now -- try again shortly.", className=_UNAVAILABLE_CLASS,
+                      style=_MOVERS_EMPTY_MSG_STYLE)
     children = [html.Span(_OVERVIEW_LABEL, style={**_HEADER_STYLE, "fontSize": "15px", "display": "block",
                                                     "marginBottom": "4px"})]
     for sentence in sentences:
@@ -6173,7 +6186,8 @@ def _render_mover_rows(visible_count, records, kind, mode="price"):
     if not records:
         if mode == "options":
             return html.P(_OPTIONS_MOVERS_EMPTY_MSG, style=_MOVERS_EMPTY_MSG_STYLE)
-        return html.P("Couldn't load today's movers right now -- try again shortly.", style=_MOVERS_EMPTY_MSG_STYLE)
+        return html.P("Couldn't load today's movers right now -- try again shortly.", className=_UNAVAILABLE_CLASS,
+                      style=_MOVERS_EMPTY_MSG_STYLE)
     return [_build_mover_row(r, i + 1, kind, mode) for i, r in enumerate(records[:visible_count])]
 
 

@@ -39,6 +39,10 @@
     --scrollbar-thumb: #4a4945;
     --section-loading-bg: rgba(22, 22, 21, 0.85);
     --scrollbar-thumb-hover: #63625d;
+    /* The Plotly charts' hover box (_CHART_THEMES' hover_bg/axis_line),
+       for HTML tooltips that should match it (.chart-tooltip). */
+    --chart-hover-bg: #1f1f1c;
+    --chart-hover-border: #2f2f2c;
 }
 :root[data-theme="light"] {
     color-scheme: light;
@@ -63,6 +67,8 @@
     --scrollbar-thumb: #cfcec8;
     --section-loading-bg: rgba(255, 255, 255, 0.85);
     --scrollbar-thumb-hover: #b3b2ab;
+    --chart-hover-bg: #ffffff;
+    --chart-hover-border: #d6d5cf;
 }
 
 html, body {
@@ -1397,6 +1403,33 @@ details summary { cursor: pointer; color: var(--body-text); font-size: 13px; }
     white-space: pre-line;
     pointer-events: none;
     box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);
+}
+/* A market section whose data failed to load (_UNAVAILABLE_CLASS in
+   dash_app.py) is hidden rather than showing users an error: the Daily
+   Overview card, a movers card, and the movers note and "Rank by" toggle once
+   both cards are. */
+#market-overview-card:has(.market-unavailable),
+.movers-loading:has(.market-unavailable),
+#company-movers-wrap:has(#top-gainers-container .market-unavailable):has(#top-losers-container .market-unavailable)
+    :is(#company-movers-note, .movers-mode-row) {
+    /* !important: the toggle row sets display: flex inline. */
+    display: none !important;
+}
+/* Hover box for elements with a data-chart-tip (custom.js), drawn to match
+   the Plotly charts' own: same colors, square corners, 12px Arial, tight
+   padding and no shadow -- e.g. the Call/Put Ratio movers rows. */
+.chart-tooltip {
+    position: fixed;
+    z-index: 1000;
+    padding: 3px 6px;
+    border: 1px solid var(--chart-hover-border);
+    background: var(--chart-hover-bg);
+    color: var(--text);
+    font-family: Arial, sans-serif;
+    font-size: 12px;
+    line-height: 1.35;
+    white-space: pre-line;
+    pointer-events: none;
 }
 .heatmap-tooltip::first-line {
     font-weight: 600;
