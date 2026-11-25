@@ -70,7 +70,8 @@ from stock_price import (HoldingsDataError, LIVE_RANGE_KEYS, PriceDataError, RAN
                           fetch_day_movers, fetch_fund_name, fetch_earnings_history, fetch_previous_close,
                           fetch_price_as_of, fetch_price_history, fetch_put_call_ratio, fetch_sp500_industry_returns, fetch_sp500_quotes,
                           fetch_sp500_stocks,
-                          fetch_ticker_overview, us_market_session_active)
+                          fetch_ticker_overview, load_options_movers, OPTIONS_MOVERS_MIN_OI,
+                          us_market_session_active)
 from thirteenf import (
     FilingDataError,
     ManagerLookupError,
@@ -1533,7 +1534,34 @@ def _financials_valuation_blocks(suffix):
     ]
 
 
-def _movers_card(title, container_id):
+def _movers_mode_toggle(toggle_id):
+    """The "Rank by Price | Call/Put Ratio" pill toggle above the movers
+    cards -- same pills as the Managers tab's Top Buys "Sort by". One toggle
+    drives both cards (see switch_movers_mode). persistence keeps the last
+    choice in localStorage, so the tab reopens in it. The panel skeleton
+    shows an inert copy (toggle_id None, nothing selected) so the cards
+    don't jump down when the real panel lands."""
+    pill = {**_NAV_TAB_STYLE, "padding": "6px 12px", "fontSize": "12px"}
+    selected = {**_NAV_TAB_SELECTED_STYLE, "padding": "6px 12px", "fontSize": "12px"}
+    tabs_kwargs = {"id": toggle_id, "value": "price", "persistence": True, "persistence_type": "local"}         if toggle_id else {"value": None}
+    return html.Div(
+        className="movers-mode-row",
+        style={"display": "flex", "justifyContent": "flex-end", "alignItems": "center", "gap": "8px",
+               "marginBottom": "12px"},
+        children=[
+            html.Span("Rank by", style={"fontSize": "12px", "color": "var(--body-text)"}),
+            dcc.Tabs(
+                mobile_breakpoint=0,
+                style={**_NAV_CONTAINER_STYLE, "marginTop": "0"},
+                children=[dcc.Tab(label=label, value=mode, style=pill, selected_style=selected)
+                          for mode, (label, _gainers_title, _losers_title) in _MOVERS_MODES.items()],
+                **tabs_kwargs,
+            ),
+        ],
+    )
+
+
+def _movers_card(title, container_id, title_id=None):
     # Same scrollable-card shell as the Politicians tab's Recent Trades/
     # Leaderboard (see _politician_tracker_children) -- the
     # movers-scroll-poll clientside callbacks below rely on the container's
@@ -1557,7 +1585,7 @@ def _movers_card(title, container_id):
                    "borderRadius": "14px", "padding": "0 20px 16px", "maxHeight": "480px",
                    "overflowY": "auto"},
             children=[
-                html.H3(title, style=_STICKY_CARD_TITLE_STYLE),
+                html.H3(title, id=title_id, style=_STICKY_CARD_TITLE_STYLE),
                 html.Div(id=container_id),
             ],
         ),
@@ -1780,6 +1808,7 @@ def _company_panel_skeleton():
                 children=html.Div(className="market-overview-body skeleton-spinner-wrap",
                                   children=html.Div(className="spinner")),
             ),
+            _movers_mode_toggle(None),
             html.Div(style={"display": "flex", "gap": "48px", "flexWrap": "wrap"},
                      children=[card("Today's Top Gainers"), card("Today's Top Losers")]),
             html.P(_MOVERS_NOTE, style={**_PARA_STYLE, "fontSize": "13px"}),
@@ -1828,11 +1857,12 @@ def _company_tracker_children():
         html.Div(
             id="company-movers-wrap",
             children=[
+                _movers_mode_toggle("movers-mode"),
                 html.Div(
                     style={"display": "flex", "gap": "48px", "flexWrap": "wrap"},
                     children=[
-                        _movers_card("Today's Top Gainers", "top-gainers-container"),
-                        _movers_card("Today's Top Losers", "top-losers-container"),
+                        _movers_card("Today's Top Gainers", "top-gainers-container", "top-gainers-title"),
+                        _movers_card("Today's Top Losers", "top-losers-container", "top-losers-title"),
                     ],
                 ),
                 html.P(_MOVERS_NOTE, id="company-movers-note", style={**_PARA_STYLE, "fontSize": "13px"}),
@@ -1842,6 +1872,12 @@ def _company_tracker_children():
         # Full, already-sorted lists live in the *-records stores; only a
         # growing prefix gets built into rows -- see load_day_movers/
         # render_mover_rows and the movers scroll-poll callbacks below.
+        # Both modes' full lists ({"price": {...}, "options": {...} or
+        # None}), so switch_movers_mode can swap the cards between them
+        # without another fetch; the *-records stores below hold whichever
+        # mode is showing.
+        dcc.Store(id="movers-all-records", data=None),
+        dcc.Store(id="movers-scroll-reset"),
         dcc.Store(id="top-gainers-records", data=[]),
         dcc.Store(id="top-gainers-visible-count", data=_MOVERS_PAGE_SIZE),
         dcc.Interval(id="top-gainers-scroll-poll", interval=1200, n_intervals=0),
@@ -2144,6 +2180,17 @@ _MOVERS_FETCH_COUNT = 100
 # matching the S&P 500 quotes' cache so each reload can bring something new.
 _MARKET_REFRESH_MS = 10 * 60 * 1000
 _MOVERS_NOTE = "Today's biggest moves among US-listed stocks with a market cap of roughly $2B+. Up to 10min lag"
+# The movers cards' "Rank by" toggle (movers-mode): mode -> (pill label,
+# gainers card title, losers card title). "options" ranks S&P 500 stocks by
+# the day-over-day % change in their call/put open-interest ratio, from the
+# snapshot build_options_snapshot.py commits each weekday before the open
+# (see stock_price.load_options_movers).
+_MOVERS_MODES = {
+    "price": ("Price", "Today's Top Gainers", "Today's Top Losers"),
+    "options": ("Call/Put Ratio", "Call/Put Ratio Gainers", "Call/Put Ratio Losers"),
+}
+_OPTIONS_MOVERS_EMPTY_MSG = ("Call/put ratio changes show up once two trading days of options data have been "
+                             "collected -- check back after the next open.")
 # A move this big (in %, either way) gets a tile's full red/green; smaller
 # ones fade toward the neutral midpoint. Fixed rather than scaled to the day's
 # range, so a quiet day reads as quiet. Also labels the legend, whose gradient
@@ -5713,16 +5760,42 @@ def update_company_suggestions_2(query, suppress):
     return _build_suggestions_dropdown(matches, "company-suggestion-2"), False
 
 
-def _build_mover_row(r, rank, kind):
+def _fmt_ratio(ratio):
+    """A call/put ratio to 2 decimals, or 3 below 0.1 -- a stock with
+    almost no calls open would otherwise read "0.01 → 0.01" for a 35% move."""
+    return f"{ratio:.2f}" if ratio >= 0.1 else f"{ratio:.3f}"
+
+
+def _build_mover_row(r, rank, kind, mode="price"):
     # Clickable the same way as the Politicians tab's Recent Trades rows
     # (.pol-row hover/tap highlight, underlined name) -- select_mover below
     # reads the ticker straight off the clicked row's id.
+    #
+    # Same four columns in both modes, so switching keeps the cards' look:
+    # "options" rows (load_options_movers) show the call/put ratio moving
+    # from the previous snapshot to the latest in place of the price, and
+    # the ratio's % change in the pill.
     up = (r.get("change_pct") or 0) >= 0
     color = "var(--up)" if up else "var(--down)"
-    price = r.get("price")
+    mono = {"fontFamily": "'IBM Plex Mono', monospace", "textAlign": "right"}
+    if mode == "options":
+        prev_ratio, ratio = _fmt_ratio(r["prev_ratio"]), _fmt_ratio(r["ratio"])
+        value = html.Span(
+            style={**mono, "color": "var(--text)", "whiteSpace": "nowrap"},
+            children=[html.Span(prev_ratio, style={"color": "var(--body-text)"}),
+                      html.Span(" → ", style={"color": "var(--body-text)"}), ratio],
+        )
+        change = f"{r['change_pct']:+.1f}%"
+        tooltip = f"Call/put ratio {prev_ratio} → {ratio}: {r['call_oi']:,} calls vs {r['put_oi']:,} puts open"
+    else:
+        price = r.get("price")
+        value = html.Span(f"${price:,.2f}" if price is not None else "—", style={**mono, "color": "var(--text)"})
+        change = f"{r['change_pct']:+.2f}%"
+        tooltip = None
     return html.Div(
         id={"type": "mover-row", "kind": kind, "ticker": r["symbol"]},
         n_clicks=0,
+        title=tooltip,
         className="pol-row",
         style={"display": "grid", "gridTemplateColumns": "22px minmax(0,1fr) auto 78px", "gap": "12px",
                "alignItems": "center", "padding": "11px 0", "borderBottom": "1px solid var(--border)",
@@ -5743,11 +5816,9 @@ def _build_mover_row(r, rank, kind):
                                                 "textOverflow": "ellipsis"}),
                 ],
             ),
-            html.Span(f"${price:,.2f}" if price is not None else "—",
-                      style={"fontFamily": "'IBM Plex Mono', monospace", "color": "var(--text)",
-                             "textAlign": "right"}),
+            value,
             html.Span(
-                f"{r['change_pct']:+.2f}%",
+                change,
                 style={"fontFamily": "'IBM Plex Mono', monospace", "fontSize": "12px", "fontWeight": "600",
                        "textAlign": "center", "padding": "3px 0", "borderRadius": "4px",
                        "backgroundColor": "rgba(76,195,138,0.14)" if up else "rgba(229,103,90,0.14)",
@@ -5768,13 +5839,18 @@ _MOVERS_EMPTY_MSG_STYLE = {"color": "var(--body-text)", "fontSize": "13px", "mar
     Output("sp500-heatmap-data", "data"),
     Output("market-overview-container", "children"),
     Output("market-ticker-data", "data"),
+    Output("movers-all-records", "data"),
+    Output("top-gainers-title", "children"),
+    Output("top-losers-title", "children"),
+    Output("company-movers-note", "children"),
     Input("company-panel", "children"),
     Input("market-refresh", "n_intervals"),
     State("top-gainers-visible-count", "data"),
     State("top-losers-visible-count", "data"),
+    State("movers-mode", "value"),
     prevent_initial_call=True,
 )
-def load_day_movers(_panel_children, _refresh_ticks, gainers_visible, losers_visible):
+def load_day_movers(_panel_children, _refresh_ticks, gainers_visible, losers_visible, mode):
     # Also re-runs on market-refresh's ticks so an open tab stays current,
     # but only during market hours: off hours nothing moves. The grace
     # period lets the first tick after the session's cutoff bring in the
@@ -5817,9 +5893,57 @@ def load_day_movers(_panel_children, _refresh_ticks, gainers_visible, losers_vis
         index_future = pool.submit(fetch_index)
         gainers, losers = gainers_future.result(), losers_future.result()
         (companies, quotes), industries = index_future.result()
-    return (gainers, losers, _render_mover_rows(gainers_visible or _MOVERS_PAGE_SIZE, gainers, "gainers"),
-            _render_mover_rows(losers_visible or _MOVERS_PAGE_SIZE, losers, "losers"), _sp500_heatmap_data(industries),
-            _build_market_overview(gainers, losers, industries), _market_ticker_views(companies, quotes))
+    # The Call/Put Ratio view comes from the committed options snapshot --
+    # a local file read, no Yahoo requests -- named from the same S&P 500
+    # quotes the heatmap uses.
+    all_records = {"price": {"gainers": gainers, "losers": losers}, "options": _options_movers(quotes)}
+    mode = mode if mode in _MOVERS_MODES else "price"
+    shown_gainers, shown_losers = _movers_lists(all_records, mode)
+    return (shown_gainers, shown_losers,
+            _render_mover_rows(gainers_visible or _MOVERS_PAGE_SIZE, shown_gainers, "gainers", mode),
+            _render_mover_rows(losers_visible or _MOVERS_PAGE_SIZE, shown_losers, "losers", mode),
+            _sp500_heatmap_data(industries),
+            _build_market_overview(gainers, losers, industries), _market_ticker_views(companies, quotes),
+            all_records, *_movers_mode_labels(mode, all_records))
+
+
+def _options_movers(quotes):
+    """load_options_movers' lists, cut to _MOVERS_FETCH_COUNT each and with
+    each stock's name added from `quotes` (fetch_sp500_quotes); None until
+    the snapshot has two days to compare."""
+    movers = load_options_movers()
+    if not movers:
+        return None
+
+    def named(rows):
+        return [{**r, "name": (quotes.get(r["symbol"]) or {}).get("shortName") or r["symbol"]}
+                for r in rows[:_MOVERS_FETCH_COUNT]]
+    return {"gainers": named(movers["gainers"]), "losers": named(movers["losers"]),
+            "as_of": movers["as_of"], "prev_date": movers["prev_date"]}
+
+
+def _movers_lists(all_records, mode):
+    """(gainers, losers) records for `mode` out of movers-all-records."""
+    lists = (all_records or {}).get(mode) or {}
+    return lists.get("gainers") or [], lists.get("losers") or []
+
+
+def _short_date(iso):
+    d = date.fromisoformat(iso)
+    return f"{d:%b} {d.day}"
+
+
+def _movers_mode_labels(mode, all_records):
+    """(gainers title, losers title, note) for the movers cards in `mode`."""
+    _label, gainers_title, losers_title = _MOVERS_MODES[mode]
+    note = _MOVERS_NOTE
+    if mode == "options":
+        options = (all_records or {}).get("options")
+        note = ("Change in call/put open-interest ratio (next 30 days of expirations) since the prior session, "
+                f"among S&P 500 stocks with {OPTIONS_MOVERS_MIN_OI // 1000}K+ contracts open. ")
+        note += (f"{_short_date(options['as_of'])} vs. {_short_date(options['prev_date'])}, updated each weekday "
+                 "before the open") if options else "Updated each weekday before the open"
+    return gainers_title, losers_title, note
 
 
 # The ticker bar and heatmap are built in the browser (custom.js) from plain
@@ -6045,30 +6169,84 @@ def _sp500_heatmap_data(industries):
     return blocks
 
 
-def _render_mover_rows(visible_count, records, kind):
+def _render_mover_rows(visible_count, records, kind, mode="price"):
     if not records:
+        if mode == "options":
+            return html.P(_OPTIONS_MOVERS_EMPTY_MSG, style=_MOVERS_EMPTY_MSG_STYLE)
         return html.P("Couldn't load today's movers right now -- try again shortly.", style=_MOVERS_EMPTY_MSG_STYLE)
-    return [_build_mover_row(r, i + 1, kind) for i, r in enumerate(records[:visible_count])]
+    return [_build_mover_row(r, i + 1, kind, mode) for i, r in enumerate(records[:visible_count])]
 
 
 @app.callback(
     Output("top-gainers-container", "children", allow_duplicate=True),
     Input("top-gainers-visible-count", "data"),
     State("top-gainers-records", "data"),
+    State("movers-mode", "value"),
     prevent_initial_call=True,
 )
-def render_gainer_rows(visible_count, records):
-    return _render_mover_rows(visible_count, records, "gainers")
+def render_gainer_rows(visible_count, records, mode):
+    return _render_mover_rows(visible_count, records, "gainers", mode)
 
 
 @app.callback(
     Output("top-losers-container", "children", allow_duplicate=True),
     Input("top-losers-visible-count", "data"),
     State("top-losers-records", "data"),
+    State("movers-mode", "value"),
     prevent_initial_call=True,
 )
-def render_loser_rows(visible_count, records):
-    return _render_mover_rows(visible_count, records, "losers")
+def render_loser_rows(visible_count, records, mode):
+    return _render_mover_rows(visible_count, records, "losers", mode)
+
+
+@app.callback(
+    Output("top-gainers-records", "data", allow_duplicate=True),
+    Output("top-losers-records", "data", allow_duplicate=True),
+    Output("top-gainers-container", "children", allow_duplicate=True),
+    Output("top-losers-container", "children", allow_duplicate=True),
+    Output("top-gainers-visible-count", "data", allow_duplicate=True),
+    Output("top-losers-visible-count", "data", allow_duplicate=True),
+    Output("top-gainers-title", "children", allow_duplicate=True),
+    Output("top-losers-title", "children", allow_duplicate=True),
+    Output("company-movers-note", "children", allow_duplicate=True),
+    Input("movers-mode", "value"),
+    State("movers-all-records", "data"),
+    State("top-gainers-visible-count", "data"),
+    State("top-losers-visible-count", "data"),
+    prevent_initial_call=True,
+)
+def switch_movers_mode(mode, all_records, gainers_visible, losers_visible):
+    # Swaps both cards to the other mode's lists from movers-all-records --
+    # no fetch -- back at the first page (the clientside callback below
+    # scrolls them back to the top to match). Before load_day_movers has
+    # filled movers-all-records, only the labels change; it reads the
+    # toggle itself when its rows arrive.
+    mode = mode if mode in _MOVERS_MODES else "price"
+    labels = _movers_mode_labels(mode, all_records)
+    if all_records is None:
+        return (no_update,) * 6 + labels
+    gainers, losers = _movers_lists(all_records, mode)
+    # Left alone when already at the first page, so render_*_rows doesn't
+    # rebuild the rows this response already carries.
+    reset = [no_update if v == _MOVERS_PAGE_SIZE else _MOVERS_PAGE_SIZE for v in (gainers_visible, losers_visible)]
+    return (gainers, losers, _render_mover_rows(_MOVERS_PAGE_SIZE, gainers, "gainers", mode),
+            _render_mover_rows(_MOVERS_PAGE_SIZE, losers, "losers", mode), *reset, *labels)
+
+
+app.clientside_callback(
+    """
+    function(_mode) {
+        ["top-gainers-container", "top-losers-container"].forEach(function(id) {
+            var container = document.getElementById(id);
+            if (container && container.parentElement) container.parentElement.scrollTop = 0;
+        });
+        return window.dash_clientside.no_update;
+    }
+    """,
+    Output("movers-scroll-reset", "data"),
+    Input("movers-mode", "value"),
+    prevent_initial_call=True,
+)
 
 
 @app.callback(

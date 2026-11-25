@@ -275,22 +275,93 @@ def fetch_put_call_ratio(ticker):
     return result
 
 
+def fetch_open_interest(ticker, pause=0.0):
+    """(call_oi, put_oi) summed over every option expiration in the next
+    _PUT_CALL_WINDOW_DAYS days -- one Yahoo request for the expiration list
+    plus one per expiration, sleeping `pause` seconds before each chain (the
+    options snapshot build uses that to stay under Yahoo's rate limits).
+    Raises whatever yfinance raises; (0, 0) when there are no options."""
+    ticker_obj = yf.Ticker(ticker)
+    horizon = date.today() + timedelta(days=_PUT_CALL_WINDOW_DAYS)
+    expirations = [e for e in ticker_obj.options if date.fromisoformat(e) <= horizon]
+    call_oi = put_oi = 0
+    for expiration in expirations:
+        if pause:
+            time.sleep(pause)
+        chain = ticker_obj.option_chain(expiration)
+        call_oi += int(chain.calls["openInterest"].fillna(0).sum())
+        put_oi += int(chain.puts["openInterest"].fillna(0).sum())
+    return call_oi, put_oi
+
+
 def _fetch_put_call_ratio_uncached(ticker):
     empty = {"ratio": None, "call_oi": None, "put_oi": None}
     try:
-        ticker_obj = yf.Ticker(ticker)
-        horizon = date.today() + timedelta(days=_PUT_CALL_WINDOW_DAYS)
-        expirations = [e for e in ticker_obj.options if date.fromisoformat(e) <= horizon]
-        call_oi = put_oi = 0
-        for expiration in expirations:
-            chain = ticker_obj.option_chain(expiration)
-            call_oi += int(chain.calls["openInterest"].fillna(0).sum())
-            put_oi += int(chain.puts["openInterest"].fillna(0).sum())
+        call_oi, put_oi = fetch_open_interest(ticker)
     except Exception:
         return empty
     if not call_oi:
         return empty
     return {"ratio": put_oi / call_oi, "call_oi": call_oi, "put_oi": put_oi}
+
+
+# Written by build_options_snapshot.py before each US session: the last few
+# trading days' call/put open interest for every S&P 500 stock, as
+# {"days": [{"date": "YYYY-MM-DD", "oi": {symbol: [call_oi, put_oi]}}, ...]},
+# oldest first. Yahoo keeps no open-interest history, so this file is the
+# only way to compare one session's positioning with the one before.
+OPTIONS_HISTORY_PATH = Path(__file__).parent / "data" / "options_ratio_history.json"
+# Both sessions need at least this many contracts open (calls + puts) for a
+# stock to be ranked -- below it, a handful of contracts swings the ratio
+# wildly and crowds out the stocks where positioning really moved.
+OPTIONS_MOVERS_MIN_OI = 5000
+_options_movers_cache = None
+
+
+def load_options_movers():
+    """{"gainers", "losers", "as_of", "prev_date"} from OPTIONS_HISTORY_PATH:
+    each list holds one {symbol, ratio, prev_ratio, change_pct, call_oi,
+    put_oi} per stock (ratio = call OI / put OI), ranked by the ratio's %
+    change between the two latest snapshots -- biggest rise first in
+    gainers, biggest fall first in losers. None until the file has two days
+    to compare. Re-read only when the file changes."""
+    global _options_movers_cache
+    try:
+        mtime = OPTIONS_HISTORY_PATH.stat().st_mtime
+    except FileNotFoundError:
+        return None
+    if _options_movers_cache and _options_movers_cache[0] == mtime:
+        return _options_movers_cache[1]
+    try:
+        days = json.loads(OPTIONS_HISTORY_PATH.read_text(encoding="utf-8"))["days"]
+    except (OSError, ValueError, KeyError):
+        return None
+    result = None
+    if len(days) >= 2:
+        prev, latest = days[-2], days[-1]
+        rows = []
+        for symbol, (call_oi, put_oi) in latest["oi"].items():
+            prev_oi = prev["oi"].get(symbol)
+            if not prev_oi:
+                continue
+            prev_call, prev_put = prev_oi
+            if not (put_oi and prev_put and call_oi and prev_call):
+                continue
+            if min(call_oi + put_oi, prev_call + prev_put) < OPTIONS_MOVERS_MIN_OI:
+                continue
+            ratio, prev_ratio = call_oi / put_oi, prev_call / prev_put
+            rows.append({"symbol": symbol, "ratio": ratio, "prev_ratio": prev_ratio,
+                         "change_pct": (ratio / prev_ratio - 1) * 100,
+                         "call_oi": call_oi, "put_oi": put_oi})
+        rows.sort(key=lambda r: r["change_pct"], reverse=True)
+        result = {
+            "gainers": [r for r in rows if r["change_pct"] > 0],
+            "losers": [r for r in reversed(rows) if r["change_pct"] < 0],
+            "as_of": latest["date"],
+            "prev_date": prev["date"],
+        }
+    _options_movers_cache = (mtime, result)
+    return result
 
 
 def _fetch_analyst_split(ticker_obj):

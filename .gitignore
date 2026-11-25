@@ -16,3 +16,7 @@ congress_cache.db
 Semiconductor Notes.docx
 ~$*
 *.tmp
+
+# Ad creatives and manually downloaded trade exports (not used by the app)
+ads/
+data/senate_trades_latest.csv
