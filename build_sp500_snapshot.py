@@ -10,6 +10,12 @@ fields the Companies tab shows on a ticker's own page, so a stock's heatmap
 tile carries the name its page does. That's one request per company, which is
 why it happens here and not at request time.
 
+Each company also gets its market cap, share price, shares outstanding and
+float as of the run: the app's token-free fallback for live quotes
+(stock_price._fetch_spark_quotes) only returns price and % change, and scales
+these to today's price for the heatmap's weights and the ticker bar's "largest
+stocks". They're a week old at most, which is fine for that.
+
 Each company is kept once: the index holds a few companies through two share
 classes (GOOGL/GOOG, FOXA/FOX, NWSA/NWS), and Yahoo reports the whole
 company's market cap on each class, so keeping both would double-count it.
@@ -57,14 +63,20 @@ def fetch_sp500_symbols_live():
 
 
 def _fetch_classification(symbol):
-    """{symbol, sector, industry}, or None if Yahoo doesn't have both."""
+    """{symbol, sector, industry, market_cap, price, shares_outstanding,
+    float_shares}, or None if Yahoo doesn't have both sector and industry.
+    The size fields can be None when Yahoo leaves them out."""
     try:
         info = yf.Ticker(symbol).info
     except Exception:
         return None
     if not info.get("sector") or not info.get("industry"):
         return None
-    return {"symbol": symbol, "sector": info["sector"], "industry": info["industry"]}
+    return {"symbol": symbol, "sector": info["sector"], "industry": info["industry"],
+            "market_cap": info.get("marketCap"),
+            "price": info.get("regularMarketPrice") or info.get("currentPrice"),
+            "shares_outstanding": info.get("sharesOutstanding"),
+            "float_shares": info.get("floatShares")}
 
 
 def _load_previous_snapshot():

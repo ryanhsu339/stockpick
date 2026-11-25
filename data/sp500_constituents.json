@@ -2,2496 +2,4492 @@
  {
   "symbol": "MMM",
   "sector": "Industrials",
-  "industry": "Conglomerates"
+  "industry": "Conglomerates",
+  "market_cap": 96060022784,
+  "price": 185.9,
+  "shares_outstanding": 516729574,
+  "float_shares": 515809795
  },
  {
   "symbol": "AOS",
   "sector": "Industrials",
-  "industry": "Specialty Industrial Machinery"
+  "industry": "Specialty Industrial Machinery",
+  "market_cap": 8918099968,
+  "price": 66.39,
+  "shares_outstanding": 108468717,
+  "float_shares": 106731072
  },
  {
   "symbol": "ABT",
   "sector": "Healthcare",
-  "industry": "Medical Devices"
+  "industry": "Medical Devices",
+  "market_cap": 187534639104,
+  "price": 108.28,
+  "shares_outstanding": 1731941601,
+  "float_shares": 1721723146
  },
  {
   "symbol": "ABBV",
   "sector": "Healthcare",
-  "industry": "Drug Manufacturers - General"
+  "industry": "Drug Manufacturers - General",
+  "market_cap": 526643593216,
+  "price": 297.94,
+  "shares_outstanding": 1767616306,
+  "float_shares": 1764505301
  },
  {
   "symbol": "ACN",
   "sector": "Technology",
-  "industry": "Information Technology Services"
+  "industry": "Information Technology Services",
+  "market_cap": 142155071488,
+  "price": 240.64,
+  "shares_outstanding": 590737475,
+  "float_shares": 589792295
  },
  {
   "symbol": "ADBE",
   "sector": "Technology",
-  "industry": "Software - Application"
+  "industry": "Software - Application",
+  "market_cap": 90541539328,
+  "price": 232.635,
+  "shares_outstanding": 389200000,
+  "float_shares": 388094672
  },
  {
   "symbol": "AMD",
   "sector": "Technology",
-  "industry": "Semiconductors"
+  "industry": "Semiconductors",
+  "market_cap": 627799490560,
+  "price": 379.32,
+  "shares_outstanding": 1655065573,
+  "float_shares": 1631394789
  },
  {
   "symbol": "AES",
   "sector": "Utilities",
-  "industry": "Utilities - Diversified"
+  "industry": "Utilities - Diversified",
+  "market_cap": 10724877312,
+  "price": 15.03,
+  "shares_outstanding": 713564658,
+  "float_shares": 708955030
  },
  {
   "symbol": "AFL",
   "sector": "Financial Services",
-  "industry": "Insurance - Life"
+  "industry": "Insurance - Life",
+  "market_cap": 62701338624,
+  "price": 126.77,
+  "shares_outstanding": 494607060,
+  "float_shares": 490303979
  },
  {
   "symbol": "A",
   "sector": "Healthcare",
-  "industry": "Diagnostics & Research"
+  "industry": "Diagnostics & Research",
+  "market_cap": 50173423616,
+  "price": 178.015,
+  "shares_outstanding": 281849415,
+  "float_shares": 281071511
  },
  {
   "symbol": "APD",
   "sector": "Basic Materials",
-  "industry": "Specialty Chemicals"
+  "industry": "Specialty Chemicals",
+  "market_cap": 68919156736,
+  "price": 309.48,
+  "shares_outstanding": 222693409,
+  "float_shares": 222390546
  },
  {
   "symbol": "ABNB",
   "sector": "Consumer Cyclical",
-  "industry": "Travel Services"
+  "industry": "Travel Services",
+  "market_cap": 99996147712,
+  "price": 167.5701,
+  "shares_outstanding": 424579862,
+  "float_shares": 409440531
  },
  {
   "symbol": "AKAM",
   "sector": "Technology",
-  "industry": "Software - Infrastructure"
+  "industry": "Software - Infrastructure",
+  "market_cap": 12567408640,
+  "price": 87.135,
+  "shares_outstanding": 144229175,
+  "float_shares": 140963826
  },
  {
   "symbol": "ALB",
   "sector": "Basic Materials",
-  "industry": "Specialty Chemicals"
+  "industry": "Specialty Chemicals",
+  "market_cap": 9228369920,
+  "price": 78.2,
+  "shares_outstanding": 118009849,
+  "float_shares": 117595634
  },
  {
   "symbol": "ARE",
   "sector": "Real Estate",
-  "industry": "REIT - Office"
+  "industry": "REIT - Office",
+  "market_cap": 7243340800,
+  "price": 41.59,
+  "shares_outstanding": 174160645,
+  "float_shares": 154764374
  },
  {
   "symbol": "ALGN",
   "sector": "Healthcare",
-  "industry": "Medical Instruments & Supplies"
+  "industry": "Medical Instruments & Supplies",
+  "market_cap": 11495733248,
+  "price": 163.09,
+  "shares_outstanding": 70487053,
+  "float_shares": 66383297
  },
  {
   "symbol": "ALLE",
   "sector": "Industrials",
-  "industry": "Security & Protection Services"
+  "industry": "Security & Protection Services",
+  "market_cap": 16061968384,
+  "price": 190.485,
+  "shares_outstanding": 84321432,
+  "float_shares": 83880431
  },
  {
   "symbol": "LNT",
   "sector": "Utilities",
-  "industry": "Utilities - Regulated Electric"
+  "industry": "Utilities - Regulated Electric",
+  "market_cap": 18969710592,
+  "price": 73.14,
+  "shares_outstanding": 259361652,
+  "float_shares": 258505759
  },
  {
   "symbol": "ALL",
   "sector": "Financial Services",
-  "industry": "Insurance - Property & Casualty"
+  "industry": "Insurance - Property & Casualty",
+  "market_cap": 66952413184,
+  "price": 270.57,
+  "shares_outstanding": 247449496,
+  "float_shares": 245915309
  },
  {
   "symbol": "GOOGL",
   "sector": "Communication Services",
-  "industry": "Internet Content & Information"
+  "industry": "Internet Content & Information",
+  "market_cap": 3284956872704,
+  "price": 267.2,
+  "shares_outstanding": 5888000000,
+  "float_shares": 10951986960
  },
  {
   "symbol": "MO",
   "sector": "Consumer Defensive",
-  "industry": "Tobacco"
+  "industry": "Tobacco",
+  "market_cap": 126920245248,
+  "price": 76.3,
+  "shares_outstanding": 1663436915,
+  "float_shares": 1660159944
  },
  {
   "symbol": "AMZN",
   "sector": "Consumer Cyclical",
-  "industry": "Internet Retail"
+  "industry": "Internet Retail",
+  "market_cap": 2579690422272,
+  "price": 238.57,
+  "shares_outstanding": 10813138306,
+  "float_shares": 9838442019
  },
  {
   "symbol": "AMCR",
   "sector": "Consumer Cyclical",
-  "industry": "Packaging & Containers"
+  "industry": "Packaging & Containers",
+  "market_cap": 20718397440,
+  "price": 44.86,
+  "shares_outstanding": 461845690,
+  "float_shares": 460086058
  },
  {
   "symbol": "AEE",
   "sector": "Utilities",
-  "industry": "Utilities - Regulated Electric"
+  "industry": "Utilities - Regulated Electric",
+  "market_cap": 31620724736,
+  "price": 114.18,
+  "shares_outstanding": 276937491,
+  "float_shares": 275253711
  },
  {
   "symbol": "AEP",
   "sector": "Utilities",
-  "industry": "Utilities - Regulated Electric"
+  "industry": "Utilities - Regulated Electric",
+  "market_cap": 69454331904,
+  "price": 127.55,
+  "shares_outstanding": 544526330,
+  "float_shares": 543649643
  },
  {
   "symbol": "AXP",
   "sector": "Financial Services",
-  "industry": "Credit Services"
+  "industry": "Credit Services",
+  "market_cap": 204045631488,
+  "price": 304.295,
+  "shares_outstanding": 670552018,
+  "float_shares": 517619219
  },
  {
   "symbol": "AIG",
   "sector": "Financial Services",
-  "industry": "Insurance - Diversified"
+  "industry": "Insurance - Diversified",
+  "market_cap": 42338312192,
+  "price": 81.665,
+  "shares_outstanding": 518438878,
+  "float_shares": 516925036
  },
  {
   "symbol": "AMT",
   "sector": "Real Estate",
-  "industry": "REIT - Specialty"
+  "industry": "REIT - Specialty",
+  "market_cap": 85397471232,
+  "price": 184.1401,
+  "shares_outstanding": 463763555,
+  "float_shares": 462316613
  },
  {
   "symbol": "AWK",
   "sector": "Utilities",
-  "industry": "Utilities - Regulated Water"
+  "industry": "Utilities - Regulated Water",
+  "market_cap": 30544646144,
+  "price": 153.41,
+  "shares_outstanding": 199104661,
+  "float_shares": 198642738
  },
  {
   "symbol": "AMP",
   "sector": "Financial Services",
-  "industry": "Asset Management"
+  "industry": "Asset Management",
+  "market_cap": 43001688064,
+  "price": 495.34,
+  "shares_outstanding": 86812469,
+  "float_shares": 86447857
  },
  {
   "symbol": "AME",
   "sector": "Industrials",
-  "industry": "Specialty Industrial Machinery"
+  "industry": "Specialty Industrial Machinery",
+  "market_cap": 51089756160,
+  "price": 222.79,
+  "shares_outstanding": 229317998,
+  "float_shares": 228049869
  },
  {
   "symbol": "AMGN",
   "sector": "Healthcare",
-  "industry": "Drug Manufacturers - General"
+  "industry": "Drug Manufacturers - General",
+  "market_cap": 253022158848,
+  "price": 467.77,
+  "shares_outstanding": 540911490,
+  "float_shares": 539445620
  },
  {
   "symbol": "APH",
   "sector": "Technology",
-  "industry": "Electronic Components"
+  "industry": "Electronic Components",
+  "market_cap": 171798855680,
+  "price": 69.575,
+  "shares_outstanding": 2469261188,
+  "float_shares": 2453531994
  },
  {
   "symbol": "ADI",
   "sector": "Technology",
-  "industry": "Semiconductors"
+  "industry": "Semiconductors",
+  "market_cap": 152583667712,
+  "price": 316.12,
+  "shares_outstanding": 482676413,
+  "float_shares": 481040140
  },
  {
   "symbol": "AON",
   "sector": "Financial Services",
-  "industry": "Insurance Brokers"
+  "industry": "Insurance Brokers",
+  "market_cap": 73612181504,
+  "price": 346.97,
+  "shares_outstanding": 212157176,
+  "float_shares": 209433078
  },
  {
   "symbol": "APA",
   "sector": "Energy",
-  "industry": "Oil & Gas E&P"
+  "industry": "Oil & Gas E&P",
+  "market_cap": 15263467520,
+  "price": 45.46,
+  "shares_outstanding": 335756005,
+  "float_shares": 333634027
  },
  {
   "symbol": "APO",
   "sector": "Financial Services",
-  "industry": "Asset Management"
+  "industry": "Asset Management",
+  "market_cap": 68035547136,
+  "price": 115.23,
+  "shares_outstanding": 590432584,
+  "float_shares": 466571637
  },
  {
   "symbol": "AAPL",
   "sector": "Technology",
-  "industry": "Consumer Electronics"
+  "industry": "Consumer Electronics",
+  "market_cap": 5042666995712,
+  "price": 347.0,
+  "shares_outstanding": 14532182000,
+  "float_shares": 14507477291
  },
  {
   "symbol": "AMAT",
   "sector": "Technology",
-  "industry": "Semiconductor Equipment & Materials"
+  "industry": "Semiconductor Equipment & Materials",
+  "market_cap": 236249989120,
+  "price": 297.695,
+  "shares_outstanding": 793597443,
+  "float_shares": 789923160
  },
  {
   "symbol": "APP",
   "sector": "Communication Services",
-  "industry": "Advertising Agencies"
+  "industry": "Advertising Agencies",
+  "market_cap": 120139440128,
+  "price": 362.6062,
+  "shares_outstanding": 301258338,
+  "float_shares": 261737754
  },
  {
   "symbol": "APTV",
   "sector": "Consumer Cyclical",
-  "industry": "Auto Parts"
+  "industry": "Auto Parts",
+  "market_cap": 7446390272,
+  "price": 36.785,
+  "shares_outstanding": 202430074,
+  "float_shares": 199832896
  },
  {
   "symbol": "ACGL",
   "sector": "Financial Services",
-  "industry": "Insurance - Diversified"
+  "industry": "Insurance - Diversified",
+  "market_cap": 35898933248,
+  "price": 110.28,
+  "shares_outstanding": 325525336,
+  "float_shares": 311299351
  },
  {
   "symbol": "ADM",
   "sector": "Consumer Defensive",
-  "industry": "Farm Products"
+  "industry": "Farm Products",
+  "market_cap": 31572477952,
+  "price": 66.34,
+  "shares_outstanding": 475919192,
+  "float_shares": 471669234
  },
  {
   "symbol": "ARES",
   "sector": "Financial Services",
-  "industry": "Asset Management"
+  "industry": "Asset Management",
+  "market_cap": 42477117440,
+  "price": 127.96,
+  "shares_outstanding": 224138030,
+  "float_shares": 219972813
  },
  {
   "symbol": "ANET",
   "sector": "Technology",
-  "industry": "Computer Hardware"
+  "industry": "Computer Hardware",
+  "market_cap": 198030868480,
+  "price": 156.7441,
+  "shares_outstanding": 1263402335,
+  "float_shares": 1054789341
  },
  {
   "symbol": "AJG",
   "sector": "Financial Services",
-  "industry": "Insurance Brokers"
+  "industry": "Insurance Brokers",
+  "market_cap": 74670612480,
+  "price": 291.21,
+  "shares_outstanding": 256415000,
+  "float_shares": 253659084
  },
  {
   "symbol": "AIZ",
   "sector": "Financial Services",
-  "industry": "Insurance - Property & Casualty"
+  "industry": "Insurance - Property & Casualty",
+  "market_cap": 15919984640,
+  "price": 324.455,
+  "shares_outstanding": 49066851,
+  "float_shares": 48714060
  },
  {
   "symbol": "T",
   "sector": "Communication Services",
-  "industry": "Telecom Services"
+  "industry": "Telecom Services",
+  "market_cap": 155949367296,
+  "price": 23.15,
+  "shares_outstanding": 6736473433,
+  "float_shares": 6722124745
  },
  {
   "symbol": "ATO",
   "sector": "Utilities",
-  "industry": "Utilities - Regulated Gas"
+  "industry": "Utilities - Regulated Gas",
+  "market_cap": 29630277632,
+  "price": 174.08,
+  "shares_outstanding": 170210681,
+  "float_shares": 169349415
  },
  {
   "symbol": "ADSK",
   "sector": "Technology",
-  "industry": "Software - Application"
+  "industry": "Software - Application",
+  "market_cap": 51100499968,
+  "price": 244.5,
+  "shares_outstanding": 209000000,
+  "float_shares": 208458690
  },
  {
   "symbol": "ADP",
   "sector": "Technology",
-  "industry": "Software - Application"
+  "industry": "Software - Application",
+  "market_cap": 123725504512,
+  "price": 313.42,
+  "shares_outstanding": 394759432,
+  "float_shares": 393875171
  },
  {
   "symbol": "AZO",
   "sector": "Consumer Cyclical",
-  "industry": "Auto Parts"
+  "industry": "Auto Parts",
+  "market_cap": 53982031872,
+  "price": 3354.1,
+  "shares_outstanding": 16094341,
+  "float_shares": 16048150
  },
  {
   "symbol": "AVY",
   "sector": "Consumer Cyclical",
-  "industry": "Packaging & Containers"
+  "industry": "Packaging & Containers",
+  "market_cap": 14364540928,
+  "price": 190.23,
+  "shares_outstanding": 75511437,
+  "float_shares": 74942081
  },
  {
   "symbol": "AXON",
   "sector": "Industrials",
-  "industry": "Aerospace & Defense"
+  "industry": "Aerospace & Defense",
+  "market_cap": 26424915968,
+  "price": 324.5,
+  "shares_outstanding": 81432712,
+  "float_shares": 77488926
  },
  {
   "symbol": "BKR",
   "sector": "Energy",
-  "industry": "Oil & Gas Equipment & Services"
+  "industry": "Oil & Gas Equipment & Services",
+  "market_cap": 45214859264,
+  "price": 45.53,
+  "shares_outstanding": 993078473,
+  "float_shares": 990814254
  },
  {
   "symbol": "BALL",
   "sector": "Consumer Cyclical",
-  "industry": "Packaging & Containers"
+  "industry": "Packaging & Containers",
+  "market_cap": 17261234176,
+  "price": 66.315,
+  "shares_outstanding": 260291542,
+  "float_shares": 259554917
  },
  {
   "symbol": "BAC",
   "sector": "Financial Services",
-  "industry": "Banks - Diversified"
+  "industry": "Banks - Diversified",
+  "market_cap": 329036496896,
+  "price": 47.685,
+  "shares_outstanding": 6900209006,
+  "float_shares": 6873505197
  },
  {
   "symbol": "BAX",
   "sector": "Healthcare",
-  "industry": "Medical Instruments & Supplies"
+  "industry": "Medical Instruments & Supplies",
+  "market_cap": 14175340544,
+  "price": 27.4,
+  "shares_outstanding": 517348188,
+  "float_shares": 514657977
  },
  {
   "symbol": "BDX",
   "sector": "Healthcare",
-  "industry": "Medical Instruments & Supplies"
+  "industry": "Medical Instruments & Supplies",
+  "market_cap": 60151181312,
+  "price": 220.83,
+  "shares_outstanding": 272386800,
+  "float_shares": 272209781
  },
  {
   "symbol": "BRK-B",
   "sector": "Financial Services",
-  "industry": "Insurance - Diversified"
+  "industry": "Insurance - Diversified",
+  "market_cap": 1225932800000,
+  "price": 577.0401,
+  "shares_outstanding": 1403805594,
+  "float_shares": 1230285
  },
  {
   "symbol": "BBY",
   "sector": "Consumer Cyclical",
-  "industry": "Specialty Retail"
+  "industry": "Specialty Retail",
+  "market_cap": 21050370048,
+  "price": 100.37,
+  "shares_outstanding": 209727698,
+  "float_shares": 197276904
  },
  {
   "symbol": "TECH",
   "sector": "Healthcare",
-  "industry": "Biotechnology"
+  "industry": "Biotechnology",
+  "market_cap": 11438561280,
+  "price": 72.815,
+  "shares_outstanding": 157090727,
+  "float_shares": 156380677
  },
  {
   "symbol": "BIIB",
   "sector": "Healthcare",
-  "industry": "Drug Manufacturers - General"
+  "industry": "Drug Manufacturers - General",
+  "market_cap": 38289870848,
+  "price": 259.03,
+  "shares_outstanding": 147820223,
+  "float_shares": 147285114
  },
  {
   "symbol": "BLK",
   "sector": "Financial Services",
-  "industry": "Asset Management"
+  "industry": "Asset Management",
+  "market_cap": 171956666368,
+  "price": 1113.54,
+  "shares_outstanding": 154423421,
+  "float_shares": 143377514
  },
  {
   "symbol": "BX",
   "sector": "Financial Services",
-  "industry": "Asset Management"
+  "industry": "Asset Management",
+  "market_cap": 142804680704,
+  "price": 115.69,
+  "shares_outstanding": 751115317,
+  "float_shares": 754954561
  },
  {
   "symbol": "XYZ",
   "sector": "Technology",
-  "industry": "Software - Infrastructure"
+  "industry": "Software - Infrastructure",
+  "market_cap": 44015243264,
+  "price": 72.81,
+  "shares_outstanding": 544546000,
+  "float_shares": 539680970
  },
  {
   "symbol": "BE",
   "sector": "Industrials",
-  "industry": "Electrical Equipment & Parts"
+  "industry": "Electrical Equipment & Parts",
+  "market_cap": 41681682432,
+  "price": 140.98,
+  "shares_outstanding": 295656689,
+  "float_shares": 290293477
  },
  {
   "symbol": "BNY",
   "sector": "Financial Services",
-  "industry": "Banks - Diversified"
+  "industry": "Banks - Diversified",
+  "market_cap": 96500375552,
+  "price": 143.41,
+  "shares_outstanding": 672898490,
+  "float_shares": 671263347
  },
  {
   "symbol": "BA",
   "sector": "Industrials",
-  "industry": "Aerospace & Defense"
+  "industry": "Aerospace & Defense",
+  "market_cap": 128535371776,
+  "price": 162.2,
+  "shares_outstanding": 792449940,
+  "float_shares": 791245416
  },
  {
   "symbol": "BKNG",
   "sector": "Consumer Cyclical",
-  "industry": "Travel Services"
+  "industry": "Travel Services",
+  "market_cap": 108089540608,
+  "price": 145.34,
+  "shares_outstanding": 743701257,
+  "float_shares": 741351161
  },
  {
   "symbol": "BSX",
   "sector": "Healthcare",
-  "industry": "Medical Devices"
+  "industry": "Medical Devices",
+  "market_cap": 63592886272,
+  "price": 43.8731,
+  "shares_outstanding": 1449473222,
+  "float_shares": 1445139297
  },
  {
   "symbol": "BMY",
   "sector": "Healthcare",
-  "industry": "Drug Manufacturers - General"
+  "industry": "Drug Manufacturers - General",
+  "market_cap": 126181416960,
+  "price": 61.73,
+  "shares_outstanding": 2044085831,
+  "float_shares": 2040876616
  },
  {
   "symbol": "AVGO",
   "sector": "Technology",
-  "industry": "Semiconductors"
+  "industry": "Semiconductors",
+  "market_cap": 1359911714816,
+  "price": 284.88,
+  "shares_outstanding": 4773629865,
+  "float_shares": 4715821207
  },
  {
   "symbol": "BR",
   "sector": "Technology",
-  "industry": "Information Technology Services"
+  "industry": "Information Technology Services",
+  "market_cap": 21021925376,
+  "price": 185.86,
+  "shares_outstanding": 113106236,
+  "float_shares": 112549753
  },
  {
   "symbol": "BRO",
   "sector": "Financial Services",
-  "industry": "Insurance Brokers"
+  "industry": "Insurance Brokers",
+  "market_cap": 25755871232,
+  "price": 77.65,
+  "shares_outstanding": 331691829,
+  "float_shares": 284654611
  },
  {
   "symbol": "BF-B",
   "sector": "Consumer Defensive",
-  "industry": "Beverages - Wineries & Distilleries"
+  "industry": "Beverages - Wineries & Distilleries",
+  "market_cap": 13898998784,
+  "price": 30.29,
+  "shares_outstanding": 290383416,
+  "float_shares": 318598636
  },
  {
   "symbol": "BG",
   "sector": "Consumer Defensive",
-  "industry": "Farm Products"
+  "industry": "Farm Products",
+  "market_cap": 17030220800,
+  "price": 88.6327,
+  "shares_outstanding": 192143784,
+  "float_shares": 157210123
  },
  {
   "symbol": "BXP",
   "sector": "Real Estate",
-  "industry": "REIT - Office"
+  "industry": "REIT - Office",
+  "market_cap": 11349684224,
+  "price": 62.83,
+  "shares_outstanding": 159713264,
+  "float_shares": 158638394
  },
  {
   "symbol": "CHRW",
   "sector": "Industrials",
-  "industry": "Integrated Freight & Logistics"
+  "industry": "Integrated Freight & Logistics",
+  "market_cap": 16396465152,
+  "price": 141.42,
+  "shares_outstanding": 115941629,
+  "float_shares": 115506848
  },
  {
   "symbol": "CDNS",
   "sector": "Technology",
-  "industry": "Software - Application"
+  "industry": "Software - Application",
+  "market_cap": 77313146880,
+  "price": 281.775,
+  "shares_outstanding": 274379000,
+  "float_shares": 273179964
  },
  {
   "symbol": "CPT",
   "sector": "Real Estate",
-  "industry": "REIT - Residential"
+  "industry": "REIT - Residential",
+  "market_cap": 9908899840,
+  "price": 99.02,
+  "shares_outstanding": 100069681,
+  "float_shares": 98188371
  },
  {
   "symbol": "COF",
   "sector": "Financial Services",
-  "industry": "Credit Services"
+  "industry": "Credit Services",
+  "market_cap": 106808229888,
+  "price": 177.56,
+  "shares_outstanding": 601533153,
+  "float_shares": 594964411
  },
  {
   "symbol": "CAH",
   "sector": "Healthcare",
-  "industry": "Medical Distribution"
+  "industry": "Medical Distribution",
+  "market_cap": 65113505792,
+  "price": 281.71,
+  "shares_outstanding": 231136655,
+  "float_shares": 230681316
  },
  {
   "symbol": "CCL",
   "sector": "Consumer Cyclical",
-  "industry": "Travel Services"
+  "industry": "Travel Services",
+  "market_cap": 36949889024,
+  "price": 27.48,
+  "shares_outstanding": 1344610129,
+  "float_shares": 1245821623
  },
  {
   "symbol": "CARR",
   "sector": "Industrials",
-  "industry": "Building Products & Equipment"
+  "industry": "Building Products & Equipment",
+  "market_cap": 42994319360,
+  "price": 52.55,
+  "shares_outstanding": 818160206,
+  "float_shares": 777988540
  },
  {
   "symbol": "CVNA",
   "sector": "Consumer Cyclical",
-  "industry": "Auto & Truck Dealerships"
+  "industry": "Auto & Truck Dealerships",
+  "market_cap": 160877772800,
+  "price": 64.06,
+  "shares_outstanding": 722713745,
+  "float_shares": 709524219
  },
  {
   "symbol": "CASY",
   "sector": "Consumer Cyclical",
-  "industry": "Specialty Retail"
+  "industry": "Specialty Retail",
+  "market_cap": 25237141504,
+  "price": 682.82,
+  "shares_outstanding": 36960167,
+  "float_shares": 36697011
  },
  {
   "symbol": "CAT",
   "sector": "Industrials",
-  "industry": "Farm & Heavy Construction Machinery"
+  "industry": "Farm & Heavy Construction Machinery",
+  "market_cap": 239282847744,
+  "price": 522.915,
+  "shares_outstanding": 457594174,
+  "float_shares": 456129873
  },
  {
   "symbol": "CBOE",
   "sector": "Financial Services",
-  "industry": "Financial Data & Stock Exchanges"
+  "industry": "Financial Data & Stock Exchanges",
+  "market_cap": 37385695232,
+  "price": 358.34,
+  "shares_outstanding": 104330235,
+  "float_shares": 103947343
  },
  {
   "symbol": "CBRE",
   "sector": "Real Estate",
-  "industry": "Real Estate Services"
+  "industry": "Real Estate Services",
+  "market_cap": 38779686912,
+  "price": 134.56,
+  "shares_outstanding": 288196254,
+  "float_shares": 286184644
  },
  {
   "symbol": "CDW",
   "sector": "Technology",
-  "industry": "Information Technology Services"
+  "industry": "Information Technology Services",
+  "market_cap": 20718970880,
+  "price": 166.005,
+  "shares_outstanding": 124809323,
+  "float_shares": 124343784
  },
  {
   "symbol": "COR",
   "sector": "Healthcare",
-  "industry": "Medical Distribution"
+  "industry": "Medical Distribution",
+  "market_cap": 67314282496,
+  "price": 352.75,
+  "shares_outstanding": 190827165,
+  "float_shares": 180211294
  },
  {
   "symbol": "CNC",
   "sector": "Healthcare",
-  "industry": "Healthcare Plans"
+  "industry": "Healthcare Plans",
+  "market_cap": 31402164224,
+  "price": 63.43,
+  "shares_outstanding": 495068000,
+  "float_shares": 462116274
  },
  {
   "symbol": "CNP",
   "sector": "Utilities",
-  "industry": "Utilities - Regulated Electric"
+  "industry": "Utilities - Regulated Electric",
+  "market_cap": 26826739712,
+  "price": 40.47,
+  "shares_outstanding": 662879606,
+  "float_shares": 660619187
  },
  {
   "symbol": "CF",
   "sector": "Basic Materials",
-  "industry": "Agricultural Inputs"
+  "industry": "Agricultural Inputs",
+  "market_cap": 17233825792,
+  "price": 117.81,
+  "shares_outstanding": 146284911,
+  "float_shares": 145051729
  },
  {
   "symbol": "CRL",
   "sector": "Healthcare",
-  "industry": "Diagnostics & Research"
+  "industry": "Diagnostics & Research",
+  "market_cap": 15658230784,
+  "price": 326.775,
+  "shares_outstanding": 47917467,
+  "float_shares": 47415771
  },
  {
   "symbol": "SCHW",
   "sector": "Financial Services",
-  "industry": "Capital Markets"
+  "industry": "Capital Markets",
+  "market_cap": 160035438592,
+  "price": 92.72,
+  "shares_outstanding": 1726007705,
+  "float_shares": 1624397631
  },
  {
   "symbol": "CHTR",
   "sector": "Communication Services",
-  "industry": "Telecom Services"
+  "industry": "Telecom Services",
+  "market_cap": 25116454912,
+  "price": 140.275,
+  "shares_outstanding": 114454220,
+  "float_shares": 110552478
  },
  {
   "symbol": "CVX",
   "sector": "Energy",
-  "industry": "Oil & Gas Integrated"
+  "industry": "Oil & Gas Integrated",
+  "market_cap": 411363311616,
+  "price": 210.82,
+  "shares_outstanding": 1951253686,
+  "float_shares": 1858159373
  },
  {
   "symbol": "CMG",
   "sector": "Consumer Cyclical",
-  "industry": "Restaurants"
+  "industry": "Restaurants",
+  "market_cap": 47088693248,
+  "price": 37.225,
+  "shares_outstanding": 1264975000,
+  "float_shares": 1254918449
  },
  {
   "symbol": "CB",
   "sector": "Financial Services",
-  "industry": "Insurance - Property & Casualty"
+  "industry": "Insurance - Property & Casualty",
+  "market_cap": 145755586560,
+  "price": 381.48,
+  "shares_outstanding": 382079222,
+  "float_shares": 346190521
  },
  {
   "symbol": "CHD",
   "sector": "Consumer Defensive",
-  "industry": "Household & Personal Products"
+  "industry": "Household & Personal Products",
+  "market_cap": 26889951232,
+  "price": 113.925,
+  "shares_outstanding": 236032052,
+  "float_shares": 235333397
  },
  {
   "symbol": "CIEN",
   "sector": "Technology",
-  "industry": "Communication Equipment"
+  "industry": "Communication Equipment",
+  "market_cap": 31271927808,
+  "price": 220.5222,
+  "shares_outstanding": 141808525,
+  "float_shares": 141187404
  },
  {
   "symbol": "CI",
   "sector": "Healthcare",
-  "industry": "Healthcare Plans"
+  "industry": "Healthcare Plans",
+  "market_cap": 71480336384,
+  "price": 271.27,
+  "shares_outstanding": 263502561,
+  "float_shares": 262211398
  },
  {
   "symbol": "CINF",
   "sector": "Financial Services",
-  "industry": "Insurance - Property & Casualty"
+  "industry": "Insurance - Property & Casualty",
+  "market_cap": 29458628608,
+  "price": 191.9,
+  "shares_outstanding": 153510324,
+  "float_shares": 150587487
  },
  {
   "symbol": "CTAS",
   "sector": "Industrials",
-  "industry": "Specialty Business Services"
+  "industry": "Specialty Business Services",
+  "market_cap": 89522569216,
+  "price": 225.455,
+  "shares_outstanding": 397075093,
+  "float_shares": 339082276
  },
  {
   "symbol": "CSCO",
   "sector": "Technology",
-  "industry": "Communication Equipment"
+  "industry": "Communication Equipment",
+  "market_cap": 363923439616,
+  "price": 92.309,
+  "shares_outstanding": 3942448184,
+  "float_shares": 3936258540
  },
  {
   "symbol": "C",
   "sector": "Financial Services",
-  "industry": "Banks - Diversified"
+  "industry": "Banks - Diversified",
+  "market_cap": 183380099072,
+  "price": 110.79,
+  "shares_outstanding": 1655204519,
+  "float_shares": 1650420978
  },
  {
   "symbol": "CFG",
   "sector": "Financial Services",
-  "industry": "Banks - Regional"
+  "industry": "Banks - Regional",
+  "market_cap": 25369264128,
+  "price": 60.519,
+  "shares_outstanding": 419195029,
+  "float_shares": 415078534
  },
  {
   "symbol": "CLX",
   "sector": "Consumer Defensive",
-  "industry": "Household & Personal Products"
+  "industry": "Household & Personal Products",
+  "market_cap": 13211608064,
+  "price": 109.054,
+  "shares_outstanding": 121147396,
+  "float_shares": 120708842
  },
  {
   "symbol": "CME",
   "sector": "Financial Services",
-  "industry": "Financial Data & Stock Exchanges"
+  "industry": "Financial Data & Stock Exchanges",
+  "market_cap": 111213633536,
+  "price": 310.71,
+  "shares_outstanding": 357930746,
+  "float_shares": 353048086
  },
  {
   "symbol": "CMS",
   "sector": "Utilities",
-  "industry": "Utilities - Regulated Electric"
+  "industry": "Utilities - Regulated Electric",
+  "market_cap": 22559092736,
+  "price": 71.93,
+  "shares_outstanding": 313625618,
+  "float_shares": 311605869
  },
  {
   "symbol": "KO",
   "sector": "Consumer Defensive",
-  "industry": "Beverages - Non-Alcoholic"
+  "industry": "Beverages - Non-Alcoholic",
+  "market_cap": 421414338560,
+  "price": 97.96,
+  "shares_outstanding": 4301902335,
+  "float_shares": 3873346824
  },
  {
   "symbol": "CTSH",
   "sector": "Technology",
-  "industry": "Information Technology Services"
+  "industry": "Information Technology Services",
+  "market_cap": 28151740416,
+  "price": 62.975,
+  "shares_outstanding": 447030425,
+  "float_shares": 445787680
  },
  {
   "symbol": "COHR",
   "sector": "Technology",
-  "industry": "Scientific & Technical Instruments"
+  "industry": "Scientific & Technical Instruments",
+  "market_cap": 35143335936,
+  "price": 178.43,
+  "shares_outstanding": 196958669,
+  "float_shares": 196137351
  },
  {
   "symbol": "COIN",
   "sector": "Financial Services",
-  "industry": "Financial Data & Stock Exchanges"
+  "industry": "Financial Data & Stock Exchanges",
+  "market_cap": 25799872512,
+  "price": 97.445,
+  "shares_outstanding": 223729527,
+  "float_shares": 220778271
  },
  {
   "symbol": "CL",
   "sector": "Consumer Defensive",
-  "industry": "Household & Personal Products"
+  "industry": "Household & Personal Products",
+  "market_cap": 79134343168,
+  "price": 99.55,
+  "shares_outstanding": 794920513,
+  "float_shares": 746557549
  },
  {
   "symbol": "CMCSA",
   "sector": "Communication Services",
-  "industry": "Telecom Services"
+  "industry": "Telecom Services",
+  "market_cap": 90799226880,
+  "price": 25.57,
+  "shares_outstanding": 3541561960,
+  "float_shares": 3515105661
  },
  {
   "symbol": "FIX",
   "sector": "Industrials",
-  "industry": "Engineering & Construction"
+  "industry": "Engineering & Construction",
+  "market_cap": 36372045824,
+  "price": 1039.62,
+  "shares_outstanding": 34985904,
+  "float_shares": 34509468
  },
  {
   "symbol": "COP",
   "sector": "Energy",
-  "industry": "Oil & Gas E&P"
+  "industry": "Oil & Gas E&P",
+  "market_cap": 160129548288,
+  "price": 135.435,
+  "shares_outstanding": 1182335057,
+  "float_shares": 1179828507
  },
  {
   "symbol": "ED",
   "sector": "Utilities",
-  "industry": "Utilities - Regulated Electric"
+  "industry": "Utilities - Regulated Electric",
+  "market_cap": 44961517568,
+  "price": 121.13,
+  "shares_outstanding": 371184015,
+  "float_shares": 370625307
  },
  {
   "symbol": "STZ",
   "sector": "Consumer Defensive",
-  "industry": "Beverages - Brewers"
+  "industry": "Beverages - Brewers",
+  "market_cap": 23524706304,
+  "price": 139.015,
+  "shares_outstanding": 169198487,
+  "float_shares": 153204154
  },
  {
   "symbol": "CEG",
   "sector": "Utilities",
-  "industry": "Utilities - Independent Power Producers"
+  "industry": "Utilities - Independent Power Producers",
+  "market_cap": 82332647424,
+  "price": 234.16,
+  "shares_outstanding": 351608504,
+  "float_shares": 350427099
  },
  {
   "symbol": "COO",
   "sector": "Healthcare",
-  "industry": "Medical Instruments & Supplies"
+  "industry": "Medical Instruments & Supplies",
+  "market_cap": 11694551040,
+  "price": 61.5,
+  "shares_outstanding": 190155294,
+  "float_shares": 188772865
  },
  {
   "symbol": "CPRT",
   "sector": "Industrials",
-  "industry": "Specialty Business Services"
+  "industry": "Specialty Business Services",
+  "market_cap": 29523666944,
+  "price": 31.87,
+  "shares_outstanding": 926378016,
+  "float_shares": 848778067
  },
  {
   "symbol": "GLW",
   "sector": "Technology",
-  "industry": "Electronic Components"
+  "industry": "Electronic Components",
+  "market_cap": 81798643712,
+  "price": 94.96,
+  "shares_outstanding": 861401106,
+  "float_shares": 790817899
  },
  {
   "symbol": "CPAY",
   "sector": "Technology",
-  "industry": "Software - Infrastructure"
+  "industry": "Software - Infrastructure",
+  "market_cap": 28512563200,
+  "price": 445.705,
+  "shares_outstanding": 63971827,
+  "float_shares": 61407196
  },
  {
   "symbol": "CSGP",
   "sector": "Real Estate",
-  "industry": "Real Estate Services"
+  "industry": "Real Estate Services",
+  "market_cap": 13423985664,
+  "price": 33.365,
+  "shares_outstanding": 402337328,
+  "float_shares": 398933554
  },
  {
   "symbol": "COST",
   "sector": "Consumer Defensive",
-  "industry": "Discount Stores"
+  "industry": "Discount Stores",
+  "market_cap": 482988818432,
+  "price": 1089.95,
+  "shares_outstanding": 443129349,
+  "float_shares": 442238659
  },
  {
   "symbol": "CRH",
   "sector": "Basic Materials",
-  "industry": "Building Materials"
+  "industry": "Building Materials",
+  "market_cap": 62744494080,
+  "price": 94.3199,
+  "shares_outstanding": 665230751,
+  "float_shares": 663447933
  },
  {
   "symbol": "CRWD",
   "sector": "Technology",
-  "industry": "Software - Infrastructure"
+  "industry": "Software - Infrastructure",
+  "market_cap": 205485490176,
+  "price": 199.385,
+  "shares_outstanding": 1030596521,
+  "float_shares": 1009806535
  },
  {
   "symbol": "CCI",
   "sector": "Real Estate",
-  "industry": "REIT - Specialty"
+  "industry": "REIT - Specialty",
+  "market_cap": 35510661120,
+  "price": 83.46,
+  "shares_outstanding": 425481189,
+  "float_shares": 424489818
  },
  {
   "symbol": "CSX",
   "sector": "Industrials",
-  "industry": "Railroads"
+  "industry": "Railroads",
+  "market_cap": 92418768896,
+  "price": 50.135,
+  "shares_outstanding": 1843398210,
+  "float_shares": 1838270886
  },
  {
   "symbol": "CMI",
   "sector": "Industrials",
-  "industry": "Specialty Industrial Machinery"
+  "industry": "Specialty Industrial Machinery",
+  "market_cap": 55849418752,
+  "price": 407.66,
+  "shares_outstanding": 137000000,
+  "float_shares": 136510388
  },
  {
   "symbol": "CVS",
   "sector": "Healthcare",
-  "industry": "Healthcare Plans"
+  "industry": "Healthcare Plans",
+  "market_cap": 104424284160,
+  "price": 81.615,
+  "shares_outstanding": 1279474188,
+  "float_shares": 1276953624
  },
  {
   "symbol": "DHR",
   "sector": "Healthcare",
-  "industry": "Diagnostics & Research"
+  "industry": "Diagnostics & Research",
+  "market_cap": 159152734208,
+  "price": 226.22,
+  "shares_outstanding": 703530815,
+  "float_shares": 626360520
  },
  {
   "symbol": "DRI",
   "sector": "Consumer Cyclical",
-  "industry": "Restaurants"
+  "industry": "Restaurants",
+  "market_cap": 27179266048,
+  "price": 240.22,
+  "shares_outstanding": 113143224,
+  "float_shares": 112620502
  },
  {
   "symbol": "DDOG",
   "sector": "Technology",
-  "industry": "Software - Application"
+  "industry": "Software - Application",
+  "market_cap": 55458844672,
+  "price": 153.6075,
+  "shares_outstanding": 337307033,
+  "float_shares": 335506006
  },
  {
   "symbol": "DVA",
   "sector": "Healthcare",
-  "industry": "Medical Care Facilities"
+  "industry": "Medical Care Facilities",
+  "market_cap": 10466560000,
+  "price": 166.4,
+  "shares_outstanding": 62900000,
+  "float_shares": 33422544
  },
  {
   "symbol": "DECK",
   "sector": "Consumer Cyclical",
-  "industry": "Footwear & Accessories"
+  "industry": "Footwear & Accessories",
+  "market_cap": 11046803456,
+  "price": 82.76,
+  "shares_outstanding": 133479987,
+  "float_shares": 123769318
  },
  {
   "symbol": "DE",
   "sector": "Industrials",
-  "industry": "Farm & Heavy Construction Machinery"
+  "industry": "Farm & Heavy Construction Machinery",
+  "market_cap": 171690721280,
+  "price": 636.775,
+  "shares_outstanding": 269625412,
+  "float_shares": 269064591
  },
  {
   "symbol": "DELL",
   "sector": "Technology",
-  "industry": "Computer Hardware"
+  "industry": "Computer Hardware",
+  "market_cap": 174886649856,
+  "price": 275.06,
+  "shares_outstanding": 315433188,
+  "float_shares": 292162317
  },
  {
   "symbol": "DAL",
   "sector": "Industrials",
-  "industry": "Airlines"
+  "industry": "Airlines",
+  "market_cap": 53258006528,
+  "price": 80.95,
+  "shares_outstanding": 657912380,
+  "float_shares": 650164675
  },
  {
   "symbol": "DVN",
   "sector": "Energy",
-  "industry": "Oil & Gas E&P"
+  "industry": "Oil & Gas E&P",
+  "market_cap": 48107339776,
+  "price": 42.21,
+  "shares_outstanding": 1139714310,
+  "float_shares": 1129855781
  },
  {
   "symbol": "DXCM",
   "sector": "Healthcare",
-  "industry": "Medical Devices"
+  "industry": "Medical Devices",
+  "market_cap": 31372632064,
+  "price": 84.12,
+  "shares_outstanding": 372950922,
+  "float_shares": 371608299
  },
  {
   "symbol": "FANG",
   "sector": "Energy",
-  "industry": "Oil & Gas E&P"
+  "industry": "Oil & Gas E&P",
+  "market_cap": 49951498240,
+  "price": 178.93,
+  "shares_outstanding": 279167841,
+  "float_shares": 212365768
  },
  {
   "symbol": "DLR",
   "sector": "Real Estate",
-  "industry": "REIT - Specialty"
+  "industry": "REIT - Specialty",
+  "market_cap": 62501343232,
+  "price": 162.345,
+  "shares_outstanding": 378325884,
+  "float_shares": 358580990
  },
  {
   "symbol": "DG",
   "sector": "Consumer Defensive",
-  "industry": "Discount Stores"
+  "industry": "Discount Stores",
+  "market_cap": 30643668992,
+  "price": 138.9,
+  "shares_outstanding": 220616790,
+  "float_shares": 219295295
  },
  {
   "symbol": "DLTR",
   "sector": "Consumer Defensive",
-  "industry": "Discount Stores"
+  "industry": "Discount Stores",
+  "market_cap": 28327628800,
+  "price": 152.365,
+  "shares_outstanding": 185919516,
+  "float_shares": 175993273
  },
  {
   "symbol": "D",
   "sector": "Utilities",
-  "industry": "Utilities - Regulated Electric"
+  "industry": "Utilities - Regulated Electric",
+  "market_cap": 59691749376,
+  "price": 67.865,
+  "shares_outstanding": 879566078,
+  "float_shares": 877780559
  },
  {
   "symbol": "DPZ",
   "sector": "Consumer Cyclical",
-  "industry": "Restaurants"
+  "industry": "Restaurants",
+  "market_cap": 11809684480,
+  "price": 359.0,
+  "shares_outstanding": 32896056,
+  "float_shares": 30437405
  },
  {
   "symbol": "DASH",
   "sector": "Consumer Cyclical",
-  "industry": "Internet Retail"
+  "industry": "Internet Retail",
+  "market_cap": 70484287488,
+  "price": 161.67,
+  "shares_outstanding": 411998576,
+  "float_shares": 408078206
  },
  {
   "symbol": "DOV",
   "sector": "Industrials",
-  "industry": "Specialty Industrial Machinery"
+  "industry": "Specialty Industrial Machinery",
+  "market_cap": 26912774144,
+  "price": 202.34,
+  "shares_outstanding": 133007687,
+  "float_shares": 132079293
  },
  {
   "symbol": "DOW",
   "sector": "Basic Materials",
-  "industry": "Chemicals"
+  "industry": "Chemicals",
+  "market_cap": 21372612608,
+  "price": 29.525,
+  "shares_outstanding": 723881907,
+  "float_shares": 722151829
  },
  {
   "symbol": "DHI",
   "sector": "Consumer Cyclical",
-  "industry": "Residential Construction"
+  "industry": "Residential Construction",
+  "market_cap": 41003671552,
+  "price": 153.23,
+  "shares_outstanding": 267595589,
+  "float_shares": 238352743
  },
  {
   "symbol": "DTE",
   "sector": "Utilities",
-  "industry": "Utilities - Regulated Electric"
+  "industry": "Utilities - Regulated Electric",
+  "market_cap": 28763973632,
+  "price": 138.18,
+  "shares_outstanding": 208163081,
+  "float_shares": 207007776
  },
  {
   "symbol": "DUK",
   "sector": "Utilities",
-  "industry": "Utilities - Regulated Electric"
+  "industry": "Utilities - Regulated Electric",
+  "market_cap": 103233372160,
+  "price": 132.4,
+  "shares_outstanding": 779708297,
+  "float_shares": 777517317
  },
  {
   "symbol": "DD",
   "sector": "Basic Materials",
-  "industry": "Specialty Chemicals"
+  "industry": "Specialty Chemicals",
+  "market_cap": 19855994880,
+  "price": 149.82,
+  "shares_outstanding": 132532338,
+  "float_shares": 131953172
  },
  {
   "symbol": "ETN",
   "sector": "Industrials",
-  "industry": "Specialty Industrial Machinery"
+  "industry": "Specialty Industrial Machinery",
+  "market_cap": 119083016192,
+  "price": 306.52,
+  "shares_outstanding": 388500000,
+  "float_shares": 387812355
  },
  {
   "symbol": "EBAY",
   "sector": "Consumer Cyclical",
-  "industry": "Internet Retail"
+  "industry": "Internet Retail",
+  "market_cap": 49817722880,
+  "price": 113.48,
+  "shares_outstanding": 439000000,
+  "float_shares": 393879580
  },
  {
   "symbol": "ECHO",
   "sector": "Communication Services",
-  "industry": "Telecom Services"
+  "industry": "Telecom Services",
+  "market_cap": 23892215808,
+  "price": 82.11,
+  "shares_outstanding": 159629687,
+  "float_shares": 137978931
  },
  {
   "symbol": "ECL",
   "sector": "Basic Materials",
-  "industry": "Specialty Chemicals"
+  "industry": "Specialty Chemicals",
+  "market_cap": 85980200960,
+  "price": 306.56,
+  "shares_outstanding": 280467785,
+  "float_shares": 279881607
  },
  {
   "symbol": "EIX",
   "sector": "Utilities",
-  "industry": "Utilities - Regulated Electric"
+  "industry": "Utilities - Regulated Electric",
+  "market_cap": 24305086464,
+  "price": 63.165,
+  "shares_outstanding": 384787221,
+  "float_shares": 383663642
  },
  {
   "symbol": "EW",
   "sector": "Healthcare",
-  "industry": "Medical Devices"
+  "industry": "Medical Devices",
+  "market_cap": 60593500160,
+  "price": 105.38,
+  "shares_outstanding": 575000000,
+  "float_shares": 573303750
  },
  {
   "symbol": "ELV",
   "sector": "Healthcare",
-  "industry": "Healthcare Plans"
+  "industry": "Healthcare Plans",
+  "market_cap": 84034936832,
+  "price": 388.95,
+  "shares_outstanding": 216055891,
+  "float_shares": 215576247
  },
  {
   "symbol": "EME",
   "sector": "Industrials",
-  "industry": "Engineering & Construction"
+  "industry": "Engineering & Construction",
+  "market_cap": 26733729792,
+  "price": 610.61,
+  "shares_outstanding": 43782004,
+  "float_shares": 43444445
  },
  {
   "symbol": "EMR",
   "sector": "Industrials",
-  "industry": "Specialty Industrial Machinery"
+  "industry": "Specialty Industrial Machinery",
+  "market_cap": 84264960000,
+  "price": 153.6,
+  "shares_outstanding": 548600000,
+  "float_shares": 546197132
  },
  {
   "symbol": "ETR",
   "sector": "Utilities",
-  "industry": "Utilities - Regulated Electric"
+  "industry": "Utilities - Regulated Electric",
+  "market_cap": 50914869248,
+  "price": 106.555,
+  "shares_outstanding": 477827121,
+  "float_shares": 475619560
  },
  {
   "symbol": "EOG",
   "sector": "Energy",
-  "industry": "Oil & Gas E&P"
+  "industry": "Oil & Gas E&P",
+  "market_cap": 77153042432,
+  "price": 148.805,
+  "shares_outstanding": 518484224,
+  "float_shares": 516275481
  },
  {
   "symbol": "EQT",
   "sector": "Energy",
-  "industry": "Oil & Gas E&P"
+  "industry": "Oil & Gas E&P",
+  "market_cap": 31552712704,
+  "price": 50.44,
+  "shares_outstanding": 625549428,
+  "float_shares": 617535717
  },
  {
   "symbol": "EFX",
   "sector": "Industrials",
-  "industry": "Consulting Services"
+  "industry": "Consulting Services",
+  "market_cap": 21658415104,
+  "price": 185.0875,
+  "shares_outstanding": 117017174,
+  "float_shares": 116542084
  },
  {
   "symbol": "EQIX",
   "sector": "Real Estate",
-  "industry": "REIT - Specialty"
+  "industry": "REIT - Specialty",
+  "market_cap": 95007014912,
+  "price": 959.78,
+  "shares_outstanding": 98988318,
+  "float_shares": 98618102
  },
  {
   "symbol": "ERIE",
   "sector": "Financial Services",
-  "industry": "Insurance Brokers"
+  "industry": "Insurance Brokers",
+  "market_cap": 14605605888,
+  "price": 279.32,
+  "shares_outstanding": 46189068,
+  "float_shares": 25150381
  },
  {
   "symbol": "ESS",
   "sector": "Real Estate",
-  "industry": "REIT - Residential"
+  "industry": "REIT - Residential",
+  "market_cap": 19272247296,
+  "price": 279.3,
+  "shares_outstanding": 64337514,
+  "float_shares": 63602780
  },
  {
   "symbol": "EL",
   "sector": "Consumer Defensive",
-  "industry": "Household & Personal Products"
+  "industry": "Household & Personal Products",
+  "market_cap": 38805594112,
+  "price": 107.1,
+  "shares_outstanding": 247823116,
+  "float_shares": 246776030
  },
  {
   "symbol": "EG",
   "sector": "Financial Services",
-  "industry": "Insurance - Reinsurance"
+  "industry": "Insurance - Reinsurance",
+  "market_cap": 15959049216,
+  "price": 430.825,
+  "shares_outstanding": 37042996,
+  "float_shares": 36350662
  },
  {
   "symbol": "EVRG",
   "sector": "Utilities",
-  "industry": "Utilities - Regulated Electric"
+  "industry": "Utilities - Regulated Electric",
+  "market_cap": 20570046464,
+  "price": 87.72,
+  "shares_outstanding": 234496657,
+  "float_shares": 233235065
  },
  {
   "symbol": "P",
   "sector": "Technology",
-  "industry": "Computer Hardware"
+  "industry": "Computer Hardware",
+  "market_cap": 28704196608,
+  "price": 86.14,
+  "shares_outstanding": 333227251,
+  "float_shares": 320043852
  },
  {
   "symbol": "ES",
   "sector": "Utilities",
-  "industry": "Utilities - Regulated Electric"
+  "industry": "Utilities - Regulated Electric",
+  "market_cap": 27612143616,
+  "price": 73.305,
+  "shares_outstanding": 376674754,
+  "float_shares": 376333824
  },
  {
   "symbol": "EXC",
   "sector": "Utilities",
-  "industry": "Utilities - Regulated Electric"
+  "industry": "Utilities - Regulated Electric",
+  "market_cap": 48422817792,
+  "price": 46.79,
+  "shares_outstanding": 1034896686,
+  "float_shares": 1033044221
  },
  {
   "symbol": "EXE",
   "sector": "Energy",
-  "industry": "Oil & Gas E&P"
+  "industry": "Oil & Gas E&P",
+  "market_cap": 19511277568,
+  "price": 84.48,
+  "shares_outstanding": 230957348,
+  "float_shares": 229765608
  },
  {
   "symbol": "EXPE",
   "sector": "Consumer Cyclical",
-  "industry": "Travel Services"
+  "industry": "Travel Services",
+  "market_cap": 27655677952,
+  "price": 233.235,
+  "shares_outstanding": 113050852,
+  "float_shares": 112098961
  },
  {
   "symbol": "EXPD",
   "sector": "Industrials",
-  "industry": "Integrated Freight & Logistics"
+  "industry": "Integrated Freight & Logistics",
+  "market_cap": 25326993408,
+  "price": 196.165,
+  "shares_outstanding": 129110669,
+  "float_shares": 128144921
  },
  {
   "symbol": "EXR",
   "sector": "Real Estate",
-  "industry": "REIT - Industrial"
+  "industry": "REIT - Industrial",
+  "market_cap": 34819371008,
+  "price": 159.61,
+  "shares_outstanding": 208719831,
+  "float_shares": 206340425
  },
  {
   "symbol": "XOM",
   "sector": "Energy",
-  "industry": "Oil & Gas Integrated"
+  "industry": "Oil & Gas Integrated",
+  "market_cap": 649249095680,
+  "price": 159.16,
+  "shares_outstanding": 4079222444,
+  "float_shares": 4071267960
  },
  {
   "symbol": "FFIV",
   "sector": "Technology",
-  "industry": "Software - Infrastructure"
+  "industry": "Software - Infrastructure",
+  "market_cap": 17502152704,
+  "price": 307.4,
+  "shares_outstanding": 56936090,
+  "float_shares": 56467506
  },
  {
   "symbol": "FDS",
   "sector": "Financial Services",
-  "industry": "Financial Data & Stock Exchanges"
+  "industry": "Financial Data & Stock Exchanges",
+  "market_cap": 11261891584,
+  "price": 319.435,
+  "shares_outstanding": 35255660,
+  "float_shares": 35124862
  },
  {
   "symbol": "FICO",
   "sector": "Technology",
-  "industry": "Software - Application"
+  "industry": "Software - Application",
+  "market_cap": 14919611392,
+  "price": 697.8,
+  "shares_outstanding": 21380929,
+  "float_shares": 20685835
  },
  {
   "symbol": "FAST",
   "sector": "Industrials",
-  "industry": "Industrial Distribution"
+  "industry": "Industrial Distribution",
+  "market_cap": 59602313216,
+  "price": 51.95,
+  "shares_outstanding": 1147301488,
+  "float_shares": 1144708587
  },
  {
   "symbol": "FRT",
   "sector": "Real Estate",
-  "industry": "REIT - Retail"
+  "industry": "REIT - Retail",
+  "market_cap": 9816270848,
+  "price": 113.42,
+  "shares_outstanding": 86021559,
+  "float_shares": 80298545
  },
  {
   "symbol": "FDX",
   "sector": "Industrials",
-  "industry": "Integrated Freight & Logistics"
+  "industry": "Integrated Freight & Logistics",
+  "market_cap": 71387480064,
+  "price": 304.815,
+  "shares_outstanding": 234199353,
+  "float_shares": 216205817
  },
  {
   "symbol": "FDXF",
   "sector": "Industrials",
-  "industry": "Integrated Freight & Logistics"
+  "industry": "Integrated Freight & Logistics",
+  "market_cap": 17191954432,
+  "price": 114.98,
+  "shares_outstanding": 149521266,
+  "float_shares": 119440578
  },
  {
   "symbol": "FERG",
   "sector": "Industrials",
-  "industry": "Industrial Distribution"
+  "industry": "Industrial Distribution",
+  "market_cap": 48717148160,
+  "price": 251.575,
+  "shares_outstanding": 193648602,
+  "float_shares": 193147052
  },
  {
   "symbol": "FIS",
   "sector": "Technology",
-  "industry": "Information Technology Services"
+  "industry": "Information Technology Services",
+  "market_cap": 14025945088,
+  "price": 27.21,
+  "shares_outstanding": 515470244,
+  "float_shares": 514186723
  },
  {
   "symbol": "FITB",
   "sector": "Financial Services",
-  "industry": "Banks - Regional"
+  "industry": "Banks - Regional",
+  "market_cap": 45742546944,
+  "price": 50.62,
+  "shares_outstanding": 903645765,
+  "float_shares": 899877562
  },
  {
   "symbol": "FSLR",
   "sector": "Technology",
-  "industry": "Solar"
+  "industry": "Solar",
+  "market_cap": 15398824960,
+  "price": 143.27,
+  "shares_outstanding": 107481151,
+  "float_shares": 101675019
  },
  {
   "symbol": "FE",
   "sector": "Utilities",
-  "industry": "Utilities - Regulated Electric"
+  "industry": "Utilities - Regulated Electric",
+  "market_cap": 27619000320,
+  "price": 47.71,
+  "shares_outstanding": 578893330,
+  "float_shares": 548524586
  },
  {
   "symbol": "FLEX",
   "sector": "Technology",
-  "industry": "Electronic Components"
+  "industry": "Electronic Components",
+  "market_cap": 23207680000,
+  "price": 62.815,
+  "shares_outstanding": 369460804,
+  "float_shares": 366700932
  },
  {
   "symbol": "F",
   "sector": "Consumer Cyclical",
-  "industry": "Auto Manufacturers"
+  "industry": "Auto Manufacturers",
+  "market_cap": 47639883776,
+  "price": 11.9302,
+  "shares_outstanding": 3922365390,
+  "float_shares": 3904727767
  },
  {
   "symbol": "FTNT",
   "sector": "Technology",
-  "industry": "Software - Infrastructure"
+  "industry": "Software - Infrastructure",
+  "market_cap": 95986163712,
+  "price": 130.645,
+  "shares_outstanding": 734709741,
+  "float_shares": 619933385
  },
  {
   "symbol": "FTV",
   "sector": "Technology",
-  "industry": "Scientific & Technical Instruments"
+  "industry": "Scientific & Technical Instruments",
+  "market_cap": 19367725056,
+  "price": 65.07,
+  "shares_outstanding": 297644456,
+  "float_shares": 276699216
  },
  {
   "symbol": "FOXA",
   "sector": "Communication Services",
-  "industry": "Entertainment"
+  "industry": "Entertainment",
+  "market_cap": 36499304448,
+  "price": 64.27,
+  "shares_outstanding": 347657035,
+  "float_shares": 342173743
  },
  {
   "symbol": "BEN",
   "sector": "Financial Services",
-  "industry": "Asset Management"
+  "industry": "Asset Management",
+  "market_cap": 16784374784,
+  "price": 32.75,
+  "shares_outstanding": 512500000,
+  "float_shares": 293403820
  },
  {
   "symbol": "FCX",
   "sector": "Basic Materials",
-  "industry": "Copper"
+  "industry": "Copper",
+  "market_cap": 66523635712,
+  "price": 46.36,
+  "shares_outstanding": 1434936034,
+  "float_shares": 1424374905
  },
  {
   "symbol": "GRMN",
   "sector": "Technology",
-  "industry": "Scientific & Technical Instruments"
+  "industry": "Scientific & Technical Instruments",
+  "market_cap": 53403578368,
+  "price": 277.14,
+  "shares_outstanding": 192695298,
+  "float_shares": 164347893
  },
  {
   "symbol": "IT",
   "sector": "Technology",
-  "industry": "Information Technology Services"
+  "industry": "Information Technology Services",
+  "market_cap": 11531586560,
+  "price": 182.805,
+  "shares_outstanding": 63081351,
+  "float_shares": 57229925
  },
  {
   "symbol": "GE",
   "sector": "Industrials",
-  "industry": "Aerospace & Defense"
+  "industry": "Aerospace & Defense",
+  "market_cap": 322705489920,
+  "price": 312.29,
+  "shares_outstanding": 1033351921,
+  "float_shares": 1029569853
  },
  {
   "symbol": "GEHC",
   "sector": "Healthcare",
-  "industry": "Medical Devices"
+  "industry": "Medical Devices",
+  "market_cap": 37224509440,
+  "price": 82.33,
+  "shares_outstanding": 452137831,
+  "float_shares": 450668383
  },
  {
   "symbol": "GEV",
   "sector": "Industrials",
-  "industry": "Specialty Industrial Machinery"
+  "industry": "Specialty Industrial Machinery",
+  "market_cap": 180958396416,
+  "price": 683.695,
+  "shares_outstanding": 264677066,
+  "float_shares": 264113304
  },
  {
   "symbol": "GEN",
   "sector": "Technology",
-  "industry": "Software - Infrastructure"
+  "industry": "Software - Infrastructure",
+  "market_cap": 17816082432,
+  "price": 30.03,
+  "shares_outstanding": 593276080,
+  "float_shares": 534114589
  },
  {
   "symbol": "GNRC",
   "sector": "Industrials",
-  "industry": "Specialty Industrial Machinery"
+  "industry": "Specialty Industrial Machinery",
+  "market_cap": 11217935360,
+  "price": 190.17,
+  "shares_outstanding": 58988982,
+  "float_shares": 57940158
  },
  {
   "symbol": "GD",
   "sector": "Industrials",
-  "industry": "Aerospace & Defense"
+  "industry": "Aerospace & Defense",
+  "market_cap": 96452296704,
+  "price": 356.935,
+  "shares_outstanding": 270223709,
+  "float_shares": 254442558
  },
  {
   "symbol": "GIS",
   "sector": "Consumer Defensive",
-  "industry": "Packaged Foods"
+  "industry": "Packaged Foods",
+  "market_cap": 19401121792,
+  "price": 36.285,
+  "shares_outstanding": 534687144,
+  "float_shares": 532313133
  },
  {
   "symbol": "GM",
   "sector": "Consumer Cyclical",
-  "industry": "Auto Manufacturers"
+  "industry": "Auto Manufacturers",
+  "market_cap": 69272281088,
+  "price": 82.12,
+  "shares_outstanding": 843549423,
+  "float_shares": 841001904
  },
  {
   "symbol": "GPC",
   "sector": "Consumer Cyclical",
-  "industry": "Auto Parts"
+  "industry": "Auto Parts",
+  "market_cap": 16636131328,
+  "price": 120.67,
+  "shares_outstanding": 137864682,
+  "float_shares": 137471768
  },
  {
   "symbol": "GILD",
   "sector": "Healthcare",
-  "industry": "Drug Manufacturers - General"
+  "industry": "Drug Manufacturers - General",
+  "market_cap": 220358557696,
+  "price": 177.66,
+  "shares_outstanding": 1240338614,
+  "float_shares": 1237783516
  },
  {
   "symbol": "GPN",
   "sector": "Industrials",
-  "industry": "Specialty Business Services"
+  "industry": "Specialty Business Services",
+  "market_cap": 24906199040,
+  "price": 94.115,
+  "shares_outstanding": 264635810,
+  "float_shares": 219610673
  },
  {
   "symbol": "GL",
   "sector": "Financial Services",
-  "industry": "Insurance - Life"
+  "industry": "Insurance - Life",
+  "market_cap": 11718808576,
+  "price": 155.34,
+  "shares_outstanding": 75439736,
+  "float_shares": 74752480
  },
  {
   "symbol": "GDDY",
   "sector": "Technology",
-  "industry": "Software - Infrastructure"
+  "industry": "Software - Infrastructure",
+  "market_cap": 12634398720,
+  "price": 104.18,
+  "shares_outstanding": 121274701,
+  "float_shares": 112410733
  },
  {
   "symbol": "GS",
   "sector": "Financial Services",
-  "industry": "Capital Markets"
+  "industry": "Capital Markets",
+  "market_cap": 224445382656,
+  "price": 778.15,
+  "shares_outstanding": 288434583,
+  "float_shares": 298216315
  },
  {
   "symbol": "HAL",
   "sector": "Energy",
-  "industry": "Oil & Gas Equipment & Services"
+  "industry": "Oil & Gas Equipment & Services",
+  "market_cap": 25785663488,
+  "price": 31.175,
+  "shares_outstanding": 827126342,
+  "float_shares": 822080871
  },
  {
   "symbol": "HIG",
   "sector": "Financial Services",
-  "industry": "Insurance - Diversified"
+  "industry": "Insurance - Diversified",
+  "market_cap": 37488685056,
+  "price": 140.19,
+  "shares_outstanding": 267413397,
+  "float_shares": 266143183
  },
  {
   "symbol": "HAS",
   "sector": "Consumer Cyclical",
-  "industry": "Leisure"
+  "industry": "Leisure",
+  "market_cap": 15312156672,
+  "price": 109.48,
+  "shares_outstanding": 139862589,
+  "float_shares": 139191249
  },
  {
   "symbol": "HCA",
   "sector": "Healthcare",
-  "industry": "Medical Care Facilities"
+  "industry": "Medical Care Facilities",
+  "market_cap": 101158281216,
+  "price": 484.26,
+  "shares_outstanding": 208892500,
+  "float_shares": 136734764
  },
  {
   "symbol": "DOC",
   "sector": "Real Estate",
-  "industry": "REIT - Healthcare Facilities"
+  "industry": "REIT - Healthcare Facilities",
+  "market_cap": 14912425984,
+  "price": 20.54,
+  "shares_outstanding": 689543752,
+  "float_shares": 686826950
  },
  {
   "symbol": "HSIC",
   "sector": "Healthcare",
-  "industry": "Medical Distribution"
+  "industry": "Medical Distribution",
+  "market_cap": 9803663360,
+  "price": 88.69,
+  "shares_outstanding": 110538542,
+  "float_shares": 90790831
  },
  {
   "symbol": "HSY",
   "sector": "Consumer Defensive",
-  "industry": "Confectioners"
+  "industry": "Confectioners",
+  "market_cap": 36680929280,
+  "price": 182.51,
+  "shares_outstanding": 146366875,
+  "float_shares": 90670293
  },
  {
   "symbol": "HPE",
   "sector": "Technology",
-  "industry": "Communication Equipment"
+  "industry": "Communication Equipment",
+  "market_cap": 51238461440,
+  "price": 38.935,
+  "shares_outstanding": 1316000000,
+  "float_shares": 1310380680
  },
  {
   "symbol": "HLT",
   "sector": "Consumer Cyclical",
-  "industry": "Lodging"
+  "industry": "Lodging",
+  "market_cap": 79943589888,
+  "price": 359.29,
+  "shares_outstanding": 222504355,
+  "float_shares": 218201121
  },
  {
   "symbol": "HD",
   "sector": "Consumer Cyclical",
-  "industry": "Home Improvement Retail"
+  "industry": "Home Improvement Retail",
+  "market_cap": 356502667264,
+  "price": 357.27,
+  "shares_outstanding": 997852247,
+  "float_shares": 996175855
  },
  {
   "symbol": "HONA",
   "sector": "Industrials",
-  "industry": "Aerospace & Defense"
+  "industry": "Aerospace & Defense",
+  "market_cap": 48480509952,
+  "price": 152.92,
+  "shares_outstanding": 317031836,
+  "float_shares": 316670420
  },
  {
   "symbol": "HON",
   "sector": "Industrials",
-  "industry": "Conglomerates"
+  "industry": "Conglomerates",
+  "market_cap": 70263177216,
+  "price": 221.4,
+  "shares_outstanding": 317358518,
+  "float_shares": 297628339
  },
  {
   "symbol": "HRL",
   "sector": "Consumer Defensive",
-  "industry": "Packaged Foods"
+  "industry": "Packaged Foods",
+  "market_cap": 12658068480,
+  "price": 23.0,
+  "shares_outstanding": 550350800,
+  "float_shares": 290761335
  },
  {
   "symbol": "HST",
   "sector": "Real Estate",
-  "industry": "REIT - Hotel & Motel"
+  "industry": "REIT - Hotel & Motel",
+  "market_cap": 17127696384,
+  "price": 24.66,
+  "shares_outstanding": 685156063,
+  "float_shares": 675365183
  },
  {
   "symbol": "HWM",
   "sector": "Industrials",
-  "industry": "Aerospace & Defense"
+  "industry": "Aerospace & Defense",
+  "market_cap": 82395250688,
+  "price": 207.2,
+  "shares_outstanding": 397660490,
+  "float_shares": 394089499
  },
  {
   "symbol": "HPQ",
   "sector": "Technology",
-  "industry": "Computer Hardware"
+  "industry": "Computer Hardware",
+  "market_cap": 27892396032,
+  "price": 30.93,
+  "shares_outstanding": 901790969,
+  "float_shares": 898751933
  },
  {
   "symbol": "HUBB",
   "sector": "Industrials",
-  "industry": "Electrical Equipment & Parts"
+  "industry": "Electrical Equipment & Parts",
+  "market_cap": 22125991936,
+  "price": 418.775,
+  "shares_outstanding": 52835035,
+  "float_shares": 52558179
  },
  {
   "symbol": "HUM",
   "sector": "Healthcare",
-  "industry": "Healthcare Plans"
+  "industry": "Healthcare Plans",
+  "market_cap": 48040095744,
+  "price": 399.99,
+  "shares_outstanding": 120103250,
+  "float_shares": 119858239
  },
  {
   "symbol": "HBAN",
   "sector": "Financial Services",
-  "industry": "Banks - Regional"
+  "industry": "Banks - Regional",
+  "market_cap": 29535500288,
+  "price": 14.655,
+  "shares_outstanding": 2015387251,
+  "float_shares": 2002388003
  },
  {
   "symbol": "HII",
   "sector": "Industrials",
-  "industry": "Aerospace & Defense"
+  "industry": "Aerospace & Defense",
+  "market_cap": 11681137664,
+  "price": 296.43,
+  "shares_outstanding": 39406060,
+  "float_shares": 38823638
  },
  {
   "symbol": "IBM",
   "sector": "Technology",
-  "industry": "Information Technology Services"
+  "industry": "Information Technology Services",
+  "market_cap": 226994405376,
+  "price": 240.175,
+  "shares_outstanding": 945120805,
+  "float_shares": 943202210
  },
  {
   "symbol": "IEX",
   "sector": "Industrials",
-  "industry": "Specialty Industrial Machinery"
+  "industry": "Specialty Industrial Machinery",
+  "market_cap": 16269795328,
+  "price": 221.5,
+  "shares_outstanding": 73452801,
+  "float_shares": 73230239
  },
  {
   "symbol": "IDXX",
   "sector": "Healthcare",
-  "industry": "Diagnostics & Research"
+  "industry": "Diagnostics & Research",
+  "market_cap": 55604588544,
+  "price": 705.765,
+  "shares_outstanding": 78786265,
+  "float_shares": 78516816
  },
  {
   "symbol": "ITW",
   "sector": "Industrials",
-  "industry": "Specialty Industrial Machinery"
+  "industry": "Specialty Industrial Machinery",
+  "market_cap": 80604798976,
+  "price": 283.62,
+  "shares_outstanding": 284200000,
+  "float_shares": 257147002
  },
  {
   "symbol": "ILMN",
   "sector": "Healthcare",
-  "industry": "Diagnostics & Research"
+  "industry": "Diagnostics & Research",
+  "market_cap": 29781106688,
+  "price": 196.965,
+  "shares_outstanding": 151200000,
+  "float_shares": 150734304
  },
  {
   "symbol": "INCY",
   "sector": "Healthcare",
-  "industry": "Biotechnology"
+  "industry": "Biotechnology",
+  "market_cap": 24800808960,
+  "price": 121.6725,
+  "shares_outstanding": 203832492,
+  "float_shares": 171714606
  },
  {
   "symbol": "IR",
   "sector": "Industrials",
-  "industry": "Specialty Industrial Machinery"
+  "industry": "Specialty Industrial Machinery",
+  "market_cap": 31487703040,
+  "price": 81.995,
+  "shares_outstanding": 384019778,
+  "float_shares": 382775554
  },
  {
   "symbol": "PODD",
   "sector": "Healthcare",
-  "industry": "Medical Devices"
+  "industry": "Medical Devices",
+  "market_cap": 9816002560,
+  "price": 141.5,
+  "shares_outstanding": 69371043,
+  "float_shares": 59670890
  },
  {
   "symbol": "INTC",
   "sector": "Technology",
-  "industry": "Semiconductors"
+  "industry": "Semiconductors",
+  "market_cap": 268780060672,
+  "price": 50.5701,
+  "shares_outstanding": 5315000000,
+  "float_shares": 4872366800
  },
  {
   "symbol": "IBKR",
   "sector": "Financial Services",
-  "industry": "Capital Markets"
+  "industry": "Capital Markets",
+  "market_cap": 123136598016,
+  "price": 72.27,
+  "shares_outstanding": 453103399,
+  "float_shares": 439261478
  },
  {
   "symbol": "ICE",
   "sector": "Financial Services",
-  "industry": "Financial Data & Stock Exchanges"
+  "industry": "Financial Data & Stock Exchanges",
+  "market_cap": 97780662272,
+  "price": 174.965,
+  "shares_outstanding": 558858412,
+  "float_shares": 555197889
  },
  {
   "symbol": "IFF",
   "sector": "Basic Materials",
-  "industry": "Specialty Chemicals"
+  "industry": "Specialty Chemicals",
+  "market_cap": 21378408448,
+  "price": 85.38,
+  "shares_outstanding": 250391293,
+  "float_shares": 249697709
  },
  {
   "symbol": "IP",
   "sector": "Consumer Cyclical",
-  "industry": "Packaging & Containers"
+  "industry": "Packaging & Containers",
+  "market_cap": 16380606464,
+  "price": 30.93,
+  "shares_outstanding": 529602540,
+  "float_shares": 527224625
  },
  {
   "symbol": "INTU",
   "sector": "Technology",
-  "industry": "Software - Application"
+  "industry": "Software - Application",
+  "market_cap": 72165916672,
+  "price": 273.3402,
+  "shares_outstanding": 264015000,
+  "float_shares": 257718242
  },
  {
   "symbol": "ISRG",
   "sector": "Healthcare",
-  "industry": "Medical Instruments & Supplies"
+  "industry": "Medical Instruments & Supplies",
+  "market_cap": 146807078912,
+  "price": 423.51,
+  "shares_outstanding": 346643718,
+  "float_shares": 344619319
  },
  {
   "symbol": "IVZ",
   "sector": "Financial Services",
-  "industry": "Asset Management"
+  "industry": "Asset Management",
+  "market_cap": 11911234560,
+  "price": 27.1,
+  "shares_outstanding": 439528938,
+  "float_shares": 354559204
  },
  {
   "symbol": "INVH",
   "sector": "Real Estate",
-  "industry": "REIT - Residential"
+  "industry": "REIT - Residential",
+  "market_cap": 15956707328,
+  "price": 27.59,
+  "shares_outstanding": 576154556,
+  "float_shares": 522186159
  },
  {
   "symbol": "IQV",
   "sector": "Healthcare",
-  "industry": "Diagnostics & Research"
+  "industry": "Diagnostics & Research",
+  "market_cap": 40795414528,
+  "price": 247.545,
+  "shares_outstanding": 164800000,
+  "float_shares": 156444640
  },
  {
   "symbol": "IRM",
   "sector": "Real Estate",
-  "industry": "REIT - Specialty"
+  "industry": "REIT - Specialty",
+  "market_cap": 30501158912,
+  "price": 102.41,
+  "shares_outstanding": 297833786,
+  "float_shares": 294917993
  },
  {
   "symbol": "JBHT",
   "sector": "Industrials",
-  "industry": "Integrated Freight & Logistics"
+  "industry": "Integrated Freight & Logistics",
+  "market_cap": 21025015808,
+  "price": 225.545,
+  "shares_outstanding": 93218722,
+  "float_shares": 72532555
  },
  {
   "symbol": "JBL",
   "sector": "Technology",
-  "industry": "Electronic Components"
+  "industry": "Electronic Components",
+  "market_cap": 22282100736,
+  "price": 216.3847,
+  "shares_outstanding": 102974470,
+  "float_shares": 100839809
  },
  {
   "symbol": "JKHY",
   "sector": "Technology",
-  "industry": "Information Technology Services"
+  "industry": "Information Technology Services",
+  "market_cap": 12487507968,
+  "price": 179.37,
+  "shares_outstanding": 69618713,
+  "float_shares": 69259480
  },
  {
   "symbol": "J",
   "sector": "Industrials",
-  "industry": "Engineering & Construction"
+  "industry": "Engineering & Construction",
+  "market_cap": 16814126080,
+  "price": 144.76,
+  "shares_outstanding": 116151741,
+  "float_shares": 115268988
  },
  {
   "symbol": "JNJ",
   "sector": "Healthcare",
-  "industry": "Drug Manufacturers - General"
+  "industry": "Drug Manufacturers - General",
+  "market_cap": 665525026816,
+  "price": 276.46,
+  "shares_outstanding": 2407310266,
+  "float_shares": 2403530789
  },
  {
   "symbol": "JCI",
   "sector": "Industrials",
-  "industry": "Building Products & Equipment"
+  "industry": "Building Products & Equipment",
+  "market_cap": 80144670720,
+  "price": 133.53,
+  "shares_outstanding": 600199736,
+  "float_shares": 598309107
  },
  {
   "symbol": "JPM",
   "sector": "Financial Services",
-  "industry": "Banks - Diversified"
+  "industry": "Banks - Diversified",
+  "market_cap": 827647328256,
+  "price": 311.66,
+  "shares_outstanding": 2655609509,
+  "float_shares": 2641481666
  },
  {
   "symbol": "KDP",
   "sector": "Consumer Defensive",
-  "industry": "Beverages - Non-Alcoholic"
+  "industry": "Beverages - Non-Alcoholic",
+  "market_cap": 50980130816,
+  "price": 35.71,
+  "shares_outstanding": 1427615017,
+  "float_shares": 1354851301
  },
  {
   "symbol": "KEY",
   "sector": "Financial Services",
-  "industry": "Banks - Regional"
+  "industry": "Banks - Regional",
+  "market_cap": 20892559360,
+  "price": 19.785,
+  "shares_outstanding": 1055979769,
+  "float_shares": 1051512975
  },
  {
   "symbol": "KEYS",
   "sector": "Technology",
-  "industry": "Scientific & Technical Instruments"
+  "industry": "Scientific & Technical Instruments",
+  "market_cap": 43918807040,
+  "price": 258.498,
+  "shares_outstanding": 169900000,
+  "float_shares": 168666526
  },
  {
   "symbol": "KMB",
   "sector": "Consumer Defensive",
-  "industry": "Household & Personal Products"
+  "industry": "Household & Personal Products",
+  "market_cap": 66933567488,
+  "price": 109.07,
+  "shares_outstanding": 613675314,
+  "float_shares": 331892701
  },
  {
   "symbol": "KIM",
   "sector": "Real Estate",
-  "industry": "REIT - Retail"
+  "industry": "REIT - Retail",
+  "market_cap": 17309861888,
+  "price": 26.0499,
+  "shares_outstanding": 664488625,
+  "float_shares": 647352675
  },
  {
   "symbol": "KMI",
   "sector": "Energy",
-  "industry": "Oil & Gas Midstream"
+  "industry": "Oil & Gas Midstream",
+  "market_cap": 69861154816,
+  "price": 31.36,
+  "shares_outstanding": 2227715229,
+  "float_shares": 1940206302
  },
  {
   "symbol": "KKR",
   "sector": "Financial Services",
-  "industry": "Asset Management"
+  "industry": "Asset Management",
+  "market_cap": 82839666688,
+  "price": 90.23,
+  "shares_outstanding": 892139534,
+  "float_shares": 685662760
  },
  {
   "symbol": "KLAC",
   "sector": "Technology",
-  "industry": "Semiconductor Equipment & Materials"
+  "industry": "Semiconductor Equipment & Materials",
+  "market_cap": 162251390976,
+  "price": 124.525,
+  "shares_outstanding": 1302962435,
+  "float_shares": 1300043799
  },
  {
   "symbol": "KHC",
   "sector": "Consumer Defensive",
-  "industry": "Packaged Foods"
+  "industry": "Packaged Foods",
+  "market_cap": 31057754112,
+  "price": 26.235,
+  "shares_outstanding": 1183828946,
+  "float_shares": 854002363
  },
  {
   "symbol": "KR",
   "sector": "Consumer Defensive",
-  "industry": "Grocery Stores"
+  "industry": "Grocery Stores",
+  "market_cap": 41677840384,
+  "price": 70.57,
+  "shares_outstanding": 590588700,
+  "float_shares": 587901521
  },
  {
   "symbol": "LHX",
   "sector": "Industrials",
-  "industry": "Aerospace & Defense"
+  "industry": "Aerospace & Defense",
+  "market_cap": 48605843456,
+  "price": 261.04,
+  "shares_outstanding": 186200733,
+  "float_shares": 185193387
  },
  {
   "symbol": "LH",
   "sector": "Healthcare",
-  "industry": "Diagnostics & Research"
+  "industry": "Diagnostics & Research",
+  "market_cap": 30052120576,
+  "price": 370.1,
+  "shares_outstanding": 81200000,
+  "float_shares": 80814300
  },
  {
   "symbol": "LRCX",
   "sector": "Technology",
-  "industry": "Semiconductor Equipment & Materials"
+  "industry": "Semiconductor Equipment & Materials",
+  "market_cap": 220578611200,
+  "price": 176.58,
+  "shares_outstanding": 1249171000,
+  "float_shares": 1244274250
  },
  {
   "symbol": "LVS",
   "sector": "Consumer Cyclical",
-  "industry": "Resorts & Casinos"
+  "industry": "Resorts & Casinos",
+  "market_cap": 24822540288,
+  "price": 39.59,
+  "shares_outstanding": 626990133,
+  "float_shares": 270067959
  },
  {
   "symbol": "LDOS",
   "sector": "Technology",
-  "industry": "Information Technology Services"
+  "industry": "Information Technology Services",
+  "market_cap": 15869680640,
+  "price": 130.085,
+  "shares_outstanding": 121994697,
+  "float_shares": 121033379
  },
  {
   "symbol": "LEN",
   "sector": "Consumer Cyclical",
-  "industry": "Residential Construction"
+  "industry": "Residential Construction",
+  "market_cap": 20316680192,
+  "price": 85.4,
+  "shares_outstanding": 207876222,
+  "float_shares": 182564643
  },
  {
   "symbol": "LII",
   "sector": "Industrials",
-  "industry": "Building Products & Equipment"
+  "industry": "Building Products & Equipment",
+  "market_cap": 11918560256,
+  "price": 348.41,
+  "shares_outstanding": 34208431,
+  "float_shares": 28594143
  },
  {
   "symbol": "LLY",
   "sector": "Healthcare",
-  "industry": "Drug Manufacturers - General"
+  "industry": "Drug Manufacturers - General",
+  "market_cap": 1238825959424,
+  "price": 1390.775,
+  "shares_outstanding": 890745031,
+  "float_shares": 888420186
  },
  {
   "symbol": "LIN",
   "sector": "Basic Materials",
-  "industry": "Specialty Chemicals"
+  "industry": "Specialty Chemicals",
+  "market_cap": 239086223360,
+  "price": 520.79,
+  "shares_outstanding": 459083779,
+  "float_shares": 457550439
  },
  {
   "symbol": "LYV",
   "sector": "Communication Services",
-  "industry": "Entertainment"
+  "industry": "Entertainment",
+  "market_cap": 42522013696,
+  "price": 180.41,
+  "shares_outstanding": 235696543,
+  "float_shares": 157569848
  },
  {
   "symbol": "LMT",
   "sector": "Industrials",
-  "industry": "Aerospace & Defense"
+  "industry": "Aerospace & Defense",
+  "market_cap": 136958033920,
+  "price": 592.88,
+  "shares_outstanding": 231004640,
+  "float_shares": 197518207
  },
  {
   "symbol": "L",
   "sector": "Financial Services",
-  "industry": "Insurance - Property & Casualty"
+  "industry": "Insurance - Property & Casualty",
+  "market_cap": 22513735680,
+  "price": 111.33,
+  "shares_outstanding": 202225230,
+  "float_shares": 162479883
  },
  {
   "symbol": "LOW",
   "sector": "Consumer Cyclical",
-  "industry": "Home Improvement Retail"
+  "industry": "Home Improvement Retail",
+  "market_cap": 130332901376,
+  "price": 232.3001,
+  "shares_outstanding": 561054019,
+  "float_shares": 559760190
  },
  {
   "symbol": "LULU",
   "sector": "Consumer Cyclical",
-  "industry": "Apparel Retail"
+  "industry": "Apparel Retail",
+  "market_cap": 12056326144,
+  "price": 104.09,
+  "shares_outstanding": 105594064,
+  "float_shares": 101724799
  },
  {
   "symbol": "LITE",
   "sector": "Technology",
-  "industry": "Communication Equipment"
+  "industry": "Communication Equipment",
+  "market_cap": 40342544384,
+  "price": 444.865,
+  "shares_outstanding": 90684914,
+  "float_shares": 90223825
  },
  {
   "symbol": "LYB",
   "sector": "Basic Materials",
-  "industry": "Specialty Chemicals"
+  "industry": "Specialty Chemicals",
+  "market_cap": 18434519040,
+  "price": 57.03,
+  "shares_outstanding": 323242496,
+  "float_shares": 258855823
  },
  {
   "symbol": "MTB",
   "sector": "Financial Services",
-  "industry": "Banks - Regional"
+  "industry": "Banks - Regional",
+  "market_cap": 30524280832,
+  "price": 212.81,
+  "shares_outstanding": 143434433,
+  "float_shares": 142807625
  },
  {
   "symbol": "MPC",
   "sector": "Energy",
-  "industry": "Oil & Gas Refining & Marketing"
+  "industry": "Oil & Gas Refining & Marketing",
+  "market_cap": 93859782656,
+  "price": 344.715,
+  "shares_outstanding": 272282280,
+  "float_shares": 271370134
  },
  {
   "symbol": "MAR",
   "sector": "Consumer Cyclical",
-  "industry": "Lodging"
+  "industry": "Lodging",
+  "market_cap": 105762209792,
+  "price": 410.72,
+  "shares_outstanding": 257504397,
+  "float_shares": 220140509
  },
  {
   "symbol": "MRSH",
   "sector": "Financial Services",
-  "industry": "Insurance Brokers"
+  "industry": "Insurance Brokers",
+  "market_cap": 102787178496,
+  "price": 216.16,
+  "shares_outstanding": 475514327,
+  "float_shares": 474596584
  },
  {
   "symbol": "MLM",
   "sector": "Basic Materials",
-  "industry": "Building Materials"
+  "industry": "Building Materials",
+  "market_cap": 37794496512,
+  "price": 531.43,
+  "shares_outstanding": 71118485,
+  "float_shares": 59734549
  },
  {
   "symbol": "MRVL",
   "sector": "Technology",
-  "industry": "Semiconductors"
+  "industry": "Semiconductors",
+  "market_cap": 109074120704,
+  "price": 121.225,
+  "shares_outstanding": 877987882,
+  "float_shares": 873865926
  },
  {
   "symbol": "MAS",
   "sector": "Industrials",
-  "industry": "Building Products & Equipment"
+  "industry": "Building Products & Equipment",
+  "market_cap": 16420072448,
+  "price": 85.18,
+  "shares_outstanding": 192769103,
+  "float_shares": 191938268
  },
  {
   "symbol": "MA",
   "sector": "Financial Services",
-  "industry": "Credit Services"
+  "industry": "Credit Services",
+  "market_cap": 562893029376,
+  "price": 646.13,
+  "shares_outstanding": 864657109,
+  "float_shares": 863570747
  },
  {
   "symbol": "MKC",
   "sector": "Consumer Defensive",
-  "industry": "Packaged Foods"
+  "industry": "Packaged Foods",
+  "market_cap": 13532597248,
+  "price": 50.295,
+  "shares_outstanding": 254541615,
+  "float_shares": 265838396
  },
  {
   "symbol": "MCD",
   "sector": "Consumer Cyclical",
-  "industry": "Restaurants"
+  "industry": "Restaurants",
+  "market_cap": 199483080704,
+  "price": 282.6401,
+  "shares_outstanding": 705784744,
+  "float_shares": 704775472
  },
  {
   "symbol": "MCK",
   "sector": "Healthcare",
-  "industry": "Medical Distribution"
+  "industry": "Medical Distribution",
+  "market_cap": 124432261120,
+  "price": 1077.74,
+  "shares_outstanding": 115456664,
+  "float_shares": 115270779
  },
  {
   "symbol": "MDT",
   "sector": "Healthcare",
-  "industry": "Medical Devices"
+  "industry": "Medical Devices",
+  "market_cap": 122093707264,
+  "price": 95.45,
+  "shares_outstanding": 1279137890,
+  "float_shares": 1276720319
  },
  {
   "symbol": "MRK",
   "sector": "Healthcare",
-  "industry": "Drug Manufacturers - General"
+  "industry": "Drug Manufacturers - General",
+  "market_cap": 345664421888,
+  "price": 140.215,
+  "shares_outstanding": 2465245688,
+  "float_shares": 2461227338
  },
  {
   "symbol": "META",
   "sector": "Communication Services",
-  "industry": "Internet Content & Information"
+  "industry": "Internet Content & Information",
+  "market_cap": 1480523776000,
+  "price": 579.18,
+  "shares_outstanding": 2214472367,
+  "float_shares": 2211199809
  },
  {
   "symbol": "MET",
   "sector": "Financial Services",
-  "industry": "Insurance - Life"
+  "industry": "Insurance - Life",
+  "market_cap": 62234619904,
+  "price": 99.03,
+  "shares_outstanding": 628442143,
+  "float_shares": 525710706
  },
  {
   "symbol": "MTD",
   "sector": "Healthcare",
-  "industry": "Diagnostics & Research"
+  "industry": "Diagnostics & Research",
+  "market_cap": 32868495360,
+  "price": 1652.48,
+  "shares_outstanding": 19890405,
+  "float_shares": 19779218
  },
  {
   "symbol": "MGM",
   "sector": "Consumer Cyclical",
-  "industry": "Resorts & Casinos"
+  "industry": "Resorts & Casinos",
+  "market_cap": 8660550656,
+  "price": 34.23,
+  "shares_outstanding": 253010547,
+  "float_shares": 182372532
  },
  {
   "symbol": "MCHP",
   "sector": "Technology",
-  "industry": "Semiconductors"
+  "industry": "Semiconductors",
+  "market_cap": 29888759808,
+  "price": 54.92,
+  "shares_outstanding": 544223627,
+  "float_shares": 533943243
  },
  {
   "symbol": "MU",
   "sector": "Technology",
-  "industry": "Semiconductors"
+  "industry": "Semiconductors",
+  "market_cap": 642976514048,
+  "price": 568.29,
+  "shares_outstanding": 1131423212,
+  "float_shares": 1127678201
  },
  {
   "symbol": "MSFT",
   "sector": "Technology",
-  "industry": "Software - Infrastructure"
+  "industry": "Software - Infrastructure",
+  "market_cap": 3578497335296,
+  "price": 481.875,
+  "shares_outstanding": 7426194552,
+  "float_shares": 7415426570
  },
  {
   "symbol": "MAA",
   "sector": "Real Estate",
-  "industry": "REIT - Residential"
+  "industry": "REIT - Residential",
+  "market_cap": 14021046272,
+  "price": 117.9,
+  "shares_outstanding": 115993211,
+  "float_shares": 101824640
  },
  {
   "symbol": "MRNA",
   "sector": "Healthcare",
-  "industry": "Biotechnology"
+  "industry": "Biotechnology",
+  "market_cap": 87422402560,
+  "price": 216.06,
+  "shares_outstanding": 404620975,
+  "float_shares": 377685357
  },
  {
   "symbol": "MDLZ",
   "sector": "Consumer Defensive",
-  "industry": "Confectioners"
+  "industry": "Confectioners",
+  "market_cap": 85583331328,
+  "price": 67.61,
+  "shares_outstanding": 1265838379,
+  "float_shares": 1262205423
  },
  {
   "symbol": "MPWR",
   "sector": "Technology",
-  "industry": "Semiconductors"
+  "industry": "Semiconductors",
+  "market_cap": 54656249856,
+  "price": 1120.74,
+  "shares_outstanding": 48768000,
+  "float_shares": 47013327
  },
  {
   "symbol": "MNST",
   "sector": "Consumer Defensive",
-  "industry": "Beverages - Non-Alcoholic"
+  "industry": "Beverages - Non-Alcoholic",
+  "market_cap": 82685304832,
+  "price": 42.24,
+  "shares_outstanding": 1957511922,
+  "float_shares": 1811403232
  },
  {
   "symbol": "MCO",
   "sector": "Financial Services",
-  "industry": "Financial Data & Stock Exchanges"
+  "industry": "Financial Data & Stock Exchanges",
+  "market_cap": 82893742080,
+  "price": 480.755,
+  "shares_outstanding": 172424082,
+  "float_shares": 157821486
  },
  {
   "symbol": "MS",
   "sector": "Financial Services",
-  "industry": "Capital Markets"
+  "industry": "Capital Markets",
+  "market_cap": 255675056128,
+  "price": 163.5751,
+  "shares_outstanding": 1563043865,
+  "float_shares": 1184787250
  },
  {
   "symbol": "MOS",
   "sector": "Basic Materials",
-  "industry": "Agricultural Inputs"
+  "industry": "Agricultural Inputs",
+  "market_cap": 6256344064,
+  "price": 19.68,
+  "shares_outstanding": 317903655,
+  "float_shares": 295726696
  },
  {
   "symbol": "MSI",
   "sector": "Technology",
-  "industry": "Communication Equipment"
+  "industry": "Communication Equipment",
+  "market_cap": 87058235392,
+  "price": 526.56,
+  "shares_outstanding": 165333940,
+  "float_shares": 164733778
  },
  {
   "symbol": "MSCI",
   "sector": "Financial Services",
-  "industry": "Financial Data & Stock Exchanges"
+  "industry": "Financial Data & Stock Exchanges",
+  "market_cap": 44906291200,
+  "price": 628.06,
+  "shares_outstanding": 71500000,
+  "float_shares": 67595385
  },
  {
   "symbol": "NDAQ",
   "sector": "Financial Services",
-  "industry": "Financial Data & Stock Exchanges"
+  "industry": "Financial Data & Stock Exchanges",
+  "market_cap": 58315485184,
+  "price": 105.08,
+  "shares_outstanding": 554962751,
+  "float_shares": 492401800
  },
  {
   "symbol": "NTAP",
   "sector": "Technology",
-  "industry": "Software - Infrastructure"
+  "industry": "Software - Infrastructure",
+  "market_cap": 31011614720,
+  "price": 157.885,
+  "shares_outstanding": 196419005,
+  "float_shares": 195468337
  },
  {
   "symbol": "NFLX",
   "sector": "Communication Services",
-  "industry": "Entertainment"
+  "industry": "Entertainment",
+  "market_cap": 236606504960,
+  "price": 57.62,
+  "shares_outstanding": 4106325903,
+  "float_shares": 4077417369
  },
  {
   "symbol": "NEM",
   "sector": "Basic Materials",
-  "industry": "Gold"
+  "industry": "Gold",
+  "market_cap": 99804119040,
+  "price": 96.04,
+  "shares_outstanding": 1039193185,
+  "float_shares": 1036719905
  },
  {
   "symbol": "NWSA",
   "sector": "Communication Services",
-  "industry": "Entertainment"
+  "industry": "Entertainment",
+  "market_cap": 13871423488,
+  "price": 25.8599,
+  "shares_outstanding": 357720964,
+  "float_shares": 472918244
  },
  {
   "symbol": "NEE",
   "sector": "Utilities",
-  "industry": "Utilities - Regulated Electric"
+  "industry": "Utilities - Regulated Electric",
+  "market_cap": 178997723136,
+  "price": 85.3465,
+  "shares_outstanding": 2097306049,
+  "float_shares": 2092712949
  },
  {
   "symbol": "NKE",
   "sector": "Consumer Cyclical",
-  "industry": "Footwear & Accessories"
+  "industry": "Footwear & Accessories",
+  "market_cap": 52906696704,
+  "price": 35.62,
+  "shares_outstanding": 1203921077,
+  "float_shares": 1178533143
  },
  {
   "symbol": "NI",
   "sector": "Utilities",
-  "industry": "Utilities - Regulated Gas"
+  "industry": "Utilities - Regulated Gas",
+  "market_cap": 21745776640,
+  "price": 45.335,
+  "shares_outstanding": 479668642,
+  "float_shares": 477836308
  },
  {
   "symbol": "NDSN",
   "sector": "Industrials",
-  "industry": "Specialty Industrial Machinery"
+  "industry": "Specialty Industrial Machinery",
+  "market_cap": 17552541696,
+  "price": 315.13,
+  "shares_outstanding": 55699366,
+  "float_shares": 52481057
  },
  {
   "symbol": "NSC",
   "sector": "Industrials",
-  "industry": "Railroads"
+  "industry": "Railroads",
+  "market_cap": 71506722816,
+  "price": 318.35,
+  "shares_outstanding": 224616686,
+  "float_shares": 224225853
  },
  {
   "symbol": "NTRS",
   "sector": "Financial Services",
-  "industry": "Asset Management"
+  "industry": "Asset Management",
+  "market_cap": 29583781888,
+  "price": 163.34,
+  "shares_outstanding": 181117806,
+  "float_shares": 177980846
  },
  {
   "symbol": "NOC",
   "sector": "Industrials",
-  "industry": "Aerospace & Defense"
+  "industry": "Aerospace & Defense",
+  "market_cap": 78710833152,
+  "price": 554.05,
+  "shares_outstanding": 142064489,
+  "float_shares": 141592835
  },
  {
   "symbol": "NCLH",
   "sector": "Consumer Cyclical",
-  "industry": "Travel Services"
+  "industry": "Travel Services",
+  "market_cap": 7690567680,
+  "price": 16.745,
+  "shares_outstanding": 459275445,
+  "float_shares": 455449681
  },
  {
   "symbol": "NRG",
   "sector": "Utilities",
-  "industry": "Utilities - Independent Power Producers"
+  "industry": "Utilities - Independent Power Producers",
+  "market_cap": 18566930432,
+  "price": 88.405,
+  "shares_outstanding": 210021280,
+  "float_shares": 209067783
  },
  {
   "symbol": "NUE",
   "sector": "Basic Materials",
-  "industry": "Steel"
+  "industry": "Steel",
+  "market_cap": 55168684032,
+  "price": 245.255,
+  "shares_outstanding": 224944177,
+  "float_shares": 221803956
  },
  {
   "symbol": "NVDA",
   "sector": "Technology",
-  "industry": "Semiconductors"
+  "industry": "Semiconductors",
+  "market_cap": 3476202192896,
+  "price": 143.96,
+  "shares_outstanding": 24147000000,
+  "float_shares": 23138626220
  },
  {
   "symbol": "NVR",
   "sector": "Consumer Cyclical",
-  "industry": "Residential Construction"
+  "industry": "Residential Construction",
+  "market_cap": 15666848768,
+  "price": 5921.43,
+  "shares_outstanding": 2645788,
+  "float_shares": 2601815
  },
  {
   "symbol": "NXPI",
   "sector": "Technology",
-  "industry": "Semiconductors"
+  "industry": "Semiconductors",
+  "market_cap": 57946959872,
+  "price": 229.8999,
+  "shares_outstanding": 252052988,
+  "float_shares": 251531238
  },
  {
   "symbol": "ORLY",
   "sector": "Consumer Cyclical",
-  "industry": "Auto Parts"
+  "industry": "Auto Parts",
+  "market_cap": 76443262976,
+  "price": 95.31,
+  "shares_outstanding": 802048733,
+  "float_shares": 794493434
  },
  {
   "symbol": "OXY",
   "sector": "Energy",
-  "industry": "Oil & Gas E&P"
+  "industry": "Oil & Gas E&P",
+  "market_cap": 54069309440,
+  "price": 54.075,
+  "shares_outstanding": 999894745,
+  "float_shares": 995725184
  },
  {
   "symbol": "OKTA",
   "sector": "Technology",
-  "industry": "Software - Infrastructure"
+  "industry": "Software - Infrastructure",
+  "market_cap": 33451984896,
+  "price": 191.35,
+  "shares_outstanding": 167139757,
+  "float_shares": 166758187
  },
  {
   "symbol": "ODFL",
   "sector": "Industrials",
-  "industry": "Trucking"
+  "industry": "Trucking",
+  "market_cap": 35011330048,
+  "price": 169.925,
+  "shares_outstanding": 206039886,
+  "float_shares": 184411879
  },
  {
   "symbol": "OMC",
   "sector": "Communication Services",
-  "industry": "Advertising Agencies"
+  "industry": "Advertising Agencies",
+  "market_cap": 24355727360,
+  "price": 89.265,
+  "shares_outstanding": 272847468,
+  "float_shares": 270189934
  },
  {
   "symbol": "ON",
   "sector": "Technology",
-  "industry": "Semiconductors"
+  "industry": "Semiconductors",
+  "market_cap": 22769250304,
+  "price": 58.49,
+  "shares_outstanding": 389284489,
+  "float_shares": 387649494
  },
  {
   "symbol": "OKE",
   "sector": "Energy",
-  "industry": "Oil & Gas Midstream"
+  "industry": "Oil & Gas Midstream",
+  "market_cap": 53654487040,
+  "price": 85.105,
+  "shares_outstanding": 630450437,
+  "float_shares": 628596913
  },
  {
   "symbol": "ORCL",
   "sector": "Technology",
-  "industry": "Software - Infrastructure"
+  "industry": "Software - Infrastructure",
+  "market_cap": 316120006656,
+  "price": 101.395,
+  "shares_outstanding": 3117708046,
+  "float_shares": 1894158942
  },
  {
   "symbol": "OTIS",
   "sector": "Industrials",
-  "industry": "Specialty Industrial Machinery"
+  "industry": "Specialty Industrial Machinery",
+  "market_cap": 29851514880,
+  "price": 78.41,
+  "shares_outstanding": 380710513,
+  "float_shares": 380017620
  },
  {
   "symbol": "PCAR",
   "sector": "Industrials",
-  "industry": "Farm & Heavy Construction Machinery"
+  "industry": "Farm & Heavy Construction Machinery",
+  "market_cap": 56238669824,
+  "price": 106.815,
+  "shares_outstanding": 526505329,
+  "float_shares": 516264800
  },
  {
   "symbol": "PKG",
   "sector": "Consumer Cyclical",
-  "industry": "Packaging & Containers"
+  "industry": "Packaging & Containers",
+  "market_cap": 21606793216,
+  "price": 242.515,
+  "shares_outstanding": 89094661,
+  "float_shares": 86972000
  },
  {
   "symbol": "PLTR",
   "sector": "Technology",
-  "industry": "Software - Infrastructure"
+  "industry": "Software - Infrastructure",
+  "market_cap": 373399846912,
+  "price": 154.97,
+  "shares_outstanding": 2306705341,
+  "float_shares": 2115707447
  },
  {
   "symbol": "PANW",
   "sector": "Technology",
-  "industry": "Software - Infrastructure"
+  "industry": "Software - Infrastructure",
+  "market_cap": 283075706880,
+  "price": 344.7938,
+  "shares_outstanding": 821000000,
+  "float_shares": 815548560
  },
  {
   "symbol": "PH",
   "sector": "Industrials",
-  "industry": "Specialty Industrial Machinery"
+  "industry": "Specialty Industrial Machinery",
+  "market_cap": 111063539712,
+  "price": 880.78,
+  "shares_outstanding": 126096795,
+  "float_shares": 125728592
  },
  {
   "symbol": "PAYX",
   "sector": "Technology",
-  "industry": "Software - Application"
+  "industry": "Software - Application",
+  "market_cap": 41646153728,
+  "price": 116.99,
+  "shares_outstanding": 355980473,
+  "float_shares": 319585029
  },
  {
   "symbol": "PYPL",
   "sector": "Financial Services",
-  "industry": "Credit Services"
+  "industry": "Credit Services",
+  "market_cap": 46367346688,
+  "price": 55.82,
+  "shares_outstanding": 830658298,
+  "float_shares": 828781010
  },
  {
   "symbol": "PNR",
   "sector": "Industrials",
-  "industry": "Specialty Industrial Machinery"
+  "industry": "Specialty Industrial Machinery",
+  "market_cap": 11420099584,
+  "price": 71.53,
+  "shares_outstanding": 159654682,
+  "float_shares": 158417358
  },
  {
   "symbol": "PEP",
   "sector": "Consumer Defensive",
-  "industry": "Beverages - Non-Alcoholic"
+  "industry": "Beverages - Non-Alcoholic",
+  "market_cap": 197065998336,
+  "price": 144.61,
+  "shares_outstanding": 1362741092,
+  "float_shares": 1359552278
  },
  {
   "symbol": "PFE",
   "sector": "Healthcare",
-  "industry": "Drug Manufacturers - General"
+  "industry": "Drug Manufacturers - General",
+  "market_cap": 161676345344,
+  "price": 28.365,
+  "shares_outstanding": 5699853733,
+  "float_shares": 5692386925
  },
  {
   "symbol": "PCG",
   "sector": "Utilities",
-  "industry": "Utilities - Regulated Electric"
+  "industry": "Utilities - Regulated Electric",
+  "market_cap": 31453339648,
+  "price": 14.2812,
+  "shares_outstanding": 2202429703,
+  "float_shares": 2195337879
  },
  {
   "symbol": "PM",
   "sector": "Consumer Defensive",
-  "industry": "Tobacco"
+  "industry": "Tobacco",
+  "market_cap": 287221252096,
+  "price": 184.275,
+  "shares_outstanding": 1558655629,
+  "float_shares": 1554883682
  },
  {
   "symbol": "PSX",
   "sector": "Energy",
-  "industry": "Oil & Gas Refining & Marketing"
+  "industry": "Oil & Gas Refining & Marketing",
+  "market_cap": 90945363968,
+  "price": 233.15,
+  "shares_outstanding": 390072362,
+  "float_shares": 388972358
  },
  {
   "symbol": "PNW",
   "sector": "Utilities",
-  "industry": "Utilities - Regulated Electric"
+  "industry": "Utilities - Regulated Electric",
+  "market_cap": 12493420544,
+  "price": 103.08,
+  "shares_outstanding": 121201207,
+  "float_shares": 120579445
  },
  {
   "symbol": "PNC",
   "sector": "Financial Services",
-  "industry": "Banks - Regional"
+  "industry": "Banks - Regional",
+  "market_cap": 86219866112,
+  "price": 217.3,
+  "shares_outstanding": 396778009,
+  "float_shares": 394103725
  },
  {
   "symbol": "PPG",
   "sector": "Basic Materials",
-  "industry": "Specialty Chemicals"
+  "industry": "Specialty Chemicals",
+  "market_cap": 26869172224,
+  "price": 121.635,
+  "shares_outstanding": 220900000,
+  "float_shares": 220449364
  },
  {
   "symbol": "PPL",
   "sector": "Utilities",
-  "industry": "Utilities - Regulated Electric"
+  "industry": "Utilities - Regulated Electric",
+  "market_cap": 26696202240,
+  "price": 35.465,
+  "shares_outstanding": 752747825,
+  "float_shares": 750369142
  },
  {
   "symbol": "PFG",
   "sector": "Financial Services",
-  "industry": "Asset Management"
+  "industry": "Asset Management",
+  "market_cap": 22932410368,
+  "price": 107.98,
+  "shares_outstanding": 212376467,
+  "float_shares": 211057609
  },
  {
   "symbol": "PG",
   "sector": "Consumer Defensive",
-  "industry": "Household & Personal Products"
+  "industry": "Household & Personal Products",
+  "market_cap": 402367152128,
+  "price": 173.6,
+  "shares_outstanding": 2317783143,
+  "float_shares": 2313564778
  },
  {
   "symbol": "PGR",
   "sector": "Financial Services",
-  "industry": "Insurance - Property & Casualty"
+  "industry": "Insurance - Property & Casualty",
+  "market_cap": 137813213184,
+  "price": 238.555,
+  "shares_outstanding": 577700000,
+  "float_shares": 577154805
  },
  {
   "symbol": "PLD",
   "sector": "Real Estate",
-  "industry": "REIT - Industrial"
+  "industry": "REIT - Industrial",
+  "market_cap": 123055480832,
+  "price": 126.565,
+  "shares_outstanding": 950513000,
+  "float_shares": 945922022
  },
  {
   "symbol": "PRU",
   "sector": "Financial Services",
-  "industry": "Insurance - Life"
+  "industry": "Insurance - Life",
+  "market_cap": 40811855872,
+  "price": 118.985,
+  "shares_outstanding": 343000000,
+  "float_shares": 341902400
  },
  {
   "symbol": "PTC",
   "sector": "Technology",
-  "industry": "Software - Application"
+  "industry": "Software - Application",
+  "market_cap": 21378301952,
+  "price": 196.085,
+  "shares_outstanding": 109025686,
+  "float_shares": 108352998
  },
  {
   "symbol": "PEG",
   "sector": "Utilities",
-  "industry": "Utilities - Regulated Electric"
+  "industry": "Utilities - Regulated Electric",
+  "market_cap": 37513285632,
+  "price": 75.25,
+  "shares_outstanding": 498515417,
+  "float_shares": 497109604
  },
  {
   "symbol": "PSA",
   "sector": "Real Estate",
-  "industry": "REIT - Industrial"
+  "industry": "REIT - Industrial",
+  "market_cap": 62476713984,
+  "price": 334.38,
+  "shares_outstanding": 186843449,
+  "float_shares": 168702819
  },
  {
   "symbol": "PHM",
   "sector": "Consumer Cyclical",
-  "industry": "Residential Construction"
+  "industry": "Residential Construction",
+  "market_cap": 24183476224,
+  "price": 131.37,
+  "shares_outstanding": 184086754,
+  "float_shares": 182660082
  },
  {
   "symbol": "Q",
   "sector": "Technology",
-  "industry": "Semiconductor Equipment & Materials"
+  "industry": "Semiconductor Equipment & Materials",
+  "market_cap": 21701836800,
+  "price": 103.815,
+  "shares_outstanding": 209043355,
+  "float_shares": 208476848
  },
  {
   "symbol": "QCOM",
   "sector": "Technology",
-  "industry": "Semiconductors"
+  "industry": "Semiconductors",
+  "market_cap": 168535687168,
+  "price": 157.51,
+  "shares_outstanding": 1070000000,
+  "float_shares": 1068202400
  },
  {
   "symbol": "PWR",
   "sector": "Industrials",
-  "industry": "Engineering & Construction"
+  "industry": "Engineering & Construction",
+  "market_cap": 82644910080,
+  "price": 548.49,
+  "shares_outstanding": 150677145,
+  "float_shares": 149312010
  },
  {
   "symbol": "DGX",
   "sector": "Healthcare",
-  "industry": "Diagnostics & Research"
+  "industry": "Diagnostics & Research",
+  "market_cap": 29261221888,
+  "price": 265.965,
+  "shares_outstanding": 110019073,
+  "float_shares": 109448074
  },
  {
   "symbol": "RL",
   "sector": "Consumer Cyclical",
-  "industry": "Apparel Manufacturing"
+  "industry": "Apparel Manufacturing",
+  "market_cap": 23350198272,
+  "price": 395.085,
+  "shares_outstanding": 37220433,
+  "float_shares": 36771901
  },
  {
   "symbol": "RJF",
   "sector": "Financial Services",
-  "industry": "Asset Management"
+  "industry": "Asset Management",
+  "market_cap": 30760974336,
+  "price": 160.13,
+  "shares_outstanding": 192100000,
+  "float_shares": 171454080
  },
  {
   "symbol": "RDDT",
   "sector": "Communication Services",
-  "industry": "Internet Content & Information"
+  "industry": "Internet Content & Information",
+  "market_cap": 16812670976,
+  "price": 87.07,
+  "shares_outstanding": 146942127,
+  "float_shares": 141313716
  },
  {
   "symbol": "O",
   "sector": "Real Estate",
-  "industry": "REIT - Retail"
+  "industry": "REIT - Retail",
+  "market_cap": 57425772544,
+  "price": 60.215,
+  "shares_outstanding": 950997048,
+  "float_shares": 948961914
  },
  {
   "symbol": "REG",
   "sector": "Real Estate",
-  "industry": "REIT - Retail"
+  "industry": "REIT - Retail",
+  "market_cap": 14106377216,
+  "price": 75.45,
+  "shares_outstanding": 183125078,
+  "float_shares": 164381394
  },
  {
   "symbol": "REGN",
   "sector": "Healthcare",
-  "industry": "Biotechnology"
+  "industry": "Biotechnology",
+  "market_cap": 100994072576,
+  "price": 976.28,
+  "shares_outstanding": 101630713,
+  "float_shares": 96364049
  },
  {
   "symbol": "RF",
   "sector": "Financial Services",
-  "industry": "Banks - Regional"
+  "industry": "Banks - Regional",
+  "market_cap": 23271151616,
+  "price": 27.415,
+  "shares_outstanding": 848847340,
+  "float_shares": 845222762
  },
  {
   "symbol": "RSG",
   "sector": "Industrials",
-  "industry": "Waste Management"
+  "industry": "Waste Management",
+  "market_cap": 77524697088,
+  "price": 254.48,
+  "shares_outstanding": 304639653,
+  "float_shares": 303987724
  },
  {
   "symbol": "RMD",
   "sector": "Healthcare",
-  "industry": "Medical Instruments & Supplies"
+  "industry": "Medical Instruments & Supplies",
+  "market_cap": 33978529792,
+  "price": 241.57,
+  "shares_outstanding": 140657071,
+  "float_shares": 139779371
  },
  {
   "symbol": "RVTY",
   "sector": "Healthcare",
-  "industry": "Diagnostics & Research"
+  "industry": "Diagnostics & Research",
+  "market_cap": 16533700608,
+  "price": 148.1,
+  "shares_outstanding": 111638757,
+  "float_shares": 111070516
  },
  {
   "symbol": "HOOD",
   "sector": "Financial Services",
-  "industry": "Capital Markets"
+  "industry": "Capital Markets",
+  "market_cap": 56451796992,
+  "price": 62.69,
+  "shares_outstanding": 793425151,
+  "float_shares": 786209929
  },
  {
   "symbol": "ROK",
   "sector": "Industrials",
-  "industry": "Specialty Industrial Machinery"
+  "industry": "Specialty Industrial Machinery",
+  "market_cap": 41220968448,
+  "price": 375.56,
+  "shares_outstanding": 109758673,
+  "float_shares": 109409640
  },
  {
   "symbol": "ROL",
   "sector": "Consumer Cyclical",
-  "industry": "Personal Services"
+  "industry": "Personal Services",
+  "market_cap": 18356938752,
+  "price": 38.4,
+  "shares_outstanding": 478045280,
+  "float_shares": 302593101
  },
  {
   "symbol": "ROP",
   "sector": "Technology",
-  "industry": "Software - Application"
+  "industry": "Software - Application",
+  "market_cap": 47721693184,
+  "price": 481.86,
+  "shares_outstanding": 99036429,
+  "float_shares": 98595717
  },
  {
   "symbol": "ROST",
   "sector": "Consumer Cyclical",
-  "industry": "Apparel Retail"
+  "industry": "Apparel Retail",
+  "market_cap": 71713816576,
+  "price": 223.56,
+  "shares_outstanding": 320781076,
+  "float_shares": 308866786
  },
  {
   "symbol": "RCL",
   "sector": "Consumer Cyclical",
-  "industry": "Travel Services"
+  "industry": "Travel Services",
+  "market_cap": 82671247360,
+  "price": 309.085,
+  "shares_outstanding": 267470925,
+  "float_shares": 242927793
  },
  {
   "symbol": "RTX",
   "sector": "Industrials",
-  "industry": "Aerospace & Defense"
+  "industry": "Aerospace & Defense",
+  "market_cap": 263640186880,
+  "price": 195.37,
+  "shares_outstanding": 1349440548,
+  "float_shares": 1252388784
  },
  {
   "symbol": "SPGI",
   "sector": "Financial Services",
-  "industry": "Financial Data & Stock Exchanges"
+  "industry": "Financial Data & Stock Exchanges",
+  "market_cap": 131675480064,
+  "price": 454.21,
+  "shares_outstanding": 289900000,
+  "float_shares": 289256422
  },
  {
   "symbol": "CRM",
   "sector": "Technology",
-  "industry": "Software - Application"
+  "industry": "Software - Application",
+  "market_cap": 159423332352,
+  "price": 193.71,
+  "shares_outstanding": 823000000,
+  "float_shares": 797577530
  },
  {
   "symbol": "SNDK",
   "sector": "Technology",
-  "industry": "Computer Hardware"
+  "industry": "Computer Hardware",
+  "market_cap": 79055962112,
+  "price": 69.45,
+  "shares_outstanding": 1138314920,
+  "float_shares": 1122890753
  },
  {
   "symbol": "SBAC",
   "sector": "Real Estate",
-  "industry": "REIT - Specialty"
+  "industry": "REIT - Specialty",
+  "market_cap": 18082125824,
+  "price": 173.154,
+  "shares_outstanding": 104427989,
+  "float_shares": 103557060
  },
  {
   "symbol": "SLB",
   "sector": "Energy",
-  "industry": "Oil & Gas Equipment & Services"
+  "industry": "Oil & Gas Equipment & Services",
+  "market_cap": 69484093440,
+  "price": 47.075,
+  "shares_outstanding": 1476029613,
+  "float_shares": 1471011112
  },
  {
   "symbol": "STX",
   "sector": "Technology",
-  "industry": "Computer Hardware"
+  "industry": "Computer Hardware",
+  "market_cap": 101561278464,
+  "price": 442.415,
+  "shares_outstanding": 229561109,
+  "float_shares": 228776010
  },
  {
   "symbol": "SRE",
   "sector": "Utilities",
-  "industry": "Utilities - Diversified"
+  "industry": "Utilities - Diversified",
+  "market_cap": 51776835584,
+  "price": 79.155,
+  "shares_outstanding": 654119591,
+  "float_shares": 652798269
  },
  {
   "symbol": "NOW",
   "sector": "Technology",
-  "industry": "Software - Application"
+  "industry": "Software - Application",
+  "market_cap": 93236084736,
+  "price": 89.83,
+  "shares_outstanding": 1037917000,
+  "float_shares": 1035280691
  },
  {
   "symbol": "SHW",
   "sector": "Basic Materials",
-  "industry": "Specialty Chemicals"
+  "industry": "Specialty Chemicals",
+  "market_cap": 86011387904,
+  "price": 356.025,
+  "shares_outstanding": 241588072,
+  "float_shares": 224781266
  },
  {
   "symbol": "SPG",
   "sector": "Real Estate",
-  "industry": "REIT - Retail"
+  "industry": "REIT - Retail",
+  "market_cap": 87549280256,
+  "price": 231.285,
+  "shares_outstanding": 322462211,
+  "float_shares": 318797275
  },
  {
   "symbol": "SKYD",
   "sector": "Communication Services",
-  "industry": "Entertainment"
+  "industry": "Entertainment",
+  "market_cap": 32106475520,
+  "price": 6.365,
+  "shares_outstanding": 5012722281,
+  "float_shares": 4101406765
  },
  {
   "symbol": "SWKS",
   "sector": "Technology",
-  "industry": "Semiconductors"
+  "industry": "Semiconductors",
+  "market_cap": 18746095616,
+  "price": 79.82,
+  "shares_outstanding": 234854620,
+  "float_shares": 233753152
  },
  {
   "symbol": "SJM",
   "sector": "Consumer Defensive",
-  "industry": "Packaged Foods"
+  "industry": "Packaged Foods",
+  "market_cap": 14038703104,
+  "price": 131.42,
+  "shares_outstanding": 106823183,
+  "float_shares": 104595236
  },
  {
   "symbol": "SW",
   "sector": "Consumer Cyclical",
-  "industry": "Packaging & Containers"
+  "industry": "Packaging & Containers",
+  "market_cap": 20981080064,
+  "price": 40.0,
+  "shares_outstanding": 524526976,
+  "float_shares": 520641254
  },
  {
   "symbol": "SNA",
   "sector": "Industrials",
-  "industry": "Tools & Accessories"
+  "industry": "Tools & Accessories",
+  "market_cap": 18402121728,
+  "price": 356.76,
+  "shares_outstanding": 51581233,
+  "float_shares": 50265912
  },
  {
   "symbol": "SOLV",
   "sector": "Healthcare",
-  "industry": "Medical Instruments & Supplies"
+  "industry": "Medical Instruments & Supplies",
+  "market_cap": 14706369536,
+  "price": 86.53,
+  "shares_outstanding": 169956897,
+  "float_shares": 143536674
  },
  {
   "symbol": "SO",
   "sector": "Utilities",
-  "industry": "Utilities - Regulated Electric"
+  "industry": "Utilities - Regulated Electric",
+  "market_cap": 110922399744,
+  "price": 95.2728,
+  "shares_outstanding": 1164261029,
+  "float_shares": 1161676370
  },
  {
   "symbol": "LUV",
   "sector": "Industrials",
-  "industry": "Airlines"
+  "industry": "Airlines",
+  "market_cap": 21992937472,
+  "price": 44.92,
+  "shares_outstanding": 489602380,
+  "float_shares": 484490931
  },
  {
   "symbol": "SWK",
   "sector": "Industrials",
-  "industry": "Tools & Accessories"
+  "industry": "Tools & Accessories",
+  "market_cap": 15965513728,
+  "price": 107.37,
+  "shares_outstanding": 148696226,
+  "float_shares": 148151998
  },
  {
   "symbol": "SBUX",
   "sector": "Consumer Cyclical",
-  "industry": "Restaurants"
+  "industry": "Restaurants",
+  "market_cap": 121728466944,
+  "price": 106.77,
+  "shares_outstanding": 1140100000,
+  "float_shares": 1137751394
  },
  {
   "symbol": "STT",
   "sector": "Financial Services",
-  "industry": "Asset Management"
+  "industry": "Asset Management",
+  "market_cap": 42606063616,
+  "price": 156.595,
+  "shares_outstanding": 272078043,
+  "float_shares": 257135517
  },
  {
   "symbol": "STLD",
   "sector": "Basic Materials",
-  "industry": "Steel"
+  "industry": "Steel",
+  "market_cap": 30444498944,
+  "price": 214.07,
+  "shares_outstanding": 142217487,
+  "float_shares": 132492655
  },
  {
   "symbol": "STE",
   "sector": "Healthcare",
-  "industry": "Medical Devices"
+  "industry": "Medical Devices",
+  "market_cap": 25238114304,
+  "price": 259.9,
+  "shares_outstanding": 97107020,
+  "float_shares": 96694315
  },
  {
   "symbol": "SYK",
   "sector": "Healthcare",
-  "industry": "Medical Devices"
+  "industry": "Medical Devices",
+  "market_cap": 124364136448,
+  "price": 326.68,
+  "shares_outstanding": 380691004,
+  "float_shares": 345819708
  },
  {
   "symbol": "SMCI",
   "sector": "Technology",
-  "industry": "Computer Hardware"
+  "industry": "Computer Hardware",
+  "market_cap": 14285457408,
+  "price": 21.67,
+  "shares_outstanding": 659227367,
+  "float_shares": 559980687
  },
  {
   "symbol": "SYF",
   "sector": "Financial Services",
-  "industry": "Credit Services"
+  "industry": "Credit Services",
+  "market_cap": 20699080704,
+  "price": 66.47,
+  "shares_outstanding": 311404854,
+  "float_shares": 309159625
  },
  {
   "symbol": "SNPS",
   "sector": "Technology",
-  "industry": "Software - Infrastructure"
+  "industry": "Software - Infrastructure",
+  "market_cap": 75272953856,
+  "price": 392.79,
+  "shares_outstanding": 191636646,
+  "float_shares": 190563481
  },
  {
   "symbol": "SYY",
   "sector": "Consumer Defensive",
-  "industry": "Food Distribution"
+  "industry": "Food Distribution",
+  "market_cap": 39608102912,
+  "price": 80.46,
+  "shares_outstanding": 492270756,
+  "float_shares": 490867784
  },
  {
   "symbol": "TMUS",
   "sector": "Communication Services",
-  "industry": "Telecom Services"
+  "industry": "Telecom Services",
+  "market_cap": 176326524928,
+  "price": 166.46,
+  "shares_outstanding": 1059272571,
+  "float_shares": 472891054
  },
  {
   "symbol": "TROW",
   "sector": "Financial Services",
-  "industry": "Asset Management"
+  "industry": "Asset Management",
+  "market_cap": 21587517440,
+  "price": 101.195,
+  "shares_outstanding": 213325929,
+  "float_shares": 209223671
  },
  {
   "symbol": "TTWO",
   "sector": "Communication Services",
-  "industry": "Electronic Gaming & Multimedia"
+  "industry": "Electronic Gaming & Multimedia",
+  "market_cap": 41385414656,
+  "price": 221.06,
+  "shares_outstanding": 187213488,
+  "float_shares": 186378516
  },
  {
   "symbol": "TPR",
   "sector": "Consumer Cyclical",
-  "industry": "Luxury Goods"
+  "industry": "Luxury Goods",
+  "market_cap": 25063714816,
+  "price": 127.54,
+  "shares_outstanding": 196516496,
+  "float_shares": 195476924
  },
  {
   "symbol": "TRGP",
   "sector": "Energy",
-  "industry": "Oil & Gas Midstream"
+  "industry": "Oil & Gas Midstream",
+  "market_cap": 61263757312,
+  "price": 285.54,
+  "shares_outstanding": 214554011,
+  "float_shares": 211142602
  },
  {
   "symbol": "TGT",
   "sector": "Consumer Defensive",
-  "industry": "Discount Stores"
+  "industry": "Discount Stores",
+  "market_cap": 78001602560,
+  "price": 172.2899,
+  "shares_outstanding": 452734623,
+  "float_shares": 451195325
  },
  {
   "symbol": "TEL",
   "sector": "Technology",
-  "industry": "Electronic Components"
+  "industry": "Electronic Components",
+  "market_cap": 58977480704,
+  "price": 205.715,
+  "shares_outstanding": 286695097,
+  "float_shares": 286179046
  },
  {
   "symbol": "TDY",
   "sector": "Technology",
-  "industry": "Scientific & Technical Instruments"
+  "industry": "Scientific & Technical Instruments",
+  "market_cap": 28331270144,
+  "price": 615.41,
+  "shares_outstanding": 46036417,
+  "float_shares": 45551654
  },
  {
   "symbol": "TER",
   "sector": "Technology",
-  "industry": "Semiconductor Equipment & Materials"
+  "industry": "Semiconductor Equipment & Materials",
+  "market_cap": 30479470592,
+  "price": 195.2251,
+  "shares_outstanding": 156124751,
+  "float_shares": 155826553
  },
  {
   "symbol": "TSLA",
   "sector": "Consumer Cyclical",
-  "industry": "Auto Manufacturers"
+  "industry": "Auto Manufacturers",
+  "market_cap": 1443685466112,
+  "price": 365.235,
+  "shares_outstanding": 3952757946,
+  "float_shares": 2822427284
  },
  {
   "symbol": "TXN",
   "sector": "Technology",
-  "industry": "Semiconductors"
+  "industry": "Semiconductors",
+  "market_cap": 231193018368,
+  "price": 253.01,
+  "shares_outstanding": 913770316,
+  "float_shares": 911577267
  },
  {
   "symbol": "TPL",
   "sector": "Energy",
-  "industry": "Oil & Gas E&P"
+  "industry": "Oil & Gas E&P",
+  "market_cap": 17557504000,
+  "price": 254.55,
+  "shares_outstanding": 68974683,
+  "float_shares": 58980251
  },
  {
   "symbol": "TXT",
   "sector": "Industrials",
-  "industry": "Aerospace & Defense"
+  "industry": "Aerospace & Defense",
+  "market_cap": 13851836416,
+  "price": 81.77,
+  "shares_outstanding": 169399979,
+  "float_shares": 168148113
  },
  {
   "symbol": "TMO",
   "sector": "Healthcare",
-  "industry": "Diagnostics & Research"
+  "industry": "Diagnostics & Research",
+  "market_cap": 250101923840,
+  "price": 675.01,
+  "shares_outstanding": 370515868,
+  "float_shares": 369630335
  },
  {
   "symbol": "TJX",
   "sector": "Consumer Cyclical",
-  "industry": "Apparel Retail"
+  "industry": "Apparel Retail",
+  "market_cap": 159815221248,
+  "price": 145.29,
+  "shares_outstanding": 1099974061,
+  "float_shares": 1106482570
  },
  {
   "symbol": "TKO",
   "sector": "Communication Services",
-  "industry": "Entertainment"
+  "industry": "Entertainment",
+  "market_cap": 35586715648,
+  "price": 188.69,
+  "shares_outstanding": 72440231,
+  "float_shares": 59071386
  },
  {
   "symbol": "TSCO",
   "sector": "Consumer Cyclical",
-  "industry": "Specialty Retail"
+  "industry": "Specialty Retail",
+  "market_cap": 20364388352,
+  "price": 39.27,
+  "shares_outstanding": 518573690,
+  "float_shares": 516924626
  },
  {
   "symbol": "TT",
   "sector": "Industrials",
-  "industry": "Building Products & Equipment"
+  "industry": "Building Products & Equipment",
+  "market_cap": 86245859328,
+  "price": 394.005,
+  "shares_outstanding": 218895337,
+  "float_shares": 218308697
  },
  {
   "symbol": "TDG",
   "sector": "Industrials",
-  "industry": "Aerospace & Defense"
+  "industry": "Aerospace & Defense",
+  "market_cap": 62467964928,
+  "price": 1144.315,
+  "shares_outstanding": 54589836,
+  "float_shares": 54308152
  },
  {
   "symbol": "TRV",
   "sector": "Financial Services",
-  "industry": "Insurance - Property & Casualty"
+  "industry": "Insurance - Property & Casualty",
+  "market_cap": 83290193920,
+  "price": 406.4,
+  "shares_outstanding": 204946347,
+  "float_shares": 203755609
  },
  {
   "symbol": "TRMB",
   "sector": "Technology",
-  "industry": "Scientific & Technical Instruments"
+  "industry": "Scientific & Technical Instruments",
+  "market_cap": 12578564096,
+  "price": 54.87,
+  "shares_outstanding": 229243001,
+  "float_shares": 228037183
  },
  {
   "symbol": "TFC",
   "sector": "Financial Services",
-  "industry": "Banks - Regional"
+  "industry": "Banks - Regional",
+  "market_cap": 56532697088,
+  "price": 47.17,
+  "shares_outstanding": 1198488412,
+  "float_shares": 1195216539
  },
  {
   "symbol": "TWLO",
   "sector": "Technology",
-  "industry": "Software - Infrastructure"
+  "industry": "Software - Infrastructure",
+  "market_cap": 26745778176,
+  "price": 172.85,
+  "shares_outstanding": 154734032,
+  "float_shares": 154101170
  },
  {
   "symbol": "TYL",
   "sector": "Technology",
-  "industry": "Software - Application"
+  "industry": "Software - Application",
+  "market_cap": 16485890048,
+  "price": 414.64,
+  "shares_outstanding": 39759524,
+  "float_shares": 36701221
  },
  {
   "symbol": "TSN",
   "sector": "Consumer Defensive",
-  "industry": "Farm Products"
+  "industry": "Farm Products",
+  "market_cap": 21970690048,
+  "price": 63.77,
+  "shares_outstanding": 274521161,
+  "float_shares": 267203816
  },
  {
   "symbol": "USB",
   "sector": "Financial Services",
-  "industry": "Banks - Regional"
+  "industry": "Banks - Regional",
+  "market_cap": 89830735872,
+  "price": 57.65,
+  "shares_outstanding": 1558208825,
+  "float_shares": 1553674437
  },
  {
   "symbol": "UBER",
   "sector": "Technology",
-  "industry": "Software - Application"
+  "industry": "Software - Application",
+  "market_cap": 131232784384,
+  "price": 64.27,
+  "shares_outstanding": 2041898070,
+  "float_shares": 2035854052
  },
  {
   "symbol": "UDR",
   "sector": "Real Estate",
-  "industry": "REIT - Residential"
+  "industry": "REIT - Residential",
+  "market_cap": 13323503616,
+  "price": 36.705,
+  "shares_outstanding": 316888770,
+  "float_shares": 284753080
  },
  {
   "symbol": "ULTA",
   "sector": "Consumer Cyclical",
-  "industry": "Specialty Retail"
+  "industry": "Specialty Retail",
+  "market_cap": 26969917440,
+  "price": 630.765,
+  "shares_outstanding": 42757471,
+  "float_shares": 42623640
  },
  {
   "symbol": "UNP",
   "sector": "Industrials",
-  "industry": "Railroads"
+  "industry": "Railroads",
+  "market_cap": 172926877696,
+  "price": 291.0,
+  "shares_outstanding": 594250416,
+  "float_shares": 592877698
  },
  {
   "symbol": "UAL",
   "sector": "Industrials",
-  "industry": "Airlines"
+  "industry": "Airlines",
+  "market_cap": 33313044480,
+  "price": 102.535,
+  "shares_outstanding": 324894375,
+  "float_shares": 322707836
  },
  {
   "symbol": "UPS",
   "sector": "Industrials",
-  "industry": "Integrated Freight & Logistics"
+  "industry": "Integrated Freight & Logistics",
+  "market_cap": 94534385664,
+  "price": 111.025,
+  "shares_outstanding": 751657335,
+  "float_shares": 750791633
  },
  {
   "symbol": "URI",
   "sector": "Industrials",
-  "industry": "Rental & Leasing Services"
+  "industry": "Rental & Leasing Services",
+  "market_cap": 61673566208,
+  "price": 996.075,
+  "shares_outstanding": 61916588,
+  "float_shares": 61563044
  },
  {
   "symbol": "UNH",
   "sector": "Healthcare",
-  "industry": "Healthcare Plans"
+  "industry": "Healthcare Plans",
+  "market_cap": 305615372288,
+  "price": 341.08,
+  "shares_outstanding": 896022611,
+  "float_shares": 893415185
  },
  {
   "symbol": "UHS",
   "sector": "Healthcare",
-  "industry": "Medical Care Facilities"
+  "industry": "Medical Care Facilities",
+  "market_cap": 10792475648,
+  "price": 187.2,
+  "shares_outstanding": 50403612,
+  "float_shares": 47432703
  },
  {
   "symbol": "VLO",
   "sector": "Energy",
-  "industry": "Oil & Gas Refining & Marketing"
+  "industry": "Oil & Gas Refining & Marketing",
+  "market_cap": 88619712512,
+  "price": 317.765,
+  "shares_outstanding": 278884400,
+  "float_shares": 277211094
  },
  {
   "symbol": "VEEV",
   "sector": "Healthcare",
-  "industry": "Health Information Services"
+  "industry": "Health Information Services",
+  "market_cap": 43435286528,
+  "price": 268.27,
+  "shares_outstanding": 161908850,
+  "float_shares": 148268029
  },
  {
   "symbol": "VTR",
   "sector": "Real Estate",
-  "industry": "REIT - Healthcare Facilities"
+  "industry": "REIT - Healthcare Facilities",
+  "market_cap": 46398664704,
+  "price": 87.74,
+  "shares_outstanding": 528820000,
+  "float_shares": 526345122
  },
  {
   "symbol": "VLTO",
   "sector": "Industrials",
-  "industry": "Pollution & Treatment Controls"
+  "industry": "Pollution & Treatment Controls",
+  "market_cap": 29185529856,
+  "price": 120.035,
+  "shares_outstanding": 243141824,
+  "float_shares": 242572872
  },
  {
   "symbol": "VRSN",
   "sector": "Technology",
-  "industry": "Software - Infrastructure"
+  "industry": "Software - Infrastructure",
+  "market_cap": 28529532928,
+  "price": 318.055,
+  "shares_outstanding": 89700000,
+  "float_shares": 84357468
  },
  {
   "symbol": "VRSK",
   "sector": "Industrials",
-  "industry": "Consulting Services"
+  "industry": "Consulting Services",
+  "market_cap": 26335918080,
+  "price": 205.29,
+  "shares_outstanding": 128286417,
+  "float_shares": 127900275
  },
  {
   "symbol": "VZ",
   "sector": "Communication Services",
-  "industry": "Telecom Services"
+  "industry": "Telecom Services",
+  "market_cap": 197386485760,
+  "price": 47.625,
+  "shares_outstanding": 4144598336,
+  "float_shares": 4138754452
  },
  {
   "symbol": "VRTX",
   "sector": "Healthcare",
-  "industry": "Biotechnology"
+  "industry": "Biotechnology",
+  "market_cap": 141366280192,
+  "price": 557.575,
+  "shares_outstanding": 253537674,
+  "float_shares": 252789738
  },
  {
   "symbol": "VRT",
   "sector": "Industrials",
-  "industry": "Electrical Equipment & Parts"
+  "industry": "Electrical Equipment & Parts",
+  "market_cap": 63199969280,
+  "price": 164.13,
+  "shares_outstanding": 385060421,
+  "float_shares": 383885987
  },
  {
   "symbol": "VTRS",
   "sector": "Healthcare",
-  "industry": "Drug Manufacturers - Specialty & Generic"
+  "industry": "Drug Manufacturers - Specialty & Generic",
+  "market_cap": 22608087040,
+  "price": 19.72,
+  "shares_outstanding": 1146454729,
+  "float_shares": 1139461355
  },
  {
   "symbol": "VICI",
   "sector": "Real Estate",
-  "industry": "REIT - Diversified"
+  "industry": "REIT - Diversified",
+  "market_cap": 27697807360,
+  "price": 25.155,
+  "shares_outstanding": 1101085584,
+  "float_shares": 1096439003
  },
  {
   "symbol": "V",
   "sector": "Financial Services",
-  "industry": "Credit Services"
+  "industry": "Credit Services",
+  "market_cap": 777637462016,
+  "price": 416.785,
+  "shares_outstanding": 1724473215,
+  "float_shares": 1700017766
  },
  {
   "symbol": "VST",
   "sector": "Utilities",
-  "industry": "Utilities - Independent Power Producers"
+  "industry": "Utilities - Independent Power Producers",
+  "market_cap": 39872090112,
+  "price": 117.48,
+  "shares_outstanding": 339394683,
+  "float_shares": 316777421
  },
  {
   "symbol": "VMRK",
   "sector": "Real Estate",
-  "industry": "REIT - Residential"
+  "industry": "REIT - Residential",
+  "market_cap": 50850025472,
+  "price": 65.63,
+  "shares_outstanding": 774798545,
+  "float_shares": 716518198
  },
  {
   "symbol": "VMC",
   "sector": "Basic Materials",
-  "industry": "Building Materials"
+  "industry": "Building Materials",
+  "market_cap": 36822654976,
+  "price": 286.905,
+  "shares_outstanding": 128344422,
+  "float_shares": 127967089
  },
  {
   "symbol": "VYLR",
   "sector": "Financial Services",
-  "industry": "Shell Companies"
+  "industry": "Shell Companies",
+  "market_cap": 46164025344,
+  "price": 69.18,
+  "shares_outstanding": 667303030,
+  "float_shares": 665782547
  },
  {
   "symbol": "WRB",
   "sector": "Financial Services",
-  "industry": "Insurance - Property & Casualty"
+  "industry": "Insurance - Property & Casualty",
+  "market_cap": 29550364672,
+  "price": 79.54,
+  "shares_outstanding": 371515776,
+  "float_shares": 248336416
  },
  {
   "symbol": "GWW",
   "sector": "Industrials",
-  "industry": "Industrial Distribution"
+  "industry": "Industrial Distribution",
+  "market_cap": 65506103296,
+  "price": 1399.28,
+  "shares_outstanding": 46814148,
+  "float_shares": 42818560
  },
  {
   "symbol": "WAB",
   "sector": "Industrials",
-  "industry": "Railroads"
+  "industry": "Railroads",
+  "market_cap": 47195258880,
+  "price": 281.255,
+  "shares_outstanding": 167802384,
+  "float_shares": 166501916
  },
  {
   "symbol": "WMT",
   "sector": "Consumer Defensive",
-  "industry": "Discount Stores"
+  "industry": "Discount Stores",
+  "market_cap": 1049193086976,
+  "price": 131.84,
+  "shares_outstanding": 7958079155,
+  "float_shares": 4848616850
  },
  {
   "symbol": "DIS",
   "sector": "Communication Services",
-  "industry": "Entertainment"
+  "industry": "Entertainment",
+  "market_cap": 208567500800,
+  "price": 122.11,
+  "shares_outstanding": 1708029668,
+  "float_shares": 1705330981
  },
  {
   "symbol": "WM",
   "sector": "Industrials",
-  "industry": "Waste Management"
+  "industry": "Waste Management",
+  "market_cap": 98800345088,
+  "price": 248.47,
+  "shares_outstanding": 397634916,
+  "float_shares": 396453940
  },
  {
   "symbol": "WAT",
   "sector": "Healthcare",
-  "industry": "Diagnostics & Research"
+  "industry": "Diagnostics & Research",
+  "market_cap": 87756242944,
+  "price": 446.52,
+  "shares_outstanding": 98285634,
+  "float_shares": 98104788
  },
  {
   "symbol": "WEC",
   "sector": "Utilities",
-  "industry": "Utilities - Regulated Electric"
+  "industry": "Utilities - Regulated Electric",
+  "market_cap": 39266877440,
+  "price": 119.355,
+  "shares_outstanding": 328992329,
+  "float_shares": 327995482
  },
  {
   "symbol": "WFC",
   "sector": "Financial Services",
-  "industry": "Banks - Diversified"
+  "industry": "Banks - Diversified",
+  "market_cap": 239547662336,
+  "price": 79.8,
+  "shares_outstanding": 3001850317,
+  "float_shares": 2993895414
  },
  {
   "symbol": "WELL",
   "sector": "Real Estate",
-  "industry": "REIT - Healthcare Facilities"
+  "industry": "REIT - Healthcare Facilities",
+  "market_cap": 180247937024,
+  "price": 245.7,
+  "shares_outstanding": 733609863,
+  "float_shares": 732582809
  },
  {
   "symbol": "WST",
   "sector": "Healthcare",
-  "industry": "Medical Instruments & Supplies"
+  "industry": "Medical Instruments & Supplies",
+  "market_cap": 26017005568,
+  "price": 373.48,
+  "shares_outstanding": 69661036,
+  "float_shares": 69153904
  },
  {
   "symbol": "WDC",
   "sector": "Technology",
-  "industry": "Computer Hardware"
+  "industry": "Computer Hardware",
+  "market_cap": 94867554304,
+  "price": 253.4375,
+  "shares_outstanding": 374323269,
+  "float_shares": 371961289
  },
  {
   "symbol": "WY",
   "sector": "Real Estate",
-  "industry": "REIT - Specialty"
+  "industry": "REIT - Specialty",
+  "market_cap": 14673408000,
+  "price": 20.37,
+  "shares_outstanding": 720344000,
+  "float_shares": 717246521
  },
  {
   "symbol": "WSM",
   "sector": "Consumer Cyclical",
-  "industry": "Specialty Retail"
+  "industry": "Specialty Retail",
+  "market_cap": 24413151232,
+  "price": 208.54,
+  "shares_outstanding": 117067000,
+  "float_shares": 115607175
  },
  {
   "symbol": "WMB",
   "sector": "Energy",
-  "industry": "Oil & Gas Midstream"
+  "industry": "Oil & Gas Midstream",
+  "market_cap": 82582126592,
+  "price": 66.055,
+  "shares_outstanding": 1250202516,
+  "float_shares": 1242751309
  },
  {
   "symbol": "WTW",
   "sector": "Financial Services",
-  "industry": "Insurance Brokers"
+  "industry": "Insurance Brokers",
+  "market_cap": 32181620736,
+  "price": 348.98,
+  "shares_outstanding": 92216232,
+  "float_shares": 91760684
  },
  {
   "symbol": "WDAY",
   "sector": "Technology",
-  "industry": "Software - Application"
+  "industry": "Software - Application",
+  "market_cap": 44765749248,
+  "price": 185.75,
+  "shares_outstanding": 196000000,
+  "float_shares": 194306250
  },
  {
   "symbol": "WYNN",
   "sector": "Consumer Cyclical",
-  "industry": "Resorts & Casinos"
+  "industry": "Resorts & Casinos",
+  "market_cap": 8616898560,
+  "price": 84.025,
+  "shares_outstanding": 102551611,
+  "float_shares": 79755076
  },
  {
   "symbol": "XEL",
   "sector": "Utilities",
-  "industry": "Utilities - Regulated Electric"
+  "industry": "Utilities - Regulated Electric",
+  "market_cap": 52043182080,
+  "price": 81.08,
+  "shares_outstanding": 641874448,
+  "float_shares": 640404556
  },
  {
   "symbol": "XYL",
   "sector": "Industrials",
-  "industry": "Specialty Industrial Machinery"
+  "industry": "Specialty Industrial Machinery",
+  "market_cap": 21775319040,
+  "price": 94.95,
+  "shares_outstanding": 229334592,
+  "float_shares": 228605308
  },
  {
   "symbol": "YUM",
   "sector": "Consumer Cyclical",
-  "industry": "Restaurants"
+  "industry": "Restaurants",
+  "market_cap": 44681162752,
+  "price": 166.56,
+  "shares_outstanding": 268258657,
+  "float_shares": 267628249
  },
  {
   "symbol": "ZBRA",
   "sector": "Technology",
-  "industry": "Communication Equipment"
+  "industry": "Communication Equipment",
+  "market_cap": 14360261632,
+  "price": 304.97,
+  "shares_outstanding": 47087454,
+  "float_shares": 46642007
  },
  {
   "symbol": "ZBH",
   "sector": "Healthcare",
-  "industry": "Medical Devices"
+  "industry": "Medical Devices",
+  "market_cap": 20734656512,
+  "price": 109.56,
+  "shares_outstanding": 189253888,
+  "float_shares": 188661523
  },
  {
   "symbol": "ZTS",
   "sector": "Healthcare",
-  "industry": "Drug Manufacturers - Specialty & Generic"
+  "industry": "Drug Manufacturers - Specialty & Generic",
+  "market_cap": 33529208832,
+  "price": 82.52,
+  "shares_outstanding": 406316147,
+  "float_shares": 405479136
  }
 ]

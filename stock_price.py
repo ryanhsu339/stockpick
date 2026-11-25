@@ -9,6 +9,7 @@ symbols can differ slightly from SEC tickers, e.g. share classes).
 """
 
 import json
+import logging
 import threading
 import time
 from concurrent.futures import ThreadPoolExecutor
@@ -18,7 +19,10 @@ from zoneinfo import ZoneInfo
 
 import pandas as pd
 import yfinance as yf
+from curl_cffi import requests as curl_requests
 from yfinance.data import YfData
+
+_log = logging.getLogger(__name__)
 
 
 class PriceDataError(Exception):
@@ -656,6 +660,16 @@ _QUOTE_BATCH_SIZE = 200
 _SP500_QUOTE_FIELDS = "marketCap,regularMarketChangePercent,regularMarketPrice,floatShares,shortName,sharesOutstanding"
 _SP500_CACHE_TTL = 600
 _sp500_cache = None
+# Yahoo's quote endpoint needs a crumb token, and Yahoo sometimes refuses to
+# hand one out -- notably to shared cloud IPs like the production server's,
+# while the predefined screens (fetch_day_movers) keep working without one.
+# After a failure it's skipped for this long and quotes come from the
+# token-free spark endpoint instead (_fetch_spark_quotes).
+_QUOTE_ENDPOINT_BACKOFF = 3600
+_quote_endpoint_retry_at = 0.0
+_SPARK_URL = "https://query1.finance.yahoo.com/v7/finance/spark"
+_SPARK_BATCH_SIZE = 20  # Yahoo's limit per spark request
+_SPARK_WORKERS = 4
 # Not in the index, but quoted in the same requests for the Companies tab's
 # ticker bar (oil, natural gas, gold, silver and copper ETFs), which costs no
 # extra calls while the total stays within the same batches.
@@ -704,28 +718,94 @@ def fetch_sp500_quotes():
     those plus SP500_EXTRA_SYMBOLS. Cached, and not refetched once a session
     has closed (_session_over_before). Raises PriceDataError if the snapshot or
     Yahoo's quotes can't be read."""
-    global _sp500_cache
+    global _sp500_cache, _quote_endpoint_retry_at
     if _sp500_cache and (time.time() - _sp500_cache[0] < _SP500_CACHE_TTL
                          or _session_over_before(_sp500_cache[0], datetime.now(_MARKET_TZ))):
         return _sp500_cache[1]
     try:
         companies = json.loads(SP500_SNAPSHOT_PATH.read_text(encoding="utf-8"))
-        symbols = [c["symbol"] for c in companies] + list(SP500_EXTRA_SYMBOLS)
-        # Yahoo's quote endpoint is the one call that returns these fields for
-        # hundreds of symbols at once; yfinance has no public wrapper for it,
-        # so it goes through the same authenticated YfData session yfinance uses.
-        quotes = {}
-        for i in range(0, len(symbols), _QUOTE_BATCH_SIZE):
-            response = YfData().get(_QUOTE_URL, params={"symbols": ",".join(symbols[i:i + _QUOTE_BATCH_SIZE]),
-                                                        "fields": _SP500_QUOTE_FIELDS})
-            for q in response.json()["quoteResponse"]["result"]:
-                quotes[q["symbol"]] = q
-    except Exception as e:
-        raise PriceDataError(f"Could not fetch S&P 500 quotes: {e}") from e
+    except (OSError, ValueError) as e:
+        raise PriceDataError(f"Could not read the S&P 500 snapshot: {e}") from e
+    symbols = [c["symbol"] for c in companies] + list(SP500_EXTRA_SYMBOLS)
+    quotes = None
+    if time.time() >= _quote_endpoint_retry_at:
+        try:
+            quotes = _fetch_quote_endpoint(symbols)
+        except Exception as e:
+            _quote_endpoint_retry_at = time.time() + _QUOTE_ENDPOINT_BACKOFF
+            _log.warning("Yahoo quote endpoint failed (%s); using spark quotes for the next %d min",
+                         e, _QUOTE_ENDPOINT_BACKOFF // 60)
+    if not quotes:
+        try:
+            quotes = _fetch_spark_quotes(symbols, companies)
+        except Exception as e:
+            _log.warning("Yahoo spark quotes failed too: %s", e)
+            raise PriceDataError(f"Could not fetch S&P 500 quotes: {e}") from e
     if not quotes:
         raise PriceDataError("Yahoo returned no S&P 500 quotes")
     _sp500_cache = (time.time(), (companies, quotes))
     return companies, quotes
+
+
+def _fetch_quote_endpoint(symbols):
+    """Yahoo's quote dict per symbol from its quote endpoint -- the one call
+    that returns these fields for hundreds of symbols at once. yfinance has
+    no public wrapper for it, so it goes through the same authenticated
+    YfData session yfinance uses. Raises on any failure, including Yahoo
+    refusing the request for lack of a crumb token."""
+    quotes = {}
+    for i in range(0, len(symbols), _QUOTE_BATCH_SIZE):
+        response = YfData().get(_QUOTE_URL, params={"symbols": ",".join(symbols[i:i + _QUOTE_BATCH_SIZE]),
+                                                    "fields": _SP500_QUOTE_FIELDS})
+        body = response.json()
+        result = (body.get("quoteResponse") or {}).get("result")
+        if result is None:
+            error = (body.get("finance") or {}).get("error") or body
+            raise PriceDataError(f"HTTP {response.status_code}: {str(error)[:200]}")
+        for q in result:
+            quotes[q["symbol"]] = q
+    return quotes
+
+
+def _fetch_spark_batch(batch):
+    response = curl_requests.get(_SPARK_URL, params={"symbols": ",".join(batch), "range": "1d", "interval": "1d"},
+                                 impersonate="chrome", timeout=20)
+    body = response.json()
+    result = (body.get("spark") or {}).get("result")
+    if result is None:
+        raise PriceDataError(f"HTTP {response.status_code}: {str(body.get('spark') or body)[:200]}")
+    return [r["response"][0]["meta"] for r in result if r.get("response")]
+
+
+def _fetch_spark_quotes(symbols, companies):
+    """The same quote dicts as _fetch_quote_endpoint, from Yahoo's spark
+    endpoint, which needs no crumb token but only gives price, % change and
+    name (20 symbols a request, so ~26 requests, run a few at a time).
+    marketCap is the snapshot's (build_sp500_snapshot.py) scaled to today's
+    price, and the share counts are the snapshot's as they are."""
+    batches = [symbols[i:i + _SPARK_BATCH_SIZE] for i in range(0, len(symbols), _SPARK_BATCH_SIZE)]
+    with ThreadPoolExecutor(max_workers=_SPARK_WORKERS) as pool:
+        metas = [m for batch in pool.map(_fetch_spark_batch, batches) for m in batch]
+    snapshot = {c["symbol"]: c for c in companies}
+    quotes = {}
+    for m in metas:
+        price = m.get("regularMarketPrice")
+        pct = m.get("regularMarketChangePercent")
+        if pct is None and price is not None and m.get("chartPreviousClose"):
+            pct = (price / m["chartPreviousClose"] - 1) * 100
+        if price is None or pct is None:
+            continue
+        q = {"symbol": m["symbol"], "regularMarketPrice": price, "regularMarketChangePercent": pct,
+             "shortName": m.get("shortName") or m.get("longName")}
+        c = snapshot.get(m["symbol"]) or {}
+        if c.get("market_cap") and c.get("price"):
+            q["marketCap"] = c["market_cap"] * price / c["price"]
+        if c.get("shares_outstanding"):
+            q["sharesOutstanding"] = c["shares_outstanding"]
+        if c.get("float_shares"):
+            q["floatShares"] = c["float_shares"]
+        quotes[m["symbol"]] = q
+    return quotes
 
 
 def fetch_sp500_stocks(industry=None):
